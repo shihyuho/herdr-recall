@@ -79,6 +79,25 @@ test("excerpt: exact case wins over an earlier other-case hit; else ignore case"
   assert.equal(contentExcerpt("text", "  "), null);
 });
 
+// The buffer search skips text natively before matching it code point by
+// code point (a render has a short time limit); the skip never drops a line
+// the full match would find.
+test("excerpt: the native skip keeps every line the full match finds", () => {
+  // Any alternative of an OR group is enough to keep a line.
+  assert.equal(contentExcerpt("nothing\nbar here", "foo | bar").text, "bar here");
+  // A lowercase term still finds other-case text when no line matches exactly.
+  assert.equal(contentExcerpt("idle\nBuild FAILED", "failed").text, "Build FAILED");
+  // Whole-text lowering turns a word-final Σ into ς; per code point it is σ.
+  assert.equal(contentExcerpt("idle\nΟΔΟΣ 5", "οδοσ").text, "ΟΔΟΣ 5");
+  // A group with a negated term holds by an absence, so it is never skipped.
+  assert.equal(contentExcerpt("all fail\nall ok", "all !fail").text, "all ok");
+});
+
+test("excerpt: a term that appears in no line finds nothing", () => {
+  assert.equal(contentExcerpt("build ok\nbuild done", "failed"), null);
+  assert.equal(contentExcerpt("foo here\nbar there", "foo bar"), null);
+});
+
 test("ANSI escapes are stripped before searching", () => {
   assert.equal(stripAnsi("\u001b[31mred\u001b[0m \u001b]0;title\u0007ok"), "red ok");
 });
