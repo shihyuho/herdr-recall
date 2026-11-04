@@ -18,13 +18,13 @@ const worldOthers = () => new Map([
 
 const clueRows = (view) => view.rows.map((r) => [r.item.source, r.item.id]);
 
-test("Clues, nothing typed: clues of the latest pane first, no total, the selection skips your pane", () => {
+test("Clues, nothing typed: each pane's command, latest pane first, no total, the selection skips your pane", () => {
   const snap = world();
   snap.history = mru.record(mru.empty(), { space: "sp1", tab: "tb2", pane: "p2" }, 1);
   const view = listView("clues", snap, "", { clueData: clueData(worldOthers()) });
-  assert.deepEqual(clueRows(view), [["cwd", "p2"], ["cmd", "p1"], ["cwd", "p1"], ["cmd", "p3"], ["cwd", "p3"]]);
+  assert.deepEqual(clueRows(view), [["cmd", "p1"], ["cmd", "p3"]]);
   assert.equal(view.total, null);
-  assert.equal(view.selected, 1);
+  assert.equal(view.selected, 0);
   assert.equal(view.label, null);
 });
 
@@ -41,10 +41,7 @@ test("Clues lists what every pane runs and where, agents included; a bare shell 
   const view = listView("clues", world(), "", { clueData: clueData(worldOthers()) });
   assert.deepEqual(view.rows.map((r) => [r.item.source, r.item.id, r.item.title]), [
     ["cmd", "p1", "claude"],
-    ["cwd", "p1", "~/code/web"],
-    ["cwd", "p2", "~/code/web"],
     ["cmd", "p3", "nvim main.go"],
-    ["cwd", "p3", "~/code/api"],
   ]);
 });
 
@@ -76,8 +73,24 @@ test("Clues: `port N` finds the pane whose shell started the listener", () => {
   assert.deepEqual(rows("port 1").map((r) => [r.item.kind, r.item.reason]), [["hint", "nothing listening"]]);
 });
 
-test("Clues: `ws `, `tab `, `pane ` swap to those lists", () => {
-  const view = listView("clues", world(), "ws api", { clueData: clueData() });
-  assert.equal(view.label, "ws");
-  assert.deepEqual(view.rows.map((x) => x.item.id), ["sp2"]);
+test("Clues: a pane's folder is no clue, typed or not, and `cwd ` is plain text", () => {
+  const others = new Map([...worldOthers(), ["p2", { cwd: `${HOME}/scratch/zebra`, command: "-zsh", ssh: null, shellPid: 20 }], ["p3", { cwd: `${HOME}/code/api`, command: "cwd-tool", ssh: null, shellPid: 30 }]]);
+  const rows = (query) => listView("clues", world(), query, { clueData: clueData(others) }).rows;
+  assert.deepEqual(rows("").map((r) => r.item.source), ["cmd", "cmd"]);
+  assert.deepEqual(rows("zebra"), []);
+  // beside it: the same text does match a command
+  assert.deepEqual(rows("cwd ").map((r) => [r.item.source, r.item.title]), [["cmd", "cwd-tool"]]);
+  assert.equal(listView("clues", world(), "cwd tool", { clueData: clueData(others) }).label, null);
+});
+
+test("Clues: `ws `, `tab `, `pane ` are searched as plain text, not as category switches", () => {
+  const others = new Map([["p3", { cwd: `${HOME}/code/api`, command: "ws api-server", ssh: null, shellPid: 30 }]]);
+  for (const q of ["ws api", "tab api", "pane api"]) {
+    const view = listView("clues", world(), q, { clueData: clueData(others) });
+    assert.equal(view.label, null, q);
+    assert.ok(view.rows.every((r) => r.item.kind === "other"), q);
+  }
+  // the one that matches shows it is searched against the clues
+  assert.deepEqual(listView("clues", world(), "ws api", { clueData: clueData(others) }).rows.map((r) => [r.item.source, r.item.title]), [["cmd", "ws api-server"]]);
+  assert.deepEqual(listView("clues", world(), "tab api", { clueData: clueData(others) }).rows, []);
 });

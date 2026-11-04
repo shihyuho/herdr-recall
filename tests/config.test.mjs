@@ -73,3 +73,18 @@ test("broken JSON reads as defaults and says why", () => {
   assert.deepEqual(config.tabs, ["all", "spaces", "tabs", "panes", "agents", "clues"]);
   assert.match(error, /^recall\.json: /);
 });
+
+test("categories: order and visibility, aliases, unknown dropped, first of duplicates kept, empty is All only", () => {
+  const cats = (c, extra = {}) => parseConfig(JSON.stringify({ categories: c, ...extra })).config.tabs;
+  assert.deepEqual(cats(["agents", " WS ", "others", "bogus", 3, "agents", "all"]), ["agents", "spaces", "clues", "all"]);
+  assert.deepEqual(cats(["workspace", "workspaces"]), ["spaces"]);
+  assert.deepEqual(cats([]), ["all"]);
+});
+
+test("categories wins over tabs; tabs counts only when categories is absent", () => {
+  const tabs = (o) => parseConfig(JSON.stringify(o)).config.tabs;
+  assert.deepEqual(tabs({ categories: ["panes"], tabs: ["agents", "all"] }), ["panes"]);
+  assert.deepEqual(tabs({ categories: [], tabs: ["agents"] }), ["all"]);
+  assert.deepEqual(tabs({ tabs: ["agents", "all"] }), ["agents", "all"]);
+  assert.deepEqual(tabs({}), ["all", "spaces", "tabs", "panes", "agents", "clues"]);
+});

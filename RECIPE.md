@@ -1,6 +1,6 @@
 # Recall
 
-One key lists your spaces, tabs, panes and agents, most recently focused first, and opens on the one you were in just before this one, so Enter takes you back. Each row shows where it lives, its folder, its branch and whether an agent there needs you. The All list has every space, tab, pane and agent in one place, and a Clues list finds a pane by what it runs, its ssh host, folder, port, process or the text it printed. This is a dialog you add to your current layout, not a layout of its own.
+One key lists your spaces, tabs, panes and agents, most recently focused first, and opens on the one you were in just before this one, so Enter takes you back. Each row shows where it lives, its folder, its branch and whether an agent there needs you. The All list has every space, tab, pane and agent in one place, and a Clues list finds a pane by what it runs, its ssh host, port, process or the text it printed. This is a dialog you add to your current layout, not a layout of its own.
 
 ![Recall](preview.png)
 
@@ -15,7 +15,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - A 26px column head in 10.5px semibold capitals: NAME, LOCATION (CONTENTS on Spaces, and no such column on All), FOLDER, BRANCH, STATUS. A 1px divider sits left of every head but NAME.
   - Rows 30px high, radius 6. The selected row has the theme's selection background. Left to right:
     - the status glyph;
-    - the program's icon in a 30px column (the tab icon on All's tab rows; on Clues, a colored source label instead: `cmd`, `ssh`, `cwd`, `file`, `term`, `port`, `pid`);
+    - the program's icon in a 30px column (the tab icon on All's tab rows; on Clues, a colored source label instead: `cmd`, `ssh`, `file`, `term`, `port`, `pid`);
     - the name, with matched letters in the accent color and semibold, and the row you are in now semibold. On All the name is led by its path in dim: `space › tab › ` for a pane or agent, `space › ` for a tab, nothing for a space; matched letters light up in the path too. An agent's last message follows in dim 12px;
     - location ("space › tab") in muted 12px, folder and branch in dim 12px;
     - "needs you" (blocked color) or "finished" (done color) right-aligned in STATUS;
@@ -64,9 +64,10 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
   All searches each row as its own category does. On Clues:
   - a plain query also finds text panes printed;
-  - a prefix and one space narrows it: `cmd`, `ssh`, `cwd`, `file`, `term`, `port`, `pid`;
+  - a prefix and one space narrows it: `cmd`, `ssh`, `file`, `term`, `port`, `pid`;
   - `.` searches only printed text;
-  - `ws`, `tab` and `pane` switch to those lists.
+  - `ws`, `tab` and `pane` are plain text, not list switches, and a pane's folder is no clue (All and Panes search it);
+  - with nothing typed it lists each pane's command and ssh clues.
 
   Clues re-reads what panes run every 10 s and the buffers of new panes every 30 s while it shows.
 - **Jumping back without the dialog.** `recall.previous-tab`, `-pane`, `-agent` and `-space` go to the most recently focused one that still exists and isn't where you are, across spaces.
@@ -108,7 +109,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - `git -C <folder> rev-parse --path-format=absolute --show-toplevel --git-common-dir` for each local space, to find worktrees;
   - for Clues: `hc get <t> --json` and `hc read <t> --lines 3000` for each terminal, `ps -eo pid=,ppid=,command=`, and `lsof -nP -iTCP -sTCP:LISTEN -F pn` (else `/usr/sbin/lsof`).
 - **Settings:** `~/.config/herdr-app/recall.json`, optional:
-  - `tabs`: which categories show, in order: `all`, `spaces`, `tabs`, `panes`, `agents`, `clues` by default, with `others` read as `clues` (as are `recall.open-others` and `recall.open-clues`) and an empty list showing only All;
+  - `categories`: which categories show, in order: `all`, `spaces`, `tabs`, `panes`, `agents`, `clues` by default, with `workspaces`, `workspace` and `ws` read as `spaces`, `others` read as `clues` (as are `recall.open-others` and `recall.open-clues`), unknown names dropped, the first of a duplicate kept and an empty list showing only All; `tabs`, the earlier name, is read only when `categories` is absent;
   - `keybindings`: `next_category`, `previous_category`, `move_up`, `move_down`, `select`, `dismiss`, `force_quit` and `backspace`, each a list of keys in Herdr's spelling or `C-p` / `S-Tab` style.
 - **Art:** the six icons above, and the spinner from the shipped `mods/workspace-chrome/spinner.svg`.
 

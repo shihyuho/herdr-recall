@@ -59,7 +59,7 @@ test("filter prefixes need one space after the label", () => {
   assert.deepEqual(parseFilter("cmd vite"), { filter: "cmd", label: "cmd", needle: "vite" });
   assert.deepEqual(parseFilter(".file x"), { filter: "file", label: "file", needle: "x" });
   assert.deepEqual(parseFilter(".error"), { filter: "content", label: ".", needle: "error" });
-  assert.deepEqual(parseFilter("ws auth"), { filter: "spaces", label: "ws", needle: "auth" });
+  for (const q of ["ws auth", "tab auth", "pane auth", "cwd auth"]) assert.deepEqual(parseFilter(q), { filter: null, label: null, needle: q });
   assert.deepEqual(parseFilter("port "), { filter: "port", label: "port", needle: "" });
   assert.deepEqual(parseFilter("cmd"), { filter: null, label: null, needle: "cmd" });
   assert.deepEqual(parseFilter("deploy cmd x"), { filter: null, label: null, needle: "deploy cmd x" });

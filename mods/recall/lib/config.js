@@ -1,11 +1,12 @@
 // Settings: ~/.config/herdr-app/recall.json, every key optional.
 //
 //   {
-//     "tabs": ["all", "spaces", "tabs", "panes", "agents", "clues"],
+//     "categories": ["all", "spaces", "tabs", "panes", "agents", "clues"],
 //     "keybindings": { "move_up": ["k", "up"], "move_down": ["j", "down"] }
 //   }
 //
-// `tabs` is both the order of the categories and which ones show.
+// `categories` is both the order of the categories and which ones show;
+// `tabs`, its earlier name, is read only when `categories` is absent.
 // Keys use Herdr's keys.json spelling ("ctrl-p", "shift-tab", "escape");
 // the herdr-recent-navigator spelling ("C-p", "S-Tab", "Esc") works too, so
 // a config can move over as it is.
@@ -143,7 +144,7 @@ export function actionFor(keys, keystroke) {
 export function normalizeConfig(raw) {
   const obj = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   const keys = normalizeKeys(obj.keybindings);
-  return { tabs: normalizeTabs(obj.tabs), keys, modal: isModal(keys) };
+  return { tabs: normalizeTabs(obj.categories !== undefined ? obj.categories : obj.tabs), keys, modal: isModal(keys) };
 }
 
 /** Parses recall.json text; invalid JSON reads as no settings, with the error. */

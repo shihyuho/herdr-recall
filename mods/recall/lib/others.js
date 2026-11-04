@@ -8,9 +8,9 @@
 
 import { matchFields, terms } from "./fuzzy.js";
 
-export const SOURCE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, cwd: 4, port: 5, pid: 6 };
-const SOURCE_LABELS = ["ssh", "cmd", "term", "file", "cwd"];
-const OTHER_LABELS = [["port", "port"], ["pid", "pid"], ["ws", "spaces"], ["tab", "tabs"], ["pane", "panes"]];
+export const SOURCE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, port: 5, pid: 6 };
+const SOURCE_LABELS = ["ssh", "cmd", "term", "file"];
+const OTHER_LABELS = [["port", "port"], ["pid", "pid"]];
 
 const SHELLS = new Set(["zsh", "bash", "sh", "dash", "ksh", "tcsh", "fish", "csh", "ash", "nu", "elvish", "xonsh", "pwsh", "powershell"]);
 const EDITORS = new Set(["nvim", "vim", "vi", "code", "cursor", "neovim", "emacs", "helix", "hx", "nano", "micro", "sublime", "kak", "lvim", "zed"]);
@@ -190,8 +190,7 @@ function indexOfChars(cs, ns, eq) {
 /**
  * Clues' filter prefix. Returns `{ filter, needle }` where filter is
  * null (plain query), "content" (a leading `.`), a source label (ssh, cmd,
- * term, file, cwd), "port", "pid", or a category to swap to ("spaces",
- * "tabs", "panes"). A label must be followed by exactly one space; the
+ * term, file), "port" or "pid". A label must be followed by exactly one space; the
  * needle is the rest, untrimmed. `.file x` is the same as `file x`.
  */
 export function parseFilter(query) {

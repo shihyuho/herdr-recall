@@ -100,20 +100,19 @@ cd herdr-recall
 <details>
 <summary><strong>在 Clues 裡搜尋</strong></summary>
 
-一般的搜尋會比對 pane 正在跑的東西、它的位置，以及它印出過的文字。前綴加一個空格可以縮小範圍：
+一般的搜尋會比對 pane 正在跑的東西，以及它印出過的文字。沒有輸入任何東西時，Clues 會列出每個 pane 的指令與 ssh 線索。pane 的工作目錄不是線索，請到 All 或 Panes 搜尋。前綴加一個空格可以縮小範圍：
 
 | 前綴 | 用什麼找 pane |
 | --- | --- |
 | `cmd ` | 正在執行的指令 |
 | `ssh ` | ssh 連到的主機 |
-| `cwd ` | 工作目錄 |
 | `file ` | 執行編輯器的 pane 裡的文字；單獨輸入時，列出各自開著的檔案 |
 | `term ` | 一般終端機 pane 裡的文字 |
 | `port ` | 它的 shell 底下的程序所監聽的 port |
 | `pid ` | 它的 shell 所啟動的程序的 process ID |
 | `.` | 只比對印出過的文字 |
 
-`ws `、`tab `、`pane ` 會切換到對應的清單。
+要切換清單請用分類（`⇥` / `⇧⇥`）；`ws `、`tab `、`pane ` 會當成一般文字搜尋。
 
 </details>
 
@@ -124,7 +123,7 @@ cd herdr-recall
 
 ```json
 {
-  "tabs": ["all", "spaces", "tabs", "panes", "agents", "clues"],
+  "categories": ["all", "spaces", "tabs", "panes", "agents", "clues"],
   "keybindings": {
     "move_up": ["k", "up"],
     "move_down": ["j", "down"]
@@ -132,7 +131,7 @@ cd herdr-recall
 }
 ```
 
-- `tabs`：要顯示哪些分類，以及它們的順序。切換器會開在上次用的分類，沒有的話就是第一個。`others` 是 herdr-recent-navigator 的叫法，等同 `clues`。
+- `categories`：要顯示哪些分類，以及它們的順序。切換器會開在上次用的分類，沒有的話就是第一個。空清單只會顯示 All；不認得的名稱會被忽略，重複的名稱只留第一個。`workspaces`、`workspace`、`ws` 等同 `spaces`，`others` 是 herdr-recent-navigator 的叫法，等同 `clues`。舊的 `tabs` 在沒有 `categories` 時仍會被讀取。
 - `keybindings`：`next_category`、`previous_category`、`move_up`、`move_down`、`select`、`dismiss`、`force_quit`、`backspace`。像上面這樣把移動鍵綁成字母，就會切換成 vim 式輸入：`j` `k` 移動，`h` `l` 切換分類，`/` 開始搜尋。
 - 按鍵可以用 Herdr 的寫法（`ctrl-p`、`shift-tab`），也可以用 herdr-recent-navigator 的寫法（`C-p`、`S-Tab`），所以那邊的設定可以直接搬過來用。
 

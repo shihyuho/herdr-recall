@@ -100,20 +100,19 @@ Bind them in `keys.json` like `mod.open:recall` above. They work once the tracke
 <details>
 <summary><strong>Searching Clues</strong></summary>
 
-A plain query matches anything a pane runs, where it is, and what it printed. A prefix followed by one space narrows it:
+A plain query matches anything a pane runs and what it printed. With nothing typed, Clues lists each pane's command and ssh clues. A pane's folder is not a clue; search it in All or Panes. A prefix followed by one space narrows it:
 
 | Prefix | Finds panes by |
 | --- | --- |
 | `cmd ` | The command running in them |
 | `ssh ` | The host they are ssh'd into |
-| `cwd ` | Their working folder |
 | `file ` | Text in panes running an editor; alone, the file each has open |
 | `term ` | Text in panes that are plain terminals |
 | `port ` | A port their shell's processes listen on |
 | `pid ` | The process ID of something their shell started |
 | `.` | Only the text they printed |
 
-`ws `, `tab ` and `pane ` switch to those lists.
+To switch lists, use the categories (`⇥` / `⇧⇥`); `ws `, `tab ` and `pane ` are searched as plain text.
 
 </details>
 
@@ -124,7 +123,7 @@ Every key in `~/.config/herdr-app/recall.json` is optional:
 
 ```json
 {
-  "tabs": ["all", "spaces", "tabs", "panes", "agents", "clues"],
+  "categories": ["all", "spaces", "tabs", "panes", "agents", "clues"],
   "keybindings": {
     "move_up": ["k", "up"],
     "move_down": ["j", "down"]
@@ -132,7 +131,7 @@ Every key in `~/.config/herdr-app/recall.json` is optional:
 }
 ```
 
-- `tabs`: which categories show, in this order. The switcher opens on the one used last, else the first. `others`, herdr-recent-navigator's name, means `clues`.
+- `categories`: which categories show, in this order. The switcher opens on the one used last, else the first. An empty list shows only All; unknown names are dropped and the first of a duplicate is kept. `workspaces`, `workspace` and `ws` mean `spaces`, and `others`, herdr-recent-navigator's name, means `clues`. `tabs`, the earlier name, is still read when `categories` is absent.
 - `keybindings`: `next_category`, `previous_category`, `move_up`, `move_down`, `select`, `dismiss`, `force_quit`, `backspace`. Binding a movement key to a letter, as above, turns on vim-style input: `j` `k` move, `h` `l` switch categories, `/` starts searching.
 - Keys use Herdr's spelling (`ctrl-p`, `shift-tab`) or herdr-recent-navigator's (`C-p`, `S-Tab`), so a config from there works as it is.
 

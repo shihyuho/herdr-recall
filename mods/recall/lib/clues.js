@@ -4,14 +4,11 @@
 // Clues covers every terminal pane, agents included, so `.text` finds the
 // agent session that printed it. (herdr-recent-navigator leaves agents out.)
 
-import { buildItems, index, tabLabel, tildify } from "./items.js";
+import { index, tabLabel, tildify } from "./items.js";
 import * as mru from "./mru.js";
-import { search } from "./fuzzy.js";
 import {
   SOURCE_ORDER, bufferKind, commandIsShell, contentExcerpt, paneForPid, parseFilter, rankOthers, sshHost,
 } from "./others.js";
-
-const SWAPS = { spaces: "spaces", tabs: "tabs", panes: "panes" };
 
 function firstLine(text) {
   return (text ?? "").split("\n").map((l) => l.trim()).find(Boolean) ?? "";
@@ -105,7 +102,7 @@ function hint(source, detail, reason, context) {
 
 /**
  * Most recently focused pane first, never-focused panes after in Herdr's
- * order; a pane's rows stay together in source order (ssh, cmd, ..., cwd).
+ * order; a pane's rows stay together in source order (ssh, cmd, ...).
  */
 function byRecency(rows) {
   const r = (x) => (x.rank === undefined || x.rank < 0 ? Infinity : x.rank);
@@ -120,7 +117,6 @@ function stateRows(cs, data, home, only) {
     if (!o) continue;
     if (o.ssh && (!only || only === "ssh")) rows.push(row(c, "ssh", o.ssh, sshHost(o.ssh), home));
     if (o.command && !commandIsShell(o.command) && (!only || only === "cmd")) rows.push(row(c, "cmd", o.command, o.cwd || "-", home));
-    if (o.cwd && (!only || only === "cwd")) rows.push(row(c, "cwd", tildify(o.cwd, home), "-", home));
   }
   return rows;
 }
@@ -198,10 +194,6 @@ function portRows(cs, data, home, needle) {
 export function buildClues(snap, data, query) {
   const { filter, label, needle } = parseFilter(query);
   const n = needle.trim();
-  if (SWAPS[filter]) {
-    const items = buildItems(SWAPS[filter], snap);
-    return { rows: search(items, n, (i) => i.fields), filter, label, needle };
-  }
   const cs = candidates(snap);
   const home = snap.home;
   let rows;

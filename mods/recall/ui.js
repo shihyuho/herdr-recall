@@ -33,7 +33,7 @@ const SORT_LABEL = { mru: "Recent", priority: "Priority", grouped: "Grouped" };
 const SOURCE_COLOR = { ssh: "ansi6", cmd: "ansi3", file: "ansi5", term: "ansi4", cwd: "ansi2", port: "ansi6", pid: "ansi5" };
 const CHIP_COLOR = { ".": "accent", ws: "ansi3", tab: "ansi1", pane: "ansi4", port: "ansi6", pid: "ansi5" };
 const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", other: "panes", hint: "search" };
-const PREFIXES = "cmd ssh cwd file term port pid ws tab pane";
+const PREFIXES = "cmd ssh file term port pid";
 const SPINNER = "mods/workspace-chrome/spinner.svg";
 const ROW = 30;
 
