@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>herdr-recall — a recent + fuzzy switcher for Herdr</title>
+  <meta name="description" content="Press ⌘E, then ⏎, and you're back where you were a moment ago. A recent + fuzzy switcher for Herdr's spaces, tabs, panes and agents, searched with fzf's syntax." />
+  <meta property="og:title" content="herdr-recall" />
+  <meta property="og:description" content="Which tab was that agent in again? A recent + fuzzy switcher for Herdr." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://shihyuho.github.io/herdr-recall/preview.png" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    // mark JS available so reveal-on-scroll content stays visible without JS
+    document.documentElement.classList.add("js");
+    // set theme before paint to avoid flash
+    try {
+      var t = localStorage.getItem("recall-theme");
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  </script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="#top" aria-label="herdr-recall home">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="7" fill="currentColor" />
+          <rect x="7" y="9" width="4" height="4" rx="1.2" fill="var(--bg)" opacity="0.4" />
+          <rect x="13" y="10" width="12" height="2" rx="1" fill="var(--bg)" opacity="0.4" />
+          <rect x="7" y="14" width="4" height="4" rx="1.2" fill="var(--accent)" />
+          <rect x="13" y="15" width="12" height="2" rx="1" fill="var(--accent)" />
+          <rect x="7" y="19" width="4" height="4" rx="1.2" fill="var(--bg)" />
+          <rect x="13" y="20" width="8" height="2" rx="1" fill="var(--bg)" />
+        </svg>
+        herdr-recall
+      </a>
+      <nav class="nav-links" aria-label="Sections">
+        <a href="#how">How it works</a>
+        <a href="#syntax">Search syntax</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/shihyuho/herdr-recall">GitHub</a>
+      </nav>
+      <div class="nav-right">
+        <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle color theme">
+          <svg class="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19" />
+          </svg>
+          <svg class="theme-icon-dark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M21 12.8A8.5 8.5 0 0 1 11.2 3a7 7 0 1 0 9.8 9.8z" />
+          </svg>
+        </button>
+        <a class="icon-btn" href="https://github.com/shihyuho/herdr-recall" aria-label="GitHub repository">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-.88-.01-1.73-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.55-1.14-4.55-5.05 0-1.12.39-2.03 1.03-2.74-.1-.26-.45-1.3.1-2.71 0 0 .84-.27 2.75 1.05A9.3 9.3 0 0 1 12 6.84c.85 0 1.71.12 2.51.34 1.91-1.32 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.71 1.03 1.62 1.03 2.74 0 3.92-2.34 4.78-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.48-.01 2.82 0 .27.18.6.69.49A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2z" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="wrap">
+        <div class="hero-copy">
+          <h1>Which tab was <span class="q">that agent</span> in again?</h1>
+          <div class="hero-side">
+            <p class="hero-sub">A recent + fuzzy switcher for <a href="https://herdr.dev/">Herdr</a>. Press <span class="nw"><kbd>⌘E</kbd>,</span> then <span class="nw"><kbd>⏎</kbd>,</span> and you're back where you were a moment ago.</p>
+            <div class="hero-cta">
+              <a class="btn btn-primary" href="#install">Get started</a>
+              <a class="btn btn-ghost" href="https://github.com/shihyuho/herdr-recall">GitHub</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="demo reveal" id="demo">
+          <div class="where" aria-live="polite">
+            <span class="where-k">You're in</span>
+            <span class="where-v" id="where"></span>
+            <span class="where-hint" id="where-hint"><kbd>⌘E</kbd> opens Recall</span>
+          </div>
+          <div class="dlg" id="dlg" role="dialog" aria-label="Recall demo">
+            <img class="dlg-fallback" src="preview.png" alt="Recall's Agents list filtered by &quot;red&quot;: &quot;Plan the Redis upgrade&quot; matches unbroken and comes first, then the rows that match only by scattered letters" />
+          </div>
+          <div class="demo-foot"><span class="pip"></span> <span>Demo data, real rules: this list runs Recall's own <code>lib/</code> in your browser. Try <span class="nw"><kbd>⏎</kbd>,</span> then <span class="nw"><kbd>⌘E</kbd> <kbd>⏎</kbd>.</span></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="band" id="how">
+      <div class="wrap">
+        <div class="band-head reveal">
+          <p class="eyebrow">How it works</p>
+          <h2>Most recent first. Typing narrows, never reshuffles.</h2>
+          <p>One key lists every space, tab, pane and agent you've been in, most recently focused first, and opens on the one you were in just before this one. Each row shows where it lives, its folder, its branch, and whether an agent there needs you.</p>
+        </div>
+
+        <div class="rules reveal">
+          <div class="rule">
+            <div class="rule-k">Back in two keys</div>
+            <div class="rule-v">
+              <p><kbd>⌘E</kbd> opens on the place you were in just before this one, so <kbd>⏎</kbd> takes you back, across spaces.</p>
+              <button class="try" type="button" data-cat="agents" data-q="">Try it</button>
+            </div>
+          </div>
+          <div class="rule">
+            <div class="rule-k">Agents that need you stand out</div>
+            <div class="rule-v">
+              <p>Rows you've never been to follow the ones you have, those that need you first. In Agents, <kbd>⌃S</kbd> switches to Priority: by status, latest change first.</p>
+              <button class="try" type="button" data-cat="agents" data-q="" data-sort="priority">Try it</button>
+            </div>
+          </div>
+          <div class="rule">
+            <div class="rule-k">Fuzzy search, fzf syntax</div>
+            <div class="rule-v">
+              <p>Rows where every term appears unbroken come first; the rest follow. Both groups keep the list's own order, so rows don't trade places as you type.</p>
+              <button class="try" type="button" data-cat="agents" data-q="red">Try <code>red</code></button>
+            </div>
+          </div>
+          <div class="rule">
+            <div class="rule-k">Find a pane by what it's doing</div>
+            <div class="rule-v">
+              <p>Clues finds a pane by the command it runs, the host it's ssh'd into, the file it has open, the text it printed, or the port it listens on. Recall runs <code>git</code>, <code>ps</code> and <code>lsof</code> on your machine; nothing leaves it.</p>
+              <button class="try" type="button" data-cat="clues" data-q="port 5173">Try <code>port 5173</code></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEARCH SYNTAX -->
+    <section class="band" id="syntax">
+      <div class="wrap">
+        <div class="band-head reveal">
+          <p class="eyebrow">Search syntax</p>
+          <h2>The fzf you already type.</h2>
+          <p>Queries follow fzf's extended-search mode, in every list. Every term must match, each in any one field of a row: its name, where it lives, its folder, its branch. A lowercase term ignores case; one with an uppercase letter matches it exactly.</p>
+        </div>
+
+        <div class="tier reveal">
+          <div class="tier-h"><h3>Terms</h3><span>click one to run it on All</span></div>
+          <div class="syn">
+            <button class="syn-row" type="button" data-cat="all" data-q="rfnd"><code>abc</code><span>a field has a, b and c in that order</span><em>rfnd</em></button>
+            <button class="syn-row" type="button" data-cat="all" data-q="'refund"><code>'abc</code><span>a field has <code>abc</code> unbroken</span><em>'refund</em></button>
+            <button class="syn-row" type="button" data-cat="all" data-q="'api'"><code>'abc'</code><span><code>abc</code> as a whole word: finds <code>payments-api</code>, not <code>rapid</code></span><em>'api'</em></button>
+            <button class="syn-row" type="button" data-cat="all" data-q="^pay"><code>^abc</code><span>a field starts with <code>abc</code></span><em>^pay</em></button>
+            <button class="syn-row" type="button" data-cat="all" data-q="upgrade$"><code>abc$</code><span>a field ends with <code>abc</code></span><em>upgrade$</em></button>
+            <button class="syn-row" type="button" data-cat="all" data-q="!zsh"><code>!abc</code><span>no field has <code>abc</code> unbroken</span><em>!zsh</em></button>
+            <button class="syn-row" type="button" data-cat="all" data-q="redis | webhook"><code>abc | def</code><span>either term matches</span><em>redis | webhook</em></button>
+          </div>
+        </div>
+
+        <div class="tier reveal">
+          <div class="tier-h"><h3>Clues prefixes</h3><span>a prefix and one space narrow Clues</span></div>
+          <div class="syn">
+            <button class="syn-row" type="button" data-cat="clues" data-q="cmd npm"><code>cmd</code><span>the command running in a pane</span><em>cmd npm</em></button>
+            <button class="syn-row" type="button" data-cat="clues" data-q="ssh prod"><code>ssh</code><span>the host a pane is ssh'd into</span><em>ssh prod</em></button>
+            <button class="syn-row" type="button" data-cat="clues" data-q="file ledger"><code>file</code><span>text in panes running an editor</span><em>file ledger</em></button>
+            <button class="syn-row" type="button" data-cat="clues" data-q="term redis"><code>term</code><span>text in panes that are plain terminals</span><em>term redis</em></button>
+            <button class="syn-row" type="button" data-cat="clues" data-q="port 5173"><code>port</code><span>a port a pane's processes listen on</span><em>port 5173</em></button>
+            <button class="syn-row" type="button" data-cat="clues" data-q="pid 4102"><code>pid</code><span>a process a pane's shell started</span><em>pid 4102</em></button>
+            <button class="syn-row" type="button" data-cat="clues" data-q=".FAIL"><code>.</code><span>only the text panes printed</span><em>.FAIL</em></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSTALL -->
+    <section class="band" id="install">
+      <div class="wrap">
+        <div class="band-head reveal">
+          <p class="eyebrow">Install</p>
+          <h2>Install once. Press the key once.</h2>
+          <p>Recall needs the <a class="link" href="https://herdr.dev/">Herdr</a> app, with <code>herdr-app</code> on your <code>PATH</code>. After installing, press your open key once: that starts Recall's tracker, which records every focus change from then on and comes back each time Herdr starts.</p>
+        </div>
+
+        <div class="tier reveal">
+          <div class="tier-h"><h3>Two ways in</h3><span>pick one</span></div>
+          <div class="cmd-grid">
+            <div class="cmd">
+              <div class="cmd-name"><b>With your agent</b><button class="copy" type="button">copy</button></div>
+              <p>Ask your agent in Herdr. It copies <code>mods/recall/</code> into place, adds the <code>⌘E</code> key (asking first if you already use it), and runs <code>herdr-app check</code>.</p>
+              <pre><span class="ln">Add the Herdr mod at github.com/shihyuho/herdr-recall</span></pre>
+            </div>
+            <div class="cmd">
+              <div class="cmd-name"><b>With the script</b><button class="copy" type="button">copy</button></div>
+              <p>Needs <code>rsync</code>. Then bind a key, below.</p>
+              <pre><span class="ln">git clone https://github.com/shihyuho/herdr-recall.git</span><span class="ln">cd herdr-recall</span><span class="ln">./install.sh</span></pre>
+            </div>
+            <div class="cmd span2">
+              <div class="cmd-name"><b>Bind a key · <code>~/.config/herdr-app/keys.json</code></b><button class="copy" type="button">copy</button></div>
+              <pre><span class="ln">{</span><span class="ln">  "global": {</span><span class="ln">    "cmd-e": "mod.open:recall"</span><span class="ln">  }</span><span class="ln">}</span></pre>
+              <p class="cmd-note"><code>cmd-e</code> is <code>⌘E</code> on macOS; elsewhere, pick a key you don't use yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="tier reveal">
+          <div class="tier-h"><h3>Later</h3><span>your history and column widths are kept</span></div>
+          <div class="files">
+            <div class="file-row"><b>Update</b><span>Pull the repo and re-run <code>./install.sh</code>. Installed with your agent? Ask it to do those two steps: adding the mod again gives you a second copy, not an update.</span></div>
+            <div class="file-row"><b>Remove</b><span>Delete <code>~/.config/herdr-app/mods/recall</code> and the keys you bound to it.</span></div>
+            <div class="file-row"><b>More</b><span>Every key, command and setting is in the <a class="link" href="https://github.com/shihyuho/herdr-recall#readme">README</a>; the whole design, enough to build Recall again, is in <a class="link" href="https://github.com/shihyuho/herdr-recall/blob/main/RECIPE.md">RECIPE.md</a>.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <a class="brand" href="#top">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="7" fill="currentColor" />
+          <rect x="7" y="9" width="4" height="4" rx="1.2" fill="var(--bg)" opacity="0.4" />
+          <rect x="13" y="10" width="12" height="2" rx="1" fill="var(--bg)" opacity="0.4" />
+          <rect x="7" y="14" width="4" height="4" rx="1.2" fill="var(--accent)" />
+          <rect x="13" y="15" width="12" height="2" rx="1" fill="var(--accent)" />
+          <rect x="7" y="19" width="4" height="4" rx="1.2" fill="var(--bg)" />
+          <rect x="13" y="20" width="8" height="2" rx="1" fill="var(--bg)" />
+        </svg>
+        herdr-recall
+      </a>
+      <nav class="foot-links" aria-label="Footer">
+        <a href="https://github.com/shihyuho/herdr-recall">GitHub</a>
+        <a href="https://herdr.dev/">Herdr</a>
+        <a href="https://buymeacoffee.com/methodho">Support herdr-recall</a>
+        <a href="https://github.com/shihyuho/herdr-recall/blob/main/README.md">English</a>
+        <a href="https://github.com/shihyuho/herdr-recall/blob/main/README.zh-TW.md">繁體中文</a>
+        <a href="https://github.com/shihyuho/herdr-recall/blob/main/LICENSE">MIT License</a>
+      </nav>
+      <p class="foot-meta">A recent + fuzzy switcher for Herdr's spaces, tabs, panes and agents. MIT © Shihyu Ho.</p>
+    </div>
+  </footer>
+</body>
+</html>

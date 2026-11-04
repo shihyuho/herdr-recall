@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="assets/icon.svg" alt="herdr-recall" width="120" />
+  <a href="https://shihyuho.github.io/herdr-recall/">
+    <img src="assets/icon.svg" alt="herdr-recall" width="120" />
+  </a>
 </p>
 
 <h1 align="center">herdr-recall</h1>
@@ -9,6 +11,7 @@
 <p align="center">
   <a href="https://herdr.dev/"><img src="https://img.shields.io/badge/Herdr-mod-df372b" alt="Herdr mod"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://shihyuho.github.io/herdr-recall/"><img src="https://img.shields.io/badge/live_demo-df372b" alt="Live demo"></a>
 </p>
 
 <p align="center">
