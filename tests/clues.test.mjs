@@ -190,6 +190,15 @@ test("Clues: `!` in a buffer search drops a line by its own text, not by the pan
   assert.deepEqual(dropped, []);
 });
 
+test("Clues: `!'x` in a buffer search drops a line holding x's letters in order, as fzf's inverse fuzzy term does", () => {
+  const paneState = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
+  const content = new Map([["p2", "foo b a r\nfoo ok\n"]]);
+  const rows = listView("clues", world(), ".foo !'bar", { clueData: clueData(paneState, content) }).rows;
+  assert.deepEqual(rows.map((r) => [r.item.id, r.item.title]), [["p2", "foo ok"]]);
+  const scattered = new Map([["p2", "foo b a r\n"]]);
+  assert.deepEqual(listView("clues", world(), ".foo !'bar", { clueData: clueData(paneState, scattered) }).rows, []);
+});
+
 test("Clues: `.FAIL !term` keeps a terminal-buffer line that has FAIL, and `!flaky` drops one that has flaky", () => {
   const paneState = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
   const content = new Map([["p2", "$ npm test\nFAIL src/login.test.ts\n"]]);

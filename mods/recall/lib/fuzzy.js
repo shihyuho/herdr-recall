@@ -343,7 +343,7 @@ function evaluate(fields, groups, scoreOnly = false) {
 export function literalGroups(query, exactCase = false) {
   return parseQuery(query).map((group) => group.map((t) => ({
     ...t,
-    kind: t.kind === "fuzzy" ? "exact" : t.kind,
+    kind: t.kind === "fuzzy" && !t.inv ? "exact" : t.kind,
     sensitive: (exactCase && !t.inv) || t.sensitive,
   })));
 }
