@@ -1,0 +1,7 @@
+# Written into a mod folder by the Herdr app on every start.
+mods/recall/gpui-kit.d.ts
+mods/recall/herdr.d.ts
+mods/recall/jsconfig.json
+
+# macOS Finder.
+.DS_Store

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Recall: a list of recent places, each with its space's badge. The red
+       row is the one it opens on: the one before where you are (dim). -->
+  <rect width="1024" height="1024" rx="224" fill="#1a1a1c"/>
+  <g fill="#f8f8f8" opacity="0.32">
+    <rect x="224" y="288" width="128" height="128" rx="36"/>
+    <rect x="400" y="324" width="400" height="56" rx="28"/>
+  </g>
+  <g fill="#df372b">
+    <rect x="224" y="448" width="128" height="128" rx="36"/>
+    <rect x="400" y="484" width="400" height="56" rx="28"/>
+  </g>
+  <g fill="#f8f8f8">
+    <rect x="224" y="608" width="128" height="128" rx="36"/>
+    <rect x="400" y="644" width="272" height="56" rx="28"/>
+  </g>
+</svg>
