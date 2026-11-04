@@ -18,6 +18,7 @@ import { v_flex, h_flex, Input, v_virtual_list } from "gpui-base";
 import { theme, shared } from "herdr";
 import { segments } from "./lib/fuzzy.js";
 import { location } from "./lib/columns.js";
+import { breadcrumb, breadcrumbHits, spaceLocation, DEMO_COLORS, demo } from "./prototype-all.js"; // PROTOTYPE
 
 const CATEGORY = {
   spaces: { label: "Spaces", title: "Recent Spaces" },
@@ -25,11 +26,12 @@ const CATEGORY = {
   panes: { label: "Panes", title: "Recent Panes" },
   agents: { label: "Agents", title: "Agents" },
   all: { label: "All", title: "Find Anywhere" },
+  clues: { label: "Clues", title: "Find by Clue" }, // PROTOTYPE
 };
 const SORT_LABEL = { mru: "Recent", priority: "Priority", grouped: "Grouped" };
 const SOURCE_COLOR = { ssh: "ansi6", cmd: "ansi3", file: "ansi5", term: "ansi4", cwd: "ansi2", port: "ansi6", pid: "ansi5" };
 const CHIP_COLOR = { ".": "accent", ws: "ansi3", tab: "ansi1", pane: "ansi4", port: "ansi6", pid: "ansi5" };
-const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", other: "panes", hint: "all" };
+const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", other: "panes", hint: "all", "to-clues": "search" }; // PROTOTYPE: to-clues
 const PREFIXES = "cmd ssh cwd file term port pid ws tab pane";
 const SPINNER = "mods/workspace-chrome/spinner.svg";
 const ROW = 30;
@@ -42,7 +44,7 @@ const MARK = { ansi6: "#22a99a", ansi3: "#e3814f", ansi4: "#5b8def", ansi5: "#8b
 const PROJECT_COLORS = ["ansi6", "ansi3", "ansi4", "ansi5", "ansi2", "ansi1"];
 function spaceColor(t, id, name) {
   if (name === "~") return t.dim;
-  const c = (shared("space.colors") ?? {})[id] ?? PROJECT_COLORS[0];
+  const c = (demo() ? DEMO_COLORS : (shared("space.colors") ?? {}))[id] ?? PROJECT_COLORS[0]; // PROTOTYPE: demo colors
   return c.startsWith("#") ? c : (MARK[c] ?? t[c]);
 }
 
@@ -142,7 +144,7 @@ function rail(t, nav) {
       .when(on, (el) => el.bg(t.selected))
       .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
       .on_click((_e, cx) => { nav.switchTo(c); nav.focusForMode(); cx.notify(); })
-      .child(svg(`mods/recall/icons/${c}.svg`).size(16).text_color(on ? t.accent : t.muted))
+      .child(svg(`mods/recall/icons/${{ all: "prototype-all", clues: "search" }[c] ?? c}.svg`).size(16).text_color(on ? t.accent : t.muted)) // PROTOTYPE: icons
       .child(div().text_size(9.5).text_color(on ? t.foreground : t.dim).child(CATEGORY[c].label));
   };
   return v_flex().w(60).h_full().flex_none().py(6).gap(2).items_center().border_r(1).border_color(t.border)
@@ -184,9 +186,12 @@ function columnHead(t, nav) {
     .text_size(10.5).font_semibold().border_b(1).border_color(t.border)
     .child(div().w(10).flex_none())
     .child(div().w(30).flex_none())
-    .children(COLUMNS.map(head))
+    .children(COLUMNS.filter((c) => !(c.key === "location" && crumbs(nav))).map(head)) // PROTOTYPE
     .child(div().w(16).flex_none());
 }
+
+// PROTOTYPE: the new All shows paths instead of a LOCATION column.
+const crumbs = (nav) => nav.category === "all";
 
 function row(t, nav, { item, hits }, on) {
   const w = nav.widths;
@@ -200,11 +205,12 @@ function row(t, nav, { item, hits }, on) {
       : h_flex().w(30).flex_none().child(icon(t, item, 14)))
     .child(h_flex().flex_1().min_w(0).gap(8).items_center().overflow_hidden()
       .when(Boolean(item.nested), (el) => el.pl(18))
+      .when(crumbs(nav) && Boolean(breadcrumb(item)), (el) => el.child(highlighted(breadcrumb(item), breadcrumbHits(item, hits), t.dim, t.accent))) // PROTOTYPE
       .child(highlighted(item.title, titleHits(item, hits), item.kind === "hint" ? t.dim : t.foreground, t.accent)
         .when(Boolean(item.current), (d) => d.font_semibold()))
       .when(item.kind === "hint", (el) => el.child(div().flex_none().text_color(t.blocked).child(`(${item.reason})`)))
       .when(Boolean(item.message), (el) => el.child(div().min_w(0).truncate().text_size(12).text_color(t.dim).child(item.message))))
-    .child(cell(w.location, location(item), t.muted))
+    .when(!crumbs(nav), (el) => el.child(cell(w.location, nav.category === "all" && item.kind === "space" ? spaceLocation(item) : location(item), t.muted))) // PROTOTYPE
     .child(cell(w.folder, item.path, t.dim))
     .child(cell(w.branch, item.branch, t.dim))
     .child(h_flex().w(w.status).flex_none().justify_end().child(statusWord(t, item.status) ?? div()))
@@ -243,7 +249,7 @@ function hints(nav) {
   if (nav.mode === "navigation") out = [[first("select"), "open"], [move, "move"], ["/", "filter"], [first("next_category"), "category"], close];
   else if (nav.mode === "filtering") out = [[first("select"), "open"], [move, "move"], [first("dismiss"), "done"], [first("force_quit"), "close"]];
   else out = [[first("select"), "open"], [move, "move"], [first("next_category"), "category"], close];
-  const extra = nav.category === "agents" ? [["⌃S", "sort"]] : nav.category === "all" ? [[".", "buffers"], [PREFIXES, "prefixes"]] : [];
+  const extra = nav.category === "agents" ? [["⌃S", "sort"]] : nav.category === "clues" ? [[".", "buffers"], [PREFIXES, "prefixes"]] : []; // PROTOTYPE: was "all"
   return [...out.slice(0, -1), ...extra, out[out.length - 1]];
 }
 

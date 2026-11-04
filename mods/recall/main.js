@@ -27,6 +27,11 @@ import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/others.js
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
 import { DEFAULT_WIDTHS, dragWidth, loadWidths, nextSort, sortRows } from "./lib/columns.js";
 import { navigator } from "./ui.js";
+// PROTOTYPE (prototype-all.js): the new All, ⌥←/⌥→ layouts, ⌥↓ demo data.
+import { allRows, cycleLayout, demo, demoSnapshot, toggleDemo, switcher } from "./prototype-all.js";
+const PROTO_PREV = "recall::prototype_previous_layout";
+const PROTO_NEXT = "recall::prototype_next_layout";
+const PROTO_DATA = "recall::prototype_toggle_data";
 
 const MOD = "recall";
 const HISTORY = "recall.history";
@@ -219,7 +224,7 @@ export default class Recall extends View {
   }
 
   applyConfig(config, cx) {
-    this.tabs = config.tabs;
+    this.tabs = ["all", "spaces", "tabs", "panes", "agents", "clues"]; // PROTOTYPE: was config.tabs
     this.keys = config.keys;
     this.modal = config.modal;
     this.mode = this.modal ? "navigation" : "type";
@@ -239,6 +244,9 @@ export default class Recall extends View {
         if (isPrintable(keystroke)) continue;
         for (const context of [KEY_CONTEXT, `${KEY_CONTEXT} > Input`]) bindings.push({ keystroke, action: name, context });
       }
+    }
+    for (const context of [KEY_CONTEXT, `${KEY_CONTEXT} > Input`]) { // PROTOTYPE
+      bindings.push({ keystroke: "alt-left", action: PROTO_PREV, context }, { keystroke: "alt-right", action: PROTO_NEXT, context }, { keystroke: "alt-down", action: PROTO_DATA, context });
     }
     try {
       cx.bind_keys(bindings);
@@ -266,6 +274,8 @@ export default class Recall extends View {
 
   open(item) {
     if (!item || this.done) return;
+    if (item.kind === "to-clues") return this.switchTo("clues"); // PROTOTYPE: the query stays
+    if (demo()) return; // PROTOTYPE: demo rows go nowhere
     if (!item.actions?.length) return this.dismiss();
     this.dismiss();
     for (const [name, args] of item.actions) run(name, args);
@@ -298,7 +308,7 @@ export default class Recall extends View {
 
   /** While All shows: what panes run every 10 s, their buffers every 30 s (new panes only). */
   refreshAll(cx) {
-    if (this.role !== "navigator" || this.category !== "all" || this.done) return;
+    if (this.role !== "navigator" || this.category !== "clues" || this.done) return; // PROTOTYPE: was "all"
     const now = Date.now();
     if (!this.othersAt || now - this.othersAt >= OTHERS_EVERY) {
       this.othersAt = now;
@@ -367,6 +377,7 @@ export default class Recall extends View {
   }
 
   snapshot() {
+    if (demo()) return demoSnapshot(); // PROTOTYPE
     return {
       spaces: spaces(),
       panes: panes(),
@@ -498,7 +509,8 @@ export default class Recall extends View {
   // ── Navigator: view ────────────────────────────────────────────────────
 
   rowsFor(category, snap) {
-    if (category === "all") return buildAll(snap, this.data, this.query);
+    if (category === "clues") return buildAll(snap, this.data, this.query); // PROTOTYPE: was "all"
+    if (category === "all") return allRows(snap, this.query); // PROTOTYPE
     const items = buildItems(category, snap, { agentSort: this.agentSort });
     return { rows: search(items, this.query, (i) => i.fields), filter: null, label: null, total: items.length };
   }
@@ -531,7 +543,8 @@ export default class Recall extends View {
       this.scroll.scroll_to_item(this.at, "center");
       this.follow = false;
     }
-    const loading = this.category === "all" && this.allTargets().length > 0 && !this.data.others.size;
+    const loading = this.category === "clues" && // PROTOTYPE: was "all"
+      this.allTargets().length > 0 && !this.data.others.size;
 
     const act = (fn) => (_e, cx) => { fn(); cx.notify(); };
     return v_flex()
@@ -546,7 +559,12 @@ export default class Recall extends View {
       .on_action(KEY_ACTIONS.previous_category, act(() => this.cycleCategory(-1)))
       .on_action(KEY_ACTIONS.dismiss, act(() => this.backOut()))
       .on_action(KEY_ACTIONS.force_quit, act(() => this.dismiss()))
+      .on_action(PROTO_PREV, act(() => { cycleLayout(-1); this.at = null; })) // PROTOTYPE
+      .on_action(PROTO_NEXT, act(() => { cycleLayout(1); this.at = null; })) // PROTOTYPE
+      .on_action(PROTO_DATA, act(() => { toggleDemo(); this.at = null; })) // PROTOTYPE
       .on_key_down((e, cx) => this.onKey(e, cx))
-      .child(navigator(this, { view, loading }));
+      .relative()
+      .child(navigator(this, { view, loading }))
+      .child(switcher()); // PROTOTYPE
   }
 }
