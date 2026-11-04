@@ -16,13 +16,19 @@
   <a href="README.zh-TW.md">繁體中文</a>
 </p>
 
-An IntelliJ-style "Recent" switcher for the [Herdr](https://herdr.dev/) app. One key lists your spaces, tabs, panes and agents, most recently focused first, and opens on the one you were in just before this one: press `⌘E`, then `⏎`, and you're back where you were a moment ago.
+A recent + fuzzy switcher for the [Herdr](https://herdr.dev/) app, in the spirit of IntelliJ's "Recent". One key lists every space, tab, pane and agent you've been in, most recent first, and opens on the one you were in just before this one: press `⌘E`, then `⏎`, and you're back where you were a moment ago. Rows you have never been to follow the ones you have, those that need you first (blocked, then done, working, idle). Typing narrows the list by fuzzy match, close matches first, with the recent order kept within them.
 
 ![Recall's Agents list: a blocked agent reads "needs you", a finished one "finished"](preview.png)
 
-Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search, click a column head to sort by it, and drag a column's edge to resize it.
+Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search anything a row shows (its name, where it lives, folder, branch, "needs you" or "finished", a remote space's machine), and drag a column's edge to resize it.
 
-The **All** list finds a pane by what it runs, the host it is ssh'd into, the file it has open, the port it listens on, or text it printed: `port 5173` finds the pane that started your dev server. To do that, Recall runs `git`, `ps` and `lsof` and reads pane buffers on your machine; nothing leaves it.
+Typing sorts the matches into two tiers: first the rows where every term you typed appears unbroken, then the ones that match only by scattered letters. Each tier keeps the order the list had with nothing typed (in Agents, the sort you chose), so rows don't trade places as you type. The selection starts on the first row that isn't where you are now, typed or not, so `⏎` takes you somewhere else; when the row you are on is the only match, it is selected.
+
+Queries follow [fzf](https://github.com/junegunn/fzf)'s extended-search syntax in every list: `'exact`, `'whole-word'`, `^start`, `end$`, `!exclude` and `this | that` (see **Search syntax** below).
+
+**All**, the first list, has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each most recently focused first; ones you have never been to follow, those that need you first. Typing only narrows that list. When nothing in All matches and Clues is one of your categories, it offers one row, `Search Clues for "<query>"`; opening it switches to Clues with the same query. Without Clues, and in the other lists, it just says "Nothing matches".
+
+**Clues**, the last list, finds a pane by what it runs, the host it is ssh'd into, the file it has open, the port it listens on, or text it printed: `port 5173` finds the pane that started your dev server. To do that, Recall runs `git`, `ps` and `lsof` and reads pane buffers on your machine; nothing leaves it.
 
 ## Install
 
@@ -72,10 +78,9 @@ To remove Recall, delete `~/.config/herdr-app/mods/recall` and the keys you boun
 | --- | --- |
 | Click a row | Go to it |
 | Click a category on the left | Switch to it |
-| Click a column head | Sort by it: up, then down, then back to the recent order |
 | Drag the line left of a column head | Resize that column; double-click the line to reset it |
 
-Pressing the open key again closes the switcher, or switches to the category that key opens. A sort lasts until the switcher closes; column widths are kept.
+Pressing the open key again closes the switcher, or switches to the category that key opens. Column widths are kept.
 
 </details>
 
@@ -85,7 +90,7 @@ Pressing the open key again closes the switcher, or switches to the category tha
 | Command | Does |
 | --- | --- |
 | `recall.open` | Open on the last category used |
-| `recall.open-<category>` | Open on `spaces`, `tabs`, `panes`, `agents` or `all` |
+| `recall.open-<category>` | Open on `all`, `spaces`, `tabs`, `panes`, `agents` or `clues` (`others` opens Clues too) |
 | `recall.open-agents-<sort>` | Open on agents sorted by `recent`, `priority` or `grouped` |
 | `recall.previous-tab` | Jump back to the previous tab, across spaces |
 | `recall.previous-pane` | Jump back to the previous pane |
@@ -97,22 +102,45 @@ Bind them in `keys.json` like `mod.open:recall` above. They work once the tracke
 </details>
 
 <details>
-<summary><strong>Searching All</strong></summary>
+<summary><strong>Search syntax</strong></summary>
 
-A plain query matches anything a pane runs, where it is, and what it printed. A prefix followed by one space narrows it:
+Queries follow fzf's extended-search mode, in every list. Terms are separated by spaces, and every term must match, each in any one field of a row (its name, where it lives, its folder and so on).
+
+| Term | Keeps rows where |
+| --- | --- |
+| `abc` | a field has a, b and c in that order (fuzzy) |
+| `'abc` | a field has `abc` unbroken |
+| `'abc'` | a field has `abc` as a whole word, so `'api'` finds `payments-api` but not `rapid` |
+| `^abc` | a field starts with `abc` |
+| `abc$` | a field ends with `abc` |
+| `^abc$` | a field is `abc` |
+| `!abc` | no field has `abc` unbroken; `!^abc`, `!abc$` and `!'abc'` exclude those matches, and `!'abc` excludes fuzzy ones |
+| `abc \| def` | either term matches |
+
+`\ ` stands for a space inside a term. A lowercase term ignores case; one with an uppercase letter matches case exactly. Where fzf matches one line, a row here has several fields, so `^` and `$` hold at the start or end of any one of them: `^pay` finds the rows located in `payments-api`, and `refunds$` the ones in its `refunds` tab.
+
+Exact and anchored terms count as unbroken, so they put their rows in the upper tier. Negated terms don't change the tier and highlight nothing. In an OR group, the term that matched decides; when several match, one that appears unbroken wins.
+
+</details>
+
+<details>
+<summary><strong>Searching Clues</strong></summary>
+
+A plain query matches anything a pane runs and what it printed. With nothing typed, Clues lists each pane's command and ssh clues. A pane's folder is not a clue; search it in All or Panes. A prefix followed by one space narrows it:
 
 | Prefix | Finds panes by |
 | --- | --- |
 | `cmd ` | The command running in them |
 | `ssh ` | The host they are ssh'd into |
-| `cwd ` | Their working folder |
 | `file ` | Text in panes running an editor; alone, the file each has open |
 | `term ` | Text in panes that are plain terminals |
 | `port ` | A port their shell's processes listen on |
 | `pid ` | The process ID of something their shell started |
 | `.` | Only the text they printed |
 
-`ws `, `tab ` and `pane ` switch to those lists.
+The text after a prefix uses the search syntax above: `cmd !nvim` lists the commands that aren't nvim, `cmd ^npm` the ones that start with npm. In printed text, each term must appear as typed (never by scattered letters), all in one line: `.FAIL !flaky` finds a line with FAIL and without flaky, and `^` and `$` hold at the line's start and end. `port ` and `pid ` take a number.
+
+To switch lists, use the categories (`⇥` / `⇧⇥`); `ws `, `tab ` and `pane ` are searched as plain text.
 
 </details>
 
@@ -123,7 +151,7 @@ Every key in `~/.config/herdr-app/recall.json` is optional:
 
 ```json
 {
-  "tabs": ["spaces", "tabs", "panes", "agents", "all"],
+  "categories": ["all", "spaces", "tabs", "panes", "agents", "clues"],
   "keybindings": {
     "move_up": ["k", "up"],
     "move_down": ["j", "down"]
@@ -131,7 +159,7 @@ Every key in `~/.config/herdr-app/recall.json` is optional:
 }
 ```
 
-- `tabs`: which categories show, in this order. The switcher opens on the one used last, else the first.
+- `categories`: which categories show, in this order. The switcher opens on the one used last, else the first. An empty list shows only All; unknown names are dropped and the first of a duplicate is kept. `workspaces`, `workspace` and `ws` mean `spaces`, and `others`, herdr-recent-navigator's name, means `clues`. `tabs`, the earlier name, is still read when `categories` is absent.
 - `keybindings`: `next_category`, `previous_category`, `move_up`, `move_down`, `select`, `dismiss`, `force_quit`, `backspace`. Binding a movement key to a letter, as above, turns on vim-style input: `j` `k` move, `h` `l` switch categories, `/` starts searching.
 - Keys use Herdr's spelling (`ctrl-p`, `shift-tab`) or herdr-recent-navigator's (`C-p`, `S-Tab`), so a config from there works as it is.
 

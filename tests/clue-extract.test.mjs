@@ -1,11 +1,11 @@
-// Contract: the All tab finds a pane by what it runs, prints or owns, with
+// Contract: Clues finds a pane by what it runs, prints or owns, with
 // the query grammar herdr-recent-navigator users already type.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   bufferKind, commandIsShell, contentExcerpt, isShellPromptTitle, paneForPid, parseEditorTarget,
   parseFilter, parseLsof, parsePs, parseSshTarget, stripAnsi,
-} from "../mods/recall/lib/others.js";
+} from "../mods/recall/lib/clue-extract.js";
 
 test("ssh target: destination with -l user and -p port folded in", () => {
   assert.equal(parseSshTarget("ssh -l deploy -p 2200 web1"), "deploy@web1:2200");
@@ -59,7 +59,7 @@ test("filter prefixes need one space after the label", () => {
   assert.deepEqual(parseFilter("cmd vite"), { filter: "cmd", label: "cmd", needle: "vite" });
   assert.deepEqual(parseFilter(".file x"), { filter: "file", label: "file", needle: "x" });
   assert.deepEqual(parseFilter(".error"), { filter: "content", label: ".", needle: "error" });
-  assert.deepEqual(parseFilter("ws auth"), { filter: "spaces", label: "ws", needle: "auth" });
+  for (const q of ["ws auth", "tab auth", "pane auth", "cwd auth"]) assert.deepEqual(parseFilter(q), { filter: null, label: null, needle: q });
   assert.deepEqual(parseFilter("port "), { filter: "port", label: "port", needle: "" });
   assert.deepEqual(parseFilter("cmd"), { filter: null, label: null, needle: "cmd" });
   assert.deepEqual(parseFilter("deploy cmd x"), { filter: null, label: null, needle: "deploy cmd x" });

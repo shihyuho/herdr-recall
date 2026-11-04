@@ -1,16 +1,16 @@
-// The All category: find a pane by what it runs, where it is, what it
+// The Clues category: find a pane by what it runs, what it
 // printed, or the port or process it owns. Pure functions; main.js fetches
 // the data (herdr-core, ps, lsof) and hands it in.
 //
-// Rules follow herdr-recent-navigator's All tab so a query works the same:
-// filter prefixes need one space after the label, `.` searches buffers, a
-// plain query is fuzzy on state rows and a literal substring on buffers.
+// Filter prefixes need one space after the label, `.` searches buffers.
+// The text after a prefix uses the query syntax of every list (fuzzy.js):
+// on state rows as anywhere, and on buffers line by line with plain terms
+// read literally.
 
-import { matchFields, terms } from "./fuzzy.js";
+import { literalGroups, matchFields, matchLiteralGroups, parseQuery } from "./fuzzy.js";
 
-export const SOURCE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, cwd: 4, port: 5, pid: 6 };
-const SOURCE_LABELS = ["ssh", "cmd", "term", "file", "cwd"];
-const OTHER_LABELS = [["port", "port"], ["pid", "pid"], ["ws", "spaces"], ["tab", "tabs"], ["pane", "panes"]];
+export const CLUE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, port: 4, pid: 5 };
+const CLUE_LABELS = ["ssh", "cmd", "term", "file", "port", "pid"];
 
 const SHELLS = new Set(["zsh", "bash", "sh", "dash", "ksh", "tcsh", "fish", "csh", "ash", "nu", "elvish", "xonsh", "pwsh", "powershell"]);
 const EDITORS = new Set(["nvim", "vim", "vi", "code", "cursor", "neovim", "emacs", "helix", "hx", "nano", "micro", "sublime", "kak", "lvim", "zed"]);
@@ -122,16 +122,16 @@ function absolute(path, cwd) {
  * Whether a pane's buffer counts as a file or a terminal, and what to show
  * as its context: the edited file (absolute, `:line`) or the pane's cwd.
  */
-export function bufferKind(other, title) {
-  const editor = other?.command != null
-    ? (commandIsEditor(other.command) ? other.command : null)
+export function bufferKind(state, title) {
+  const editor = state?.command != null
+    ? (commandIsEditor(state.command) ? state.command : null)
     : (commandIsEditor(title) ? title : null);
   if (editor && !isShellPromptTitle(title)) {
     const target = parseEditorTarget(editor);
-    if (target) return { kind: "file", file: absolute(target.path, other?.cwd), context: absolute(target.path, other?.cwd) + (target.line ? `:${target.line}` : "") };
-    return { kind: "file", file: null, context: other?.cwd || "-" };
+    if (target) return { kind: "file", file: absolute(target.path, state?.cwd), context: absolute(target.path, state?.cwd) + (target.line ? `:${target.line}` : "") };
+    return { kind: "file", file: null, context: state?.cwd || "-" };
   }
-  return { kind: "term", file: null, context: other?.cwd || "-" };
+  return { kind: "term", file: null, context: state?.cwd || "-" };
 }
 
 /** Escape sequences out of terminal text: CSI, OSC and charset selects. */
@@ -151,58 +151,51 @@ export function cleanBuffer(text) {
 }
 
 /**
- * One line around the first hit of `needle` in `content`: an exact-case hit
- * wins, else the first case-insensitive one. Keeps 14 characters before the
- * hit and 80 after its end, with `…` where the line was cut. Returns
- * `{ text, hit: [start, end) }` in code points of `text`, or null.
+ * The first line of `content` where the query `needle` holds, read
+ * literally (see literalGroups): a line where every term matches its case
+ * exactly wins, else the first under smart case. Keeps 14 characters before
+ * the first matched term and 80 after its end, with `…` where the line was
+ * cut. Returns `{ text, hit: [start, end), line }` with `hit` in code points
+ * of `text` and `line` the whole line, or null.
  */
 export function contentExcerpt(content, needle) {
-  const n = (needle ?? "").trim();
-  if (!n || !content) return null;
-  const cs = Array.from(content);
-  const ns = Array.from(n);
-  let at = indexOfChars(cs, ns, (a, b) => a === b);
-  if (at < 0) at = indexOfChars(cs, ns, (a, b) => a.toLowerCase() === b.toLowerCase());
-  if (at < 0) return null;
-  let start = at;
-  while (start > 0 && cs[start - 1] !== "\n") start--;
-  let end = at + ns.length;
-  while (end < cs.length && cs[end] !== "\n") end++;
+  if (!content || parseQuery(needle).length === 0) return null;
+  const lines = content.split("\n").filter((l) => l.trim());
+  for (const exactCase of [true, false]) {
+    const groups = literalGroups(needle, exactCase);
+    for (const line of lines) {
+      const hit = matchLiteralGroups(line, groups);
+      if (hit) return excerpt(line, hit[0] ?? 0, hit.length);
+    }
+  }
+  return null;
+}
+
+function excerpt(line, at, length) {
+  const cs = Array.from(line);
   const clean = (c) => (c === "\t" || /\p{Cc}/u.test(c) ? " " : c);
-  const preFrom = Math.max(start, at - EXCERPT_PRE);
-  const postTo = Math.min(end, at + ns.length + EXCERPT_POST);
-  const left = preFrom > start ? "…" : "";
-  const right = postTo < end ? "…" : "";
+  const preFrom = Math.max(0, at - EXCERPT_PRE);
+  const postTo = Math.min(cs.length, at + length + EXCERPT_POST);
+  const left = preFrom > 0 ? "…" : "";
+  const right = postTo < cs.length ? "…" : "";
   const pre = cs.slice(preFrom, at).map(clean).join("");
   const body = cs.slice(at, postTo).map(clean).join("");
   const hitStart = Array.from(left + pre).length;
-  return { text: left + pre + body + right, hit: [hitStart, hitStart + ns.length] };
-}
-
-function indexOfChars(cs, ns, eq) {
-  outer: for (let i = 0; i + ns.length <= cs.length; i++) {
-    for (let j = 0; j < ns.length; j++) if (!eq(cs[i + j], ns[j])) continue outer;
-    return i;
-  }
-  return -1;
+  return { text: left + pre + body + right, hit: [hitStart, hitStart + length], line };
 }
 
 /**
- * The All tab's filter prefix. Returns `{ filter, needle }` where filter is
- * null (plain query), "content" (a leading `.`), a source label (ssh, cmd,
- * term, file, cwd), "port", "pid", or a category to swap to ("spaces",
- * "tabs", "panes"). A label must be followed by exactly one space; the
+ * Clues' filter prefix. Returns `{ filter, needle }` where filter is
+ * null (plain query), "content" (a leading `.`), a clue label (ssh, cmd,
+ * term, file, port or pid). A label must be followed by exactly one space; the
  * needle is the rest, untrimmed. `.file x` is the same as `file x`.
  */
 export function parseFilter(query) {
   let rest = query ?? "";
   let content = false;
   if (rest.startsWith(".")) { rest = rest.slice(1); content = true; }
-  for (const label of SOURCE_LABELS) {
+  for (const label of CLUE_LABELS) {
     if (rest.startsWith(`${label} `)) return { filter: label, label, needle: rest.slice(label.length + 1) };
-  }
-  for (const [label, filter] of OTHER_LABELS) {
-    if (rest.startsWith(`${label} `)) return { filter, label, needle: rest.slice(label.length + 1) };
   }
   return { filter: content ? "content" : null, label: content ? "." : null, needle: rest };
 }
@@ -255,9 +248,9 @@ export function paneForPid(pid, shells, procs) {
   }
 }
 
-/** Orders All rows: a detail hit outranks hits elsewhere; ties keep recency. */
-export function rankOthers(rows, query) {
-  if (!terms(query).length) return rows.map((item) => ({ item, hits: {} }));
+/** Orders Clues rows: a detail hit outranks hits elsewhere; ties keep recency. */
+export function rankClues(rows, query) {
+  if (!parseQuery(query).length) return rows.map((item) => ({ item, hits: {} }));
   const out = [];
   rows.forEach((item, order) => {
     const full = matchFields(item.fields, query);

@@ -1,17 +1,21 @@
-// Settings: ~/.config/herdr-app/recall.json, every key optional.
+// Settings: ~/.config/herdr-app/recall.json, every key optional. The module also
+// holds the category ids, which open commands (`parseOpenCommand`) name too.
 //
 //   {
-//     "tabs": ["spaces", "tabs", "panes", "agents", "all"],
+//     "categories": ["all", "spaces", "tabs", "panes", "agents", "clues"],
 //     "keybindings": { "move_up": ["k", "up"], "move_down": ["j", "down"] }
 //   }
 //
-// `tabs` is both the order of the categories and which ones show.
+// `categories` is both the order of the categories and which ones show;
+// `tabs`, its earlier name, is read only when `categories` is absent.
 // Keys use Herdr's keys.json spelling ("ctrl-p", "shift-tab", "escape");
 // the herdr-recent-navigator spelling ("C-p", "S-Tab", "Esc") works too, so
 // a config can move over as it is.
 
-export const CATEGORY_IDS = ["spaces", "tabs", "panes", "agents", "all"];
-const CATEGORY_ALIASES = { workspaces: "spaces", workspace: "spaces", ws: "spaces", others: "all" };
+// "all" lists every space, tab, pane and agent; "clues" is the clue search,
+// which herdr-recent-navigator called "others" (see docs/adr/0001).
+export const CATEGORY_IDS = ["all", "spaces", "tabs", "panes", "agents", "clues"];
+const CATEGORY_ALIASES = { workspaces: "spaces", workspace: "spaces", ws: "spaces", others: "clues" };
 
 export const ACTIONS = ["next_category", "previous_category", "move_up", "move_down", "select", "dismiss", "force_quit", "backspace"];
 export const DEFAULT_KEYS = {
@@ -30,21 +34,38 @@ function defaults() {
   return Object.fromEntries(ACTIONS.map((a) => [a, [...DEFAULT_KEYS[a]]]));
 }
 
+/** A category name as written (any case, an alias) as its id; unknown names stay as they are. */
+function categoryId(name) {
+  const n = name.trim().toLowerCase();
+  return CATEGORY_ALIASES[n] ?? n;
+}
+
 /**
  * The visible categories in order. Names are trimmed and lowercased,
  * aliases resolve, unknown names drop, duplicates keep the first. A list
  * left empty shows only "all"; no list at all shows every category.
  */
-export function normalizeTabs(value) {
+export function normalizeCategories(value) {
   if (!Array.isArray(value)) return [...CATEGORY_IDS];
   const out = [];
   for (const raw of value) {
     if (typeof raw !== "string") continue;
-    const name = raw.trim().toLowerCase();
-    const id = CATEGORY_ALIASES[name] ?? name;
+    const id = categoryId(raw);
     if (CATEGORY_IDS.includes(id) && !out.includes(id)) out.push(id);
   }
   return out.length ? out : ["all"];
+}
+
+const AGENT_SORT_ALIASES = { recent: "mru", mru: "mru", priority: "priority", grouped: "grouped" };
+
+/**
+ * What a `recall.open…` command asks for: "open", "open-tabs",
+ * "open-others", "open-agents-priority" → { category, sort }, each null
+ * when not given. The category resolves aliases as recall.json does.
+ */
+export function parseOpenCommand(command) {
+  const [, category, sort] = command.split("-");
+  return { category: category ? categoryId(category) : null, sort: AGENT_SORT_ALIASES[sort] ?? null };
 }
 
 const NAMED = {
@@ -124,7 +145,7 @@ export function actionFor(keys, keystroke) {
 export function normalizeConfig(raw) {
   const obj = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   const keys = normalizeKeys(obj.keybindings);
-  return { tabs: normalizeTabs(obj.tabs), keys, modal: isModal(keys) };
+  return { categories: normalizeCategories(obj.categories !== undefined ? obj.categories : obj.tabs), keys, modal: isModal(keys) };
 }
 
 /** Parses recall.json text; invalid JSON reads as no settings, with the error. */

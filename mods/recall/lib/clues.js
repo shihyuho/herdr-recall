@@ -1,23 +1,20 @@
-// Rows of the All category, from a snapshot plus what main.js fetched:
-//   data = { others: Map pane → { cwd, command, ssh, shellPid },
+// Rows of the Clues category, from a snapshot plus what main.js fetched:
+//   data = { paneState: Map pane → { cwd, command, ssh, shellPid },
 //            content: Map pane → text, procs: Map | null, listeners: [] | null }
-// All means every terminal pane, agents included, so `.text` finds the
+// Clues covers every terminal pane, agents included, so `.text` finds the
 // agent session that printed it. (herdr-recent-navigator leaves agents out.)
 
-import { buildItems, index, tabLabel, tildify } from "./items.js";
+import { index, tabLabel, tildify } from "./items.js";
 import * as mru from "./mru.js";
-import { search } from "./fuzzy.js";
 import {
-  SOURCE_ORDER, bufferKind, commandIsShell, contentExcerpt, paneForPid, parseFilter, rankOthers, sshHost,
-} from "./others.js";
-
-const SWAPS = { spaces: "spaces", tabs: "tabs", panes: "panes" };
+  CLUE_ORDER, bufferKind, commandIsShell, contentExcerpt, paneForPid, parseFilter, rankClues, sshHost,
+} from "./clue-extract.js";
 
 function firstLine(text) {
   return (text ?? "").split("\n").map((l) => l.trim()).find(Boolean) ?? "";
 }
 
-/** The panes the All tab can list, each with what a row needs to say where it is. */
+/** The panes Clues can list, each with what a row needs to say where it is. */
 function candidates(snap) {
   const ix = index(snap);
   const out = [];
@@ -44,12 +41,12 @@ function candidates(snap) {
   return out;
 }
 
-function row(c, source, detail, context, home, extra = {}) {
+function row(c, clue, detail, context, home, extra = {}) {
   const shown = context === "-" ? "-" : tildify(context, home);
   return {
-    kind: "other",
-    source,
-    key: `other:${source}:${c.pane.pane}${extra.suffix ?? ""}`,
+    kind: "clue",
+    clue,
+    key: `clue:${clue}:${c.pane.pane}${extra.suffix ?? ""}`,
     id: c.pane.pane,
     title: detail,
     detail: shown,
@@ -66,22 +63,26 @@ function row(c, source, detail, context, home, extra = {}) {
     at: c.at,
     rank: c.rank,
     order: c.order,
-    fields: [
-      { key: "source", text: source },
-      { key: "title", text: detail },
-      { key: "detail", text: shown === "-" ? "" : shown },
-      { key: "where", text: c.where },
-    ],
+    // A buffer row shows only its excerpt, so it is searched by that and its whole
+    // line (a term the excerpt cut off still matches); other rows by all they show.
+    fields: extra.line
+      ? [{ key: "title", text: detail }, { key: "line", text: extra.line }]
+      : [
+        { key: "clue", text: clue },
+        { key: "title", text: detail },
+        { key: "detail", text: shown === "-" ? "" : shown },
+        { key: "where", text: c.where },
+      ],
     actions: [["tab.select", { id: c.pane.tab }], ["pane.focus", { pane: c.pane.pane }]],
     ...(extra.item ?? {}),
   };
 }
 
-function hint(source, detail, reason, context) {
+function hint(clue, detail, reason, context) {
   return {
     kind: "hint",
-    source,
-    key: `hint:${source}:${detail}:${reason}`,
+    clue,
+    key: `hint:${clue}:${detail}:${reason}`,
     id: null,
     title: detail,
     reason,
@@ -94,7 +95,7 @@ function hint(source, detail, reason, context) {
     at: null,
     rank: Infinity,
     fields: [
-      { key: "source", text: source },
+      { key: "clue", text: clue },
       { key: "title", text: detail },
       { key: "reason", text: reason },
       { key: "detail", text: context ?? "" },
@@ -105,22 +106,21 @@ function hint(source, detail, reason, context) {
 
 /**
  * Most recently focused pane first, never-focused panes after in Herdr's
- * order; a pane's rows stay together in source order (ssh, cmd, ..., cwd).
+ * order; a pane's rows stay together in clue order (ssh, cmd, ...).
  */
 function byRecency(rows) {
   const r = (x) => (x.rank === undefined || x.rank < 0 ? Infinity : x.rank);
   const o = (x) => x.order ?? Infinity;
-  return [...rows].sort((a, b) => r(a) - r(b) || o(a) - o(b) || (SOURCE_ORDER[a.source] ?? 9) - (SOURCE_ORDER[b.source] ?? 9));
+  return [...rows].sort((a, b) => r(a) - r(b) || o(a) - o(b) || (CLUE_ORDER[a.clue] ?? 9) - (CLUE_ORDER[b.clue] ?? 9));
 }
 
 function stateRows(cs, data, home, only) {
   const rows = [];
   for (const c of cs) {
-    const o = data.others.get(c.pane.pane);
+    const o = data.paneState.get(c.pane.pane);
     if (!o) continue;
     if (o.ssh && (!only || only === "ssh")) rows.push(row(c, "ssh", o.ssh, sshHost(o.ssh), home));
     if (o.command && !commandIsShell(o.command) && (!only || only === "cmd")) rows.push(row(c, "cmd", o.command, o.cwd || "-", home));
-    if (o.cwd && (!only || only === "cwd")) rows.push(row(c, "cwd", tildify(o.cwd, home), "-", home));
   }
   return rows;
 }
@@ -130,7 +130,7 @@ function contentRows(cs, data, home, needle, only) {
   for (const c of cs) {
     const text = data.content.get(c.pane.pane);
     if (!text) continue;
-    const kind = bufferKind(data.others.get(c.pane.pane) ?? { cwd: c.cwd, command: null }, c.title);
+    const kind = bufferKind(data.paneState.get(c.pane.pane) ?? { cwd: c.cwd, command: null }, c.title);
     if (only && kind.kind !== only) continue;
     if (!needle) {
       rows.push(row(c, kind.kind, kind.file ? tildify(kind.file, home) : firstLine(text), kind.context, home, { suffix: ":buffer" }));
@@ -138,7 +138,7 @@ function contentRows(cs, data, home, needle, only) {
     }
     const ex = contentExcerpt(text, needle);
     if (!ex) continue;
-    rows.push(row(c, kind.kind, ex.text, kind.context, home, { suffix: ":buffer", item: { excerpt: ex.hit } }));
+    rows.push(row(c, kind.kind, ex.text, kind.context, home, { suffix: ":buffer", line: ex.line, item: { excerpt: ex.hit } }));
   }
   return rows;
 }
@@ -146,7 +146,7 @@ function contentRows(cs, data, home, needle, only) {
 function shellMap(cs, data) {
   const shells = new Map();
   for (const c of cs) {
-    const pid = data.others.get(c.pane.pane)?.shellPid;
+    const pid = data.paneState.get(c.pane.pane)?.shellPid;
     if (pid) shells.set(pid, c);
   }
   return shells;
@@ -161,7 +161,7 @@ function pidRows(cs, data, home, needle) {
   if (owner) return [row(owner, "pid", procs.get(pid)?.command || `pid ${pid}`, "-", home)];
   if (!procs || procs.size === 0) return [hint("pid", `pid ${pid}`, "ps/lsof unavailable")];
   if (!procs.has(pid)) return [hint("pid", `pid ${pid}`, "no such process")];
-  if (data.others.size === 0) return [];
+  if (data.paneState.size === 0) return [];
   return [hint("pid", procs.get(pid).command || `pid ${pid}`, "not in any pane", "")];
 }
 
@@ -186,22 +186,18 @@ function portRows(cs, data, home, needle) {
     if (r) rows.push(r);
     else orphans.push(l);
   }
-  const hints = data.others.size ? orphans.map((l) => hint("port", l.addr, "not in any pane", procs.get(l.pid)?.command || `pid ${l.pid}`)) : [];
+  const hints = data.paneState.size ? orphans.map((l) => hint("port", l.addr, "not in any pane", procs.get(l.pid)?.command || `pid ${l.pid}`)) : [];
   if (!rows.length && !orphans.length) return [hint("port", `port ${port}`, "nothing listening")];
   return [...byRecency(rows), ...hints];
 }
 
 /**
- * The All tab's rows for a query, ranked: `{ rows: [{ item, hits }], filter,
+ * Clues' rows for a query, ranked: `{ rows: [{ item, hits }], filter,
  * label, needle }`. `label` is the prefix to show as a chip.
  */
-export function buildAll(snap, data, query) {
+export function buildClues(snap, data, query) {
   const { filter, label, needle } = parseFilter(query);
   const n = needle.trim();
-  if (SWAPS[filter]) {
-    const items = buildItems(SWAPS[filter], snap);
-    return { rows: search(items, n, (i) => i.fields), filter, label, needle };
-  }
   const cs = candidates(snap);
   const home = snap.home;
   let rows;
@@ -221,5 +217,5 @@ export function buildAll(snap, data, query) {
     rows = stateRows(cs, data, home, filter);
     ranked = n;
   }
-  return { rows: rankOthers(byRecency(rows), ranked), filter, label, needle };
+  return { rows: rankClues(byRecency(rows), ranked), filter, label, needle };
 }

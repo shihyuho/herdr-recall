@@ -6,11 +6,19 @@
 //   { kind, key, id, title, detail, where, path, branch, program, status,
 //     current, at, fields: [{ key, text }], actions: [[command, args]] }
 // `fields` is what search matches; `actions` run in order when the row is
-// opened.
+// opened. All's rows also carry `crumb`, the path drawn before the name.
 
 import * as mru from "./mru.js";
 
-export const STATUS_RANK = { blocked: 0, done: 1, working: 2, idle: 3 };
+const STATUS_RANK = { blocked: 0, done: 1, working: 2, idle: 3 };
+
+/** Sort rank of a status: blocked first, then done, working, idle; no status last. */
+export function statusRank(status) {
+  return STATUS_RANK[status] ?? 9;
+}
+
+/** The word the STATUS column shows, and a search matches, for a status. */
+export const STATUS_WORD = { blocked: "needs you", done: "finished" };
 
 /** `/Users/me/x` as `~/x` when it is under home. */
 export function tildify(path, home) {
@@ -92,8 +100,9 @@ function spaceLabel(space, worktrees) {
   return space.name;
 }
 
-function spaceItems(snap, ix) {
-  const items = snap.spaces.map((s) => {
+/** Every space as a row, in Herdr's order. */
+function spaceRows(snap, ix) {
+  return snap.spaces.map((s) => {
     const title = spaceLabel(s, snap.worktrees);
     const agentsHere = snap.agents.filter((a) => a.space === s.id).length;
     const path = tildify(s.folder, snap.home);
@@ -118,11 +127,16 @@ function spaceItems(snap, ix) {
         { key: "title", text: title },
         { key: "path", text: path },
         { key: "branch", text: s.branch ?? "" },
+        { key: "machine", text: s.machine ?? "" },
+        { key: "status", text: STATUS_WORD[s.status] ?? "" },
       ],
       actions: [["space.select", { id: s.id }]],
     };
   });
-  return groupWorktrees(mru.order(snap.history, "space", items, (i) => i.id), snap.worktrees);
+}
+
+function spaceItems(snap, ix) {
+  return groupWorktrees(recentOrder(spaceRows(snap, ix)), snap.worktrees);
 }
 
 /**
@@ -154,7 +168,8 @@ export function groupWorktrees(items, worktrees) {
   return out;
 }
 
-function tabItems(snap, ix) {
+/** Every tab as a row, in Herdr's order. */
+function tabRows(snap, ix) {
   const items = [];
   for (const s of snap.spaces) {
     for (const t of s.tabs) {
@@ -185,16 +200,24 @@ function tabItems(snap, ix) {
           { key: "title", text: title },
           { key: "detail", text: t.named ? paneLabel(lead) : runs },
           { key: "where", text: spaceLabel(s, snap.worktrees) },
+          { key: "path", text: tildify(lead?.cwd, snap.home) },
           { key: "panes", text: ps.map(paneLabel).join(" ") },
+          { key: "branch", text: lead?.branch ?? "" },
+          { key: "status", text: STATUS_WORD[t.status] ?? "" },
         ],
         actions: [["tab.select", { id: t.id }]],
       });
     }
   }
-  return mru.order(snap.history, "tab", items, (i) => i.id);
+  return items;
 }
 
-function paneItems(snap, ix) {
+function tabItems(snap, ix) {
+  return recentOrder(tabRows(snap, ix));
+}
+
+/** Every pane as a row, in Herdr's order. */
+function paneRows(snap, ix) {
   const items = [];
   for (const p of snap.panes) {
     const at = ix.tab.get(p.tab);
@@ -227,20 +250,22 @@ function paneItems(snap, ix) {
         { key: "where", text: where },
         { key: "path", text: path },
         { key: "detail", text: d.program?.name ?? "" },
+        { key: "branch", text: d.branch ?? "" },
+        { key: "status", text: STATUS_WORD[d.status] ?? "" },
       ],
       actions: [["tab.select", { id: p.tab }], ["pane.focus", { pane: p.pane }]],
     });
   }
-  return mru.order(snap.history, "pane", items, (i) => i.id);
+  return items;
 }
 
-/**
- * Agents in one of three orders: "mru" (most recently focused first),
- * "priority" (blocked, done, working, idle; latest change first within
- * each) or "grouped" (space, tab, pane order, as Herdr lists them).
- */
-function agentItems(snap, ix, sort) {
-  const items = snap.agents.map((a, i) => {
+function paneItems(snap, ix) {
+  return recentOrder(paneRows(snap, ix));
+}
+
+/** Every agent as a row, in Herdr's order. */
+function agentRows(snap, ix) {
+  return snap.agents.map((a, i) => {
     const at = ix.tab.get(a.tab);
     const sLabel = at ? spaceLabel(at.space, snap.worktrees) : a.space_name;
     const tLabel = at ? tabLabel(at.tab, ix.panesOf.get(a.tab)) : a.tab_name;
@@ -273,21 +298,98 @@ function agentItems(snap, ix, sort) {
         { key: "where", text: where },
         { key: "detail", text: a.program?.name ?? "" },
         { key: "path", text: path },
+        { key: "branch", text: pane?.branch ?? "" },
+        { key: "status", text: STATUS_WORD[a.status] ?? "" },
       ],
       actions: [["agent.focus", { terminal: a.address }]],
     };
   });
+}
+
+/**
+ * Agents in one of three orders: "mru" (most recently focused first),
+ * "priority" (blocked, done, working, idle; latest change first within
+ * each) or "grouped" (space, tab, pane order, as Herdr lists them).
+ */
+function agentItems(snap, ix, sort) {
+  const items = agentRows(snap, ix);
   if (sort === "priority") {
-    return [...items].sort((a, b) => (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9) || b.seq - a.seq || a.model - b.model);
+    return [...items].sort((a, b) => statusRank(a.status) - statusRank(b.status) || b.seq - a.seq || a.model - b.model);
   }
   if (sort === "grouped") return items;
-  return mru.order(snap.history, "agent", items, (i) => i.id);
+  return recentOrder(items);
+}
+
+// All's levels: the most specific destinations first.
+const LEVEL = { agent: 0, pane: 0, tab: 1, space: 2 };
+
+/**
+ * Recent order within one kind of row: the focused rows first, most recent
+ * first, then the never-focused by status (blocked, done, working, idle,
+ * none); ties keep the given (Herdr's) order. Compares `{ item, i }`.
+ */
+function recentCompare(a, b) {
+  const x = a.item;
+  const y = b.item;
+  if ((x.at != null) !== (y.at != null)) return x.at != null ? -1 : 1;
+  if (x.at != null && x.at !== y.at) return y.at - x.at;
+  if (x.at == null) return statusRank(x.status) - statusRank(y.status) || a.i - b.i;
+  return a.i - b.i;
+}
+
+function recentOrder(items) {
+  return items.map((item, i) => ({ item, i })).sort(recentCompare).map(({ item }) => item);
+}
+
+/** All's order with nothing typed: by level, then the Recent order within each. */
+function restingOrder(items) {
+  return items
+    .map((item, i) => ({ item, i }))
+    .sort((a, b) => LEVEL[a.item.kind] - LEVEL[b.item.kind] || recentCompare(a, b))
+    .map(({ item }) => item);
+}
+
+/**
+ * All: one row per destination, each led by its path (`crumb`). An agent
+ * stands for its pane; a tab gets a row only when it has several panes, a
+ * space only when it has several tabs and there are several spaces.
+ */
+function allItems(snap, ix) {
+  const agents = new Map(agentRows(snap, ix).map((a) => [a.terminal, a]));
+  const panes = new Map(paneRows(snap, ix).map((p) => [p.id, p]));
+  const out = [];
+  for (const p of snap.panes) {
+    const agent = p.terminal ? agents.get(p.terminal) : null;
+    if (agent) {
+      // The agent history's head stays put while a shell has focus, so its `at` can be
+      // older than its pane's: the row takes the later of the two.
+      const ats = [agent.at, mru.lastFocused(snap.history, "pane", p.pane)].filter((x) => x != null);
+      out.push({ ...agent, at: ats.length ? Math.max(...ats) : null });
+      agents.delete(p.terminal);
+    } else if (panes.has(p.pane)) out.push(shellNamed(panes.get(p.pane), p));
+  }
+  out.push(...agents.values()); // an agent whose pane Herdr doesn't list
+  const tabs = tabRows(snap, ix)
+    .filter((t) => (ix.panesOf.get(t.id)?.length ?? 0) > 1)
+    .map((t) => ({ ...t, program: null }));
+  const spaces = snap.spaces.length > 1 ? spaceRows(snap, ix).filter((s) => s.tabs.length > 1) : [];
+  const withCrumb = (i) => ({ ...i, crumb: i.kind === "space" ? "" : `${i.where} › ` });
+  return restingOrder([...out, ...tabs, ...spaces].map(withCrumb));
+}
+
+/** A pane running a bare shell, with no title of its own, goes by its program's name. */
+function shellNamed(item, raw) {
+  const bare = !raw.title || raw.title === raw.terminal;
+  if (!bare || !item.program?.shell) return item;
+  const title = item.program.name;
+  return { ...item, title, detail: "", fields: item.fields.map((f) => (f.key === "title" ? { ...f, text: title } : f)) };
 }
 
 /** The rows of one category. `options.agentSort`: "mru" | "priority" | "grouped". */
 export function buildItems(category, snap, options = {}) {
   const ix = index(snap);
   switch (category) {
+    case "all": return allItems(snap, ix);
     case "spaces": return spaceItems(snap, ix);
     case "tabs": return tabItems(snap, ix);
     case "panes": return paneItems(snap, ix);

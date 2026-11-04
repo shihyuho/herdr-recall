@@ -16,13 +16,19 @@
   <b>繁體中文</b>
 </p>
 
-[Herdr](https://herdr.dev/) app 的 IntelliJ 風格「Recent」切換器。一個鍵列出所有 space、tab、pane 與 agent，最近用過的排最前面，並停在你上一個待過的位置：按 `⌘E` 再按 `⏎`，就回到剛剛待的地方。
+[Herdr](https://herdr.dev/) app 的 recent + fuzzy 切換器，承襲 IntelliJ「Recent」的做法。一個鍵列出你待過的每個 space、tab、pane 與 agent，最近的排最前面，並停在你上一個待過的位置：按 `⌘E` 再按 `⏎`，就回到剛剛待的地方。從沒去過的排在去過的後面，等你處理的排最前（依序是 blocked、done、working、idle）。打字會以模糊比對縮小清單，接近的結果排前面，彼此之間仍維持最近的順序。
 
 ![Recall 的 Agents 清單：等你處理的 agent 顯示「needs you」，完成的顯示「finished」](preview.png)
 
-每一列都標出它在哪、所在資料夾、branch，以及那裡的 agent 是否在等你。打字即可模糊搜尋，點欄位標題可以排序，拖曳欄位邊緣可以調整寬度。
+每一列都標出它在哪、所在資料夾、branch，以及那裡的 agent 是否在等你。打字即可模糊搜尋列上顯示的一切（名稱、位置、資料夾、branch、「needs you」或「finished」、遠端 space 的機器名稱），拖曳欄位邊緣可以調整寬度。
 
-**All** 清單能用 pane 正在跑的指令、ssh 連到的主機、開著的檔案、監聽的 port，或印出過的文字找到它：輸入 `port 5173` 就能找到啟動 dev server 的那個 pane。為此 Recall 會在你的電腦上執行 `git`、`ps`、`lsof` 並讀取 pane 的內容，資料不會離開你的電腦。
+打字時，符合的列分成兩層：先是你輸入的每個詞都完整連續出現的列，再來是只有零散字母對得上的列。每一層都維持沒打字時的順序（在 Agents 裡就是你選的排序），所以列不會隨著每次按鍵換來換去。不論有沒有打字，選取都停在第一個不是你目前所在位置的列，讓 `⏎` 帶你去別的地方；如果你所在的那列是唯一的結果，就選它。
+
+每個清單的查詢都採用 [fzf](https://github.com/junegunn/fzf) 的 extended-search 語法：`'exact`、`'whole-word'`、`^start`、`end$`、`!exclude` 與 `this | that`（見下方的 **搜尋語法**）。
+
+第一個清單 **All** 把所有 space、tab、pane 與 agent 放在一起，不必先知道要找的是哪一種。每個名稱前面都帶著它的路徑（`payments-api › refunds › nvim`），每個目的地也只出現一次：agent 代表它所在的 pane，tab 要有好幾個 pane 才會有自己的一列，space 要有好幾個 tab 才會有。agent 與 pane 排最前面，接著是 tab，最後是 space，各自依最近用過的順序排列；從沒去過的排在後面，等你處理的排最前。打字只會縮小這份清單。如果 All 裡沒有任何符合的項目，而且 Clues 是你顯示的分類之一，它會給一列 `Search Clues for "<query>"`；開啟後會切到 Clues，並保留同一個查詢。其他情況與其他清單則顯示「Nothing matches」。
+
+最後一個清單 **Clues** 能用 pane 正在跑的指令、ssh 連到的主機、開著的檔案、監聽的 port，或印出過的文字找到它：輸入 `port 5173` 就能找到啟動 dev server 的那個 pane。為此 Recall 會在你的電腦上執行 `git`、`ps`、`lsof` 並讀取 pane 的內容，資料不會離開你的電腦。
 
 ## Install
 
@@ -72,10 +78,9 @@ cd herdr-recall
 | --- | --- |
 | 點一列 | 前往那裡 |
 | 點左側的分類 | 切換過去 |
-| 點欄位標題 | 依該欄排序：先升冪、再降冪，第三次回到最近使用的順序 |
 | 拖曳欄位標題左邊的分隔線 | 調整那一欄的寬度；在分隔線上雙擊可以還原 |
 
-再按一次開啟的按鍵會關閉切換器；如果那個按鍵開的是別的分類，就切換過去。排序只維持到切換器關閉，欄位寬度則會記住。
+再按一次開啟的按鍵會關閉切換器；如果那個按鍵開的是別的分類，就切換過去。欄位寬度會記住。
 
 </details>
 
@@ -85,7 +90,7 @@ cd herdr-recall
 | 指令 | 作用 |
 | --- | --- |
 | `recall.open` | 開在上次用的分類 |
-| `recall.open-<category>` | 開在 `spaces`、`tabs`、`panes`、`agents` 或 `all` |
+| `recall.open-<category>` | 開在 `all`、`spaces`、`tabs`、`panes`、`agents` 或 `clues`（`others` 也會開 Clues） |
 | `recall.open-agents-<sort>` | 開在 agents，依 `recent`、`priority` 或 `grouped` 排序 |
 | `recall.previous-tab` | 跳回上一個 tab，可跨 space |
 | `recall.previous-pane` | 跳回上一個 pane |
@@ -97,22 +102,45 @@ cd herdr-recall
 </details>
 
 <details>
-<summary><strong>在 All 裡搜尋</strong></summary>
+<summary><strong>搜尋語法</strong></summary>
 
-一般的搜尋會比對 pane 正在跑的東西、它的位置，以及它印出過的文字。前綴加一個空格可以縮小範圍：
+每個清單的查詢都依循 fzf 的 extended-search mode。詞與詞以空格分開，每個詞都必須對上，各自對上列中的任一個欄位（名稱、位置、資料夾等等）。
+
+| 詞 | 留下哪些列 |
+| --- | --- |
+| `abc` | 某個欄位依序含有 a、b、c（模糊比對） |
+| `'abc` | 某個欄位含有完整連續的 `abc` |
+| `'abc'` | 某個欄位含有完整單字 `abc`，所以 `'api'` 找得到 `payments-api`，找不到 `rapid` |
+| `^abc` | 某個欄位以 `abc` 開頭 |
+| `abc$` | 某個欄位以 `abc` 結尾 |
+| `^abc$` | 某個欄位就是 `abc` |
+| `!abc` | 沒有任何欄位含有完整連續的 `abc`；`!^abc`、`!abc$` 與 `!'abc'` 排除那些比對，`!'abc` 則排除模糊比對對上的 |
+| `abc \| def` | 任一個詞對上即可 |
+
+`\ ` 代表詞裡面的空格。全小寫的詞不分大小寫；含大寫字母的詞會精確比對大小寫。fzf 比對的是一整行，這裡的一列則有好幾個欄位，所以 `^` 與 `$` 對的是任一個欄位的開頭或結尾：`^pay` 找得到位在 `payments-api` 的列，`refunds$` 找得到它的 `refunds` tab 裡的列。
+
+精確比對與錨定的詞都算完整連續，會讓它們的列排進上層。排除的詞不影響分層，也不會標亮任何字。在 OR 群組裡，由對上的那個詞決定分層；有好幾個詞對上時，以完整連續出現的那個為準。
+
+</details>
+
+<details>
+<summary><strong>在 Clues 裡搜尋</strong></summary>
+
+一般的搜尋會比對 pane 正在跑的東西，以及它印出過的文字。沒有輸入任何東西時，Clues 會列出每個 pane 的指令與 ssh 線索。pane 的工作目錄不是線索，請到 All 或 Panes 搜尋。前綴加一個空格可以縮小範圍：
 
 | 前綴 | 用什麼找 pane |
 | --- | --- |
 | `cmd ` | 正在執行的指令 |
 | `ssh ` | ssh 連到的主機 |
-| `cwd ` | 工作目錄 |
 | `file ` | 執行編輯器的 pane 裡的文字；單獨輸入時，列出各自開著的檔案 |
 | `term ` | 一般終端機 pane 裡的文字 |
 | `port ` | 它的 shell 底下的程序所監聽的 port |
 | `pid ` | 它的 shell 所啟動的程序的 process ID |
 | `.` | 只比對印出過的文字 |
 
-`ws `、`tab `、`pane ` 會切換到對應的清單。
+前綴後面的文字使用上面的搜尋語法：`cmd !nvim` 列出不是 nvim 的指令，`cmd ^npm` 列出以 npm 開頭的指令。在印出過的文字裡，每個詞都要照打的樣子出現（不會用零散的字母比對），而且全部在同一行：`.FAIL !flaky` 會找到含有 FAIL 但不含 flaky 的那一行，`^` 與 `$` 則對準該行的開頭與結尾。`port ` 與 `pid ` 後面接數字。
+
+要切換清單請用分類（`⇥` / `⇧⇥`）；`ws `、`tab `、`pane ` 會當成一般文字搜尋。
 
 </details>
 
@@ -123,7 +151,7 @@ cd herdr-recall
 
 ```json
 {
-  "tabs": ["spaces", "tabs", "panes", "agents", "all"],
+  "categories": ["all", "spaces", "tabs", "panes", "agents", "clues"],
   "keybindings": {
     "move_up": ["k", "up"],
     "move_down": ["j", "down"]
@@ -131,7 +159,7 @@ cd herdr-recall
 }
 ```
 
-- `tabs`：要顯示哪些分類，以及它們的順序。切換器會開在上次用的分類，沒有的話就是第一個。
+- `categories`：要顯示哪些分類，以及它們的順序。切換器會開在上次用的分類，沒有的話就是第一個。空清單只會顯示 All；不認得的名稱會被忽略，重複的名稱只留第一個。`workspaces`、`workspace`、`ws` 等同 `spaces`，`others` 是 herdr-recent-navigator 的叫法，等同 `clues`。舊的 `tabs` 在沒有 `categories` 時仍會被讀取。
 - `keybindings`：`next_category`、`previous_category`、`move_up`、`move_down`、`select`、`dismiss`、`force_quit`、`backspace`。像上面這樣把移動鍵綁成字母，就會切換成 vim 式輸入：`j` `k` 移動，`h` `l` 切換分類，`/` 開始搜尋。
 - 按鍵可以用 Herdr 的寫法（`ctrl-p`、`shift-tab`），也可以用 herdr-recent-navigator 的寫法（`C-p`、`S-Tab`），所以那邊的設定可以直接搬過來用。
 

@@ -18,14 +18,12 @@ import {
   spaces, panes, agents, terminals, focused, theme, props, run, shared, setShared,
   openOverlay, closeOverlay, nextCommand, home, appHome, readTextFile, exec, hc,
 } from "herdr";
-import { search } from "./lib/fuzzy.js";
 import * as mru from "./lib/mru.js";
-import { buildItems } from "./lib/items.js";
-import { buildAll } from "./lib/all.js";
-import { actionFor, isPrintable, normalizeKey, parseConfig } from "./lib/config.js";
-import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/others.js";
+import { listView } from "./lib/listview.js";
+import { actionFor, isPrintable, normalizeKey, parseConfig, parseOpenCommand } from "./lib/config.js";
+import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/clue-extract.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
-import { DEFAULT_WIDTHS, dragWidth, loadWidths, nextSort, sortRows } from "./lib/columns.js";
+import { DEFAULT_WIDTHS, dragWidth, loadWidths } from "./lib/columns.js";
 import { navigator } from "./ui.js";
 
 const MOD = "recall";
@@ -39,7 +37,6 @@ const TRACKER = { mod: MOD, kind: "window", key: "recall-tracker", keep: true, f
 const DIALOG = { kind: "dialog", width: 0.74, height: 0.7 };
 
 const AGENT_SORTS = ["mru", "priority", "grouped"];
-const AGENT_SORT_ALIASES = { recent: "mru", mru: "mru", priority: "priority", grouped: "grouped" };
 const KEY_CONTEXT = "RecallNavigator";
 const KEY_ACTIONS = {
   next_category: "recall::next_category",
@@ -47,18 +44,11 @@ const KEY_ACTIONS = {
   dismiss: "recall::dismiss",
   force_quit: "recall::force_quit",
 };
-const OTHERS_EVERY = 10000;
+const PANE_STATE_EVERY = 10000;
 const CONTENT_EVERY = 30000;
 
 function fresh(open) {
   return open && typeof open.at === "number" && Date.now() - open.at < FRESH;
-}
-
-/** "open", "open-tabs", "open-agents-priority" → { category, sort }. */
-function parseOpen(command) {
-  const [, category, sort] = command.split("-");
-  const cat = category === "workspaces" ? "spaces" : category === "others" ? "all" : category;
-  return { category: cat ?? null, sort: AGENT_SORT_ALIASES[sort] ?? null };
 }
 
 export default class Recall extends View {
@@ -108,7 +98,7 @@ export default class Recall extends View {
   trackerCommand(command) {
     if (command === "open" || command.startsWith("open-")) {
       if (fresh(shared(OPEN))) return; // the open navigator takes it
-      const { category, sort } = parseOpen(command);
+      const { category, sort } = parseOpenCommand(command);
       openOverlay({ ...DIALOG, mod: MOD, props: { category, agentSort: sort, from: "tracker" } });
     } else if (command.startsWith("previous-")) {
       this.jumpBack(command.slice("previous-".length));
@@ -165,8 +155,6 @@ export default class Recall extends View {
     this.requested = p.category ?? null;
     this.category = this.startCategory();
     this.agentSort = p.agentSort ?? "mru";
-    this.sort = null;
-    this.keepKey = null;
     this.widths = loadWidths(shared(WIDTHS));
     this.resizing = null;
     this.query = "";
@@ -174,7 +162,7 @@ export default class Recall extends View {
     this.follow = true;
     this.done = false;
     this.worktrees = null;
-    this.data = { others: new Map(), content: new Map(), procs: null, listeners: null };
+    this.data = { paneState: new Map(), content: new Map(), procs: null, listeners: null };
     this.handle = cx.focus_handle();
     this.scroll = VirtualListScrollHandle.new();
     this.input = InputState.new({ placeholder: "Type to search" });
@@ -186,7 +174,10 @@ export default class Recall extends View {
       this.follow = true;
       cx.notify();
     });
-    this.input.on("submit", () => this.open(this.rows?.[this.at]?.item));
+    this.input.on("submit", (_e, cx) => {
+      this.open(this.rows?.[this.at]?.item);
+      cx.notify();
+    });
     this.focusForMode();
     cx.timer.after(250, () => this.focusForMode());
 
@@ -210,8 +201,8 @@ export default class Recall extends View {
       this.worktrees = await this.probeWorktrees();
       cx.notify();
     });
-    cx.timer.every(1000, (cx) => this.refreshAll(cx));
-    this.refreshAll(cx);
+    cx.timer.every(1000, (cx) => this.refreshClues(cx));
+    this.refreshClues(cx);
   }
 
   beat() {
@@ -219,7 +210,7 @@ export default class Recall extends View {
   }
 
   applyConfig(config, cx) {
-    this.tabs = config.tabs;
+    this.categories = config.categories;
     this.keys = config.keys;
     this.modal = config.modal;
     this.mode = this.modal ? "navigation" : "type";
@@ -249,8 +240,8 @@ export default class Recall extends View {
 
   /** The asked-for category, else the last one used, else the first configured. */
   startCategory() {
-    for (const c of [this.requested, shared(LAST)]) if (c && this.tabs.includes(c)) return c;
-    return this.tabs[0];
+    for (const c of [this.requested, shared(LAST)]) if (c && this.categories.includes(c)) return c;
+    return this.categories[0];
   }
 
   focusForMode() {
@@ -266,6 +257,7 @@ export default class Recall extends View {
 
   open(item) {
     if (!item || this.done) return;
+    if (item.kind === "to-clues") return this.switchTo("clues"); // the query stays in the field
     if (!item.actions?.length) return this.dismiss();
     this.dismiss();
     for (const [name, args] of item.actions) run(name, args);
@@ -273,11 +265,11 @@ export default class Recall extends View {
 
   navigatorCommand(command) {
     if (command !== "open" && !command.startsWith("open-")) return;
-    const { category, sort } = parseOpen(command);
+    const { category, sort } = parseOpenCommand(command);
     const target = category ?? this.category;
     const sameSort = !sort || sort === this.agentSort;
     if (target === this.category && sameSort) return this.dismiss();
-    if (this.tabs.includes(target)) this.switchTo(target, sort);
+    if (this.categories.includes(target)) this.switchTo(target, sort);
   }
 
   // ── Navigator: data ────────────────────────────────────────────────────
@@ -296,14 +288,14 @@ export default class Recall extends View {
     return resolveWorktrees(probes.filter(Boolean));
   }
 
-  /** While All shows: what panes run every 10 s, their buffers every 30 s (new panes only). */
-  refreshAll(cx) {
-    if (this.role !== "navigator" || this.category !== "all" || this.done) return;
+  /** While Clues shows: what panes run every 10 s, their buffers every 30 s (new panes only). */
+  refreshClues(cx) {
+    if (this.role !== "navigator" || this.category !== "clues" || this.done) return;
     const now = Date.now();
-    if (!this.othersAt || now - this.othersAt >= OTHERS_EVERY) {
-      this.othersAt = now;
+    if (!this.paneStateAt || now - this.paneStateAt >= PANE_STATE_EVERY) {
+      this.paneStateAt = now;
       cx.spawn(async (cx) => {
-        await Promise.all([this.fetchOthers(), this.fetchLocator()]);
+        await Promise.all([this.fetchPaneState(), this.fetchLocator()]);
         cx.notify();
       });
     }
@@ -316,19 +308,19 @@ export default class Recall extends View {
     }
   }
 
-  allTargets() {
+  clueTargets() {
     return panes().filter((p) => p.terminal);
   }
 
-  async fetchOthers() {
-    await Promise.all(this.allTargets().map(async (p) => {
+  async fetchPaneState() {
+    await Promise.all(this.clueTargets().map(async (p) => {
       try {
         const r = await hc(["get", p.terminal, "--json"]);
         if (r.code !== 0) return;
         const j = JSON.parse(r.stdout);
         const fg = j.foreground;
         const command = fg?.argv?.length ? fg.argv.join(" ") : fg?.name ?? null;
-        this.data.others.set(p.pane, {
+        this.data.paneState.set(p.pane, {
           cwd: fg?.cwd ?? j.cwd ?? p.cwd ?? null,
           command: command && command.trim() ? command : null,
           ssh: command ? parseSshTarget(command) : null,
@@ -339,7 +331,7 @@ export default class Recall extends View {
   }
 
   async fetchContent() {
-    const missing = this.allTargets().filter((p) => !this.data.content.has(p.pane));
+    const missing = this.clueTargets().filter((p) => !this.data.content.has(p.pane));
     await Promise.all(missing.map(async (p) => {
       try {
         const r = await hc(["read", p.terminal, "--lines", "3000"]);
@@ -385,15 +377,14 @@ export default class Recall extends View {
     this.category = category;
     if (sort && AGENT_SORTS.includes(sort)) {
       this.agentSort = sort;
-      this.sort = null;
     }
     this.at = null;
     this.follow = true;
   }
 
   cycleCategory(step) {
-    const i = Math.max(0, this.tabs.indexOf(this.category));
-    this.switchTo(this.tabs[(i + step + this.tabs.length) % this.tabs.length]);
+    const i = Math.max(0, this.categories.indexOf(this.category));
+    this.switchTo(this.categories[(i + step + this.categories.length) % this.categories.length]);
   }
 
   move(step) {
@@ -457,15 +448,8 @@ export default class Recall extends View {
 
   cycleSort() {
     this.agentSort = AGENT_SORTS[(AGENT_SORTS.indexOf(this.agentSort) + 1) % AGENT_SORTS.length];
-    this.sort = null;
     this.at = null;
     this.follow = true;
-  }
-
-  /** A click on a column head: the next sort, the selected row staying selected. */
-  sortBy(column) {
-    this.sort = nextSort(this.sort, column);
-    this.keepKey = this.rows?.[this.at]?.item.key ?? null;
   }
 
   /** A press on a column's left edge starts resizing it; a double-click puts its width back. */
@@ -497,33 +481,17 @@ export default class Recall extends View {
 
   // ── Navigator: view ────────────────────────────────────────────────────
 
-  rowsFor(category, snap) {
-    if (category === "all") return buildAll(snap, this.data, this.query);
-    const items = buildItems(category, snap, { agentSort: this.agentSort });
-    return { rows: search(items, this.query, (i) => i.fields), filter: null, label: null, total: items.length };
-  }
-
   renderNavigator() {
     const t = theme();
-    const view = this.rowsFor(this.category, this.snapshot());
-    this.rows = sortRows(view.rows, this.sort);
-    if (this.keepKey) {
-      const i = this.rows.findIndex((r) => r.item.key === this.keepKey);
-      if (i >= 0) {
-        this.at = i;
-        this.auto = false;
-        this.follow = true;
-      }
-      this.keepKey = null;
-    }
+    const view = listView(this.category, this.snapshot(), this.query, { agentSort: this.agentSort, clueData: this.data, cluesAvailable: this.categories.includes("clues") });
+    this.rows = view.rows;
 
-    // Open on the row before where you are, as IntelliJ's Recent Files does.
-    // Until the person moves, keep re-aiming: focus can settle after the
-    // first frame.
+    // Open on the row listView picks (the one before where you are, as
+    // IntelliJ's Recent Files does). Until the person moves, keep
+    // re-aiming: focus can settle after the first frame.
     if (this.at === null || this.auto) {
       this.auto = true;
-      const first = this.rows.findIndex((r) => !r.item.current && r.item.kind !== "hint");
-      this.at = this.query || first < 0 ? 0 : first;
+      this.at = view.selected;
       this.follow = true;
     }
     this.at = Math.max(0, Math.min(this.at, this.rows.length - 1));
@@ -531,7 +499,7 @@ export default class Recall extends View {
       this.scroll.scroll_to_item(this.at, "center");
       this.follow = false;
     }
-    const loading = this.category === "all" && this.allTargets().length > 0 && !this.data.others.size;
+    const loading = this.category === "clues" && this.clueTargets().length > 0 && !this.data.paneState.size;
 
     const act = (fn) => (_e, cx) => { fn(); cx.notify(); };
     return v_flex()

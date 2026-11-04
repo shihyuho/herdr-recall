@@ -1,36 +1,40 @@
 // The navigator's look ("Columns" layout): a header with the category
 // title and the search box, then an icon rail of the categories beside a
-// table of the rows: name, location, folder, branch and status. A click on a
-// column head sorts by it; dragging the edge left of a head resizes that
-// column (a double-click on it puts it back). A one-line footer under them
-// names the keys.
+// table of the rows: name, location, folder, branch and status. On All the
+// name is led by its path (`space › tab › `) and there is no location
+// column. Dragging the edge left of a head resizes that column (a
+// double-click on it puts it back). A one-line footer under them names
+// the keys.
 //
 // navigator(nav, ctx) draws the dialog from the navigator's state and
 // changes nothing but through nav's own methods:
-//   reads  nav.{category, tabs, rows, at, scroll, input, mode, query,
-//               agentSort, sort, widths, resizing, keys, configError}
-//   calls  nav.{switchTo, focusForMode, open, sortBy,
+//   reads  nav.{category, categories, rows, at, scroll, input, mode, query,
+//               agentSort, widths, resizing, keys, configError}
+//   calls  nav.{switchTo, focusForMode, open,
 //               startResize, resizeTo, endResize}
-//   ctx  = { view, loading }  (view: what rowsFor returned)
+//   ctx  = { view, loading }  (view: what lib/listview.js's listView returned)
 
 import { div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, Input, v_virtual_list } from "gpui-base";
 import { theme, shared } from "herdr";
 import { segments } from "./lib/fuzzy.js";
 import { location } from "./lib/columns.js";
+import { STATUS_WORD } from "./lib/items.js";
 
+// Each category's rail label, header title and rail icon (icons/<icon>.svg).
 const CATEGORY = {
-  spaces: { label: "Spaces", title: "Recent Spaces" },
-  tabs: { label: "Tabs", title: "Recent Tabs" },
-  panes: { label: "Panes", title: "Recent Panes" },
-  agents: { label: "Agents", title: "Agents" },
-  all: { label: "All", title: "Find Anywhere" },
+  all: { label: "All", title: "Find Anywhere", icon: "all" },
+  spaces: { label: "Spaces", title: "Recent Spaces", icon: "spaces" },
+  tabs: { label: "Tabs", title: "Recent Tabs", icon: "tabs" },
+  panes: { label: "Panes", title: "Recent Panes", icon: "panes" },
+  agents: { label: "Agents", title: "Agents", icon: "agents" },
+  clues: { label: "Clues", title: "Find by Clue", icon: "search" },
 };
 const SORT_LABEL = { mru: "Recent", priority: "Priority", grouped: "Grouped" };
-const SOURCE_COLOR = { ssh: "ansi6", cmd: "ansi3", file: "ansi5", term: "ansi4", cwd: "ansi2", port: "ansi6", pid: "ansi5" };
-const CHIP_COLOR = { ".": "accent", ws: "ansi3", tab: "ansi1", pane: "ansi4", port: "ansi6", pid: "ansi5" };
-const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", other: "panes", hint: "all" };
-const PREFIXES = "cmd ssh cwd file term port pid ws tab pane";
+const CLUE_COLOR = { ssh: "ansi6", cmd: "ansi3", file: "ansi5", term: "ansi4", port: "ansi6", pid: "ansi5" };
+const CHIP_COLOR = { ".": "accent", port: "ansi6", pid: "ansi5" };
+const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", clue: "panes", hint: "search", "to-clues": "search" };
+const PREFIXES = "cmd ssh file term port pid";
 const SPINNER = "mods/workspace-chrome/spinner.svg";
 const ROW = 30;
 
@@ -61,9 +65,8 @@ function glyph(t, status, size) {
 }
 
 function statusWord(t, status) {
-  if (status === "blocked") return div().flex_none().text_size(11.5).text_color(t.blocked).child("needs you");
-  if (status === "done") return div().flex_none().text_size(11.5).text_color(t.done).child("finished");
-  return null;
+  const word = STATUS_WORD[status];
+  return word ? div().flex_none().text_size(11.5).text_color(t[status]).child(word) : null;
 }
 
 function icon(t, item, size) {
@@ -99,7 +102,7 @@ export function keyLabel(keystroke) {
 
 function filterChip(t, label) {
   return div().px(6).h(18).flex_none().flex().items_center().rounded(4).text_size(11).font_semibold()
-    .bg(t[CHIP_COLOR[label] ?? SOURCE_COLOR[label] ?? "accent"] ?? t.accent).text_color(t.background)
+    .bg(t[CHIP_COLOR[label] ?? CLUE_COLOR[label] ?? "accent"] ?? t.accent).text_color(t.background)
     .child(label === "." ? "content" : label);
 }
 
@@ -114,7 +117,7 @@ function sortToggle(t, nav) {
 
 function header(t, nav, view) {
   const label = view.label;
-  const count = nav.query.trim() && view.total !== undefined ? `${nav.rows.length}/${view.total}` : String(nav.rows.length);
+  const count = nav.query.trim() && view.total !== null ? `${view.count}/${view.total}` : String(view.count);
   const search = h_flex().flex_1().h(30).px(10).gap(8).items_center().rounded(8).border_1()
     .border_color(nav.mode === "navigation" ? t.border : t.accent).bg(t.background)
     .children([
@@ -142,14 +145,14 @@ function rail(t, nav) {
       .when(on, (el) => el.bg(t.selected))
       .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
       .on_click((_e, cx) => { nav.switchTo(c); nav.focusForMode(); cx.notify(); })
-      .child(svg(`mods/recall/icons/${c}.svg`).size(16).text_color(on ? t.accent : t.muted))
+      .child(svg(`mods/recall/icons/${CATEGORY[c].icon}.svg`).size(16).text_color(on ? t.accent : t.muted))
       .child(div().text_size(9.5).text_color(on ? t.foreground : t.dim).child(CATEGORY[c].label));
   };
   return v_flex().w(60).h_full().flex_none().py(6).gap(2).items_center().border_r(1).border_color(t.border)
-    .children(nav.tabs.map(entry));
+    .children(nav.categories.map(entry));
 }
 
-// The columns, by the key lib/columns.js sorts and sizes them by. Every one
+// The columns, by the key the widths are stored under. Every one
 // but the name has a width of its own (nav.widths); the name takes the rest.
 const COLUMNS = [
   { key: "name", label: () => "NAME" },
@@ -158,6 +161,10 @@ const COLUMNS = [
   { key: "branch", label: () => "BRANCH" },
   { key: "status", right: true, label: () => "STATUS" },
 ];
+
+/** All leads each name with its path, so it shows no location column. */
+const hasLocation = (nav) => nav.category !== "all";
+const shownColumns = (nav) => COLUMNS.filter((c) => c.key !== "location" || hasLocation(nav));
 
 /** The grip on a column's left edge, over the gap before it. */
 function edge(t, nav, column) {
@@ -170,13 +177,10 @@ function edge(t, nav, column) {
 
 function columnHead(t, nav) {
   const head = (c) => {
-    const on = nav.sort?.column === c.key;
-    const label = h_flex().id(`recall-col-${c.key}`).size_full().min_w(0).items_center().cursor_pointer()
+    const label = h_flex().id(`recall-col-${c.key}`).size_full().min_w(0).items_center()
       .when(Boolean(c.right), (el) => el.justify_end())
-      .text_color(on ? t.accent : t.dim)
-      .hover((x) => x.text_color(t.foreground))
-      .on_click((_e, cx) => { nav.sortBy(c.key); nav.focusForMode(); cx.notify(); })
-      .child(div().truncate().child(c.label(nav) + (on ? (nav.sort.dir > 0 ? " ▲" : " ▼") : "")));
+      .text_color(t.dim)
+      .child(div().truncate().child(c.label(nav)));
     if (c.key === "name") return h_flex().flex_1().min_w(0).h_full().child(label);
     return h_flex().w(nav.widths[c.key]).flex_none().h_full().relative().child(label).child(edge(t, nav, c.key));
   };
@@ -184,27 +188,31 @@ function columnHead(t, nav) {
     .text_size(10.5).font_semibold().border_b(1).border_color(t.border)
     .child(div().w(10).flex_none())
     .child(div().w(30).flex_none())
-    .children(COLUMNS.map(head))
+    .children(shownColumns(nav).map(head))
     .child(div().w(16).flex_none());
 }
 
 function row(t, nav, { item, hits }, on) {
   const w = nav.widths;
-  const other = item.kind === "other" || item.kind === "hint";
+  const clue = item.kind === "clue" || item.kind === "hint";
   const cell = (w, text, color) => div().w(w).flex_none().truncate().text_size(12).text_color(color).child(text || "");
   return h_flex().h(ROW).mx(4).px(8).gap(8).items_center().rounded(6)
     .when(on, (el) => el.bg(t.selection))
     .child(glyph(t, item.status, 10))
-    .child(other
-      ? div().w(30).flex_none().text_size(11).font_semibold().text_color(item.kind === "hint" ? t.dim : t[SOURCE_COLOR[item.source]] ?? t.dim).child(item.source)
+    .child(clue
+      ? div().w(30).flex_none().text_size(11).font_semibold().text_color(item.kind === "hint" ? t.dim : t[CLUE_COLOR[item.clue]] ?? t.dim).child(item.clue)
       : h_flex().w(30).flex_none().child(icon(t, item, 14)))
     .child(h_flex().flex_1().min_w(0).gap(8).items_center().overflow_hidden()
       .when(Boolean(item.nested), (el) => el.pl(18))
-      .child(highlighted(item.title, titleHits(item, hits), item.kind === "hint" ? t.dim : t.foreground, t.accent)
-        .when(Boolean(item.current), (d) => d.font_semibold()))
+      .child(h_flex().flex_none().items_center()
+        // All's path, dimmed, right before the name; it starts with the
+        // `where` field, so that field's hits light up inside it.
+        .when(Boolean(item.crumb), (el) => el.child(highlighted(item.crumb, hits.where, t.dim, t.accent)))
+        .child(highlighted(item.title, titleHits(item, hits), item.kind === "hint" ? t.dim : t.foreground, t.accent)
+          .when(Boolean(item.current), (d) => d.font_semibold())))
       .when(item.kind === "hint", (el) => el.child(div().flex_none().text_color(t.blocked).child(`(${item.reason})`)))
       .when(Boolean(item.message), (el) => el.child(div().min_w(0).truncate().text_size(12).text_color(t.dim).child(item.message))))
-    .child(cell(w.location, location(item), t.muted))
+    .when(hasLocation(nav), (el) => el.child(cell(w.location, location(item), t.muted)))
     .child(cell(w.folder, item.path, t.dim))
     .child(cell(w.branch, item.branch, t.dim))
     .child(h_flex().w(w.status).flex_none().justify_end().child(statusWord(t, item.status) ?? div()))
@@ -225,9 +233,11 @@ function list(t, nav, loading) {
     return out;
   })
     .track_scroll(nav.scroll)
-    .on_item_click((key) => {
+    .on_item_click((key, cx) => {
       const r = rows.find((x) => x.item.key === key);
-      if (r) nav.open(r.item);
+      if (!r) return;
+      nav.open(r.item);
+      if (!nav.done) { nav.focusForMode(); cx.notify(); }
     })
     .size_full();
 }
@@ -243,7 +253,7 @@ function hints(nav) {
   if (nav.mode === "navigation") out = [[first("select"), "open"], [move, "move"], ["/", "filter"], [first("next_category"), "category"], close];
   else if (nav.mode === "filtering") out = [[first("select"), "open"], [move, "move"], [first("dismiss"), "done"], [first("force_quit"), "close"]];
   else out = [[first("select"), "open"], [move, "move"], [first("next_category"), "category"], close];
-  const extra = nav.category === "agents" ? [["⌃S", "sort"]] : nav.category === "all" ? [[".", "buffers"], [PREFIXES, "prefixes"]] : [];
+  const extra = nav.category === "agents" ? [["⌃S", "sort"]] : nav.category === "clues" ? [[".", "buffers"], [PREFIXES, "prefixes"]] : [];
   return [...out.slice(0, -1), ...extra, out[out.length - 1]];
 }
 
