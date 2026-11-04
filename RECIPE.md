@@ -111,7 +111,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **Copies of a mod share no memory.** The dialog announces itself in shared `recall.open` with a heartbeat. A second open within 4 s is a toggle, and a crash leaves nothing stuck.
 - **The search field takes keys before `on_key_down` does,** and so does Tab focus traversal. Bind the category and close keys with `cx.bind_keys` in both `RecallNavigator` and `RecallNavigator > Input`, and handle them with `on_action`. Printable keys stay with `on_key_down`, since whether they type or move depends on the mode.
 - **Focus the search field again 250 ms after opening.** The first focus can be lost.
-- **Every row must be the same height (30px).** The list is a `uniform_list`. `herdr-app check` warns that `track_scroll` is ignored on a `uniform_list`, so whether `scroll_to_item` keeps the selected row in view is not verified.
+- **Use `v_virtual_list` with a 30px row size and `track_scroll`, not `uniform_list`.** A `uniform_list` ignores `track_scroll` (`herdr-app check` warns about it), so `scroll_to_item` does nothing and a selection moved past the visible rows goes off screen.
 - **The dialog only hears pointer moves while the pointer is over it.** A column resize ends when the pointer leaves the dialog.
 - **The tracker only records from its first open.** Recency starts empty after installing.
 - **The dialog's size is fixed by `mod.json`.** Check that the default column widths leave the name room on a small window.

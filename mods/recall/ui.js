@@ -13,8 +13,8 @@
 //               startResize, resizeTo, endResize}
 //   ctx  = { view, loading }  (view: what rowsFor returned)
 
-import { div, svg, image, uniform_list } from "gpui-kit";
-import { v_flex, h_flex, Input } from "gpui-base";
+import { div, svg, image } from "gpui-kit";
+import { v_flex, h_flex, Input, v_virtual_list } from "gpui-base";
 import { theme, shared } from "herdr";
 import { segments } from "./lib/fuzzy.js";
 import { location } from "./lib/columns.js";
@@ -217,7 +217,9 @@ function list(t, nav, loading) {
     const msg = loading ? "Reading panes…" : nav.query ? "Nothing matches" : "Nothing here yet";
     return v_flex().size_full().items_center().justify_center().text_color(t.dim).child(msg);
   }
-  return uniform_list("recall-rows", rows.length, (i) => rows[i].item.key, (range) => {
+  // A virtual list, not uniform_list: only it takes the scroll handle that
+  // keeps the selected row in view (uniform_list ignores track_scroll).
+  return v_virtual_list("recall-rows", rows.length, ROW, (i) => rows[i].item.key, (range) => {
     const out = [];
     for (let i = range.start; i < range.end; i++) out.push(row(t, nav, rows[i], i === nav.at));
     return out;
