@@ -68,6 +68,8 @@ function row(c, source, detail, context, home, extra = {}) {
       { key: "title", text: detail },
       { key: "detail", text: shown === "-" ? "" : shown },
       { key: "where", text: c.where },
+      // A buffer row's whole line, so a term the excerpt cut off still matches.
+      ...(extra.line ? [{ key: "line", text: extra.line }] : []),
     ],
     actions: [["tab.select", { id: c.pane.tab }], ["pane.focus", { pane: c.pane.pane }]],
     ...(extra.item ?? {}),
@@ -134,7 +136,7 @@ function contentRows(cs, data, home, needle, only) {
     }
     const ex = contentExcerpt(text, needle);
     if (!ex) continue;
-    rows.push(row(c, kind.kind, ex.text, kind.context, home, { suffix: ":buffer", item: { excerpt: ex.hit } }));
+    rows.push(row(c, kind.kind, ex.text, kind.context, home, { suffix: ":buffer", line: ex.line, item: { excerpt: ex.hit } }));
   }
   return rows;
 }

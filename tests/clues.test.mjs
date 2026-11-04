@@ -116,3 +116,54 @@ test("Clues: `ws `, `tab `, `pane ` are searched as plain text, not as category 
   assert.deepEqual(listView("clues", world(), "ws api", { clueData: clueData(others) }).rows.map((r) => [r.item.source, r.item.title]), [["cmd", "ws api-server"]]);
   assert.deepEqual(listView("clues", world(), "tab api", { clueData: clueData(others) }).rows, []);
 });
+
+// The query syntax applies to the text after the clue-type word.
+
+test("Clues: operators after a clue-type word filter its clues", () => {
+  const view = (query) => listView("clues", world(), query, { clueData: clueData(worldOthers()) });
+  assert.deepEqual(clueRows(view("cmd ")), [["cmd", "p1"], ["cmd", "p3"]]);
+  assert.deepEqual(clueRows(view("cmd !nvim")), [["cmd", "p1"]]);
+  assert.equal(view("cmd !nvim").label, "cmd");
+  assert.deepEqual(view("cmd !nvim").rows[0].hits, {});
+  const anchored = view("cmd ^nv");
+  assert.deepEqual(clueRows(anchored), [["cmd", "p3"]]);
+  assert.deepEqual(anchored.rows[0].hits, { title: [0, 1] });
+  assert.deepEqual(clueRows(view("cmd ^main")), []);
+  assert.deepEqual(clueRows(view("cmd claude | 'main")), [["cmd", "p1"], ["cmd", "p3"]]);
+});
+
+test("Clues: `port 5173` still finds the pane listening on 5173 beside the syntax", () => {
+  const others = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
+  const procs = new Map([[21, { ppid: 20, command: "node vite" }], [20, { ppid: 1, command: "-zsh" }]]);
+  const listeners = [{ port: 5173, pid: 21, addr: "*:5173" }];
+  const view = listView("clues", world(), "port 5173", { clueData: clueData(others, new Map(), procs, listeners) });
+  assert.equal(view.label, "port");
+  assert.deepEqual(view.rows.map((r) => [r.item.kind, r.item.id, r.item.title]), [["other", "p2", "*:5173"]]);
+});
+
+test("Clues: in a pane's buffer, each term must hold in one line, anchors hold at the line's ends, and `!` drops a line", () => {
+  const others = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
+  const content = new Map([["p2", "$ npm test\nFAIL src/login.test.ts\n"]]);
+  const lines = (query) => listView("clues", world(), query, { clueData: clueData(others, content) }).rows.map((r) => r.item.title);
+  assert.deepEqual(lines(".FAIL login"), ["FAIL src/login.test.ts"]);
+  assert.deepEqual(lines(".npm"), ["$ npm test"]);
+  // a plain term is read literally in a buffer: n and t scattered in "$ npm test" are no match
+  assert.deepEqual(lines(".nt"), []);
+  assert.deepEqual(lines(".^npm"), []);
+  assert.deepEqual(lines(".^fail"), ["FAIL src/login.test.ts"]);
+  assert.deepEqual(lines(".test$"), ["$ npm test"]);
+  // the excerpt keeps 14 characters before the hit, "ts" at 20
+  assert.deepEqual(lines(".ts$"), ["…rc/login.test.ts"]);
+  assert.deepEqual(lines(".login"), ["FAIL src/login.test.ts"]);
+  assert.deepEqual(lines(".login !FAIL"), []);
+  // `test` is in both lines; `!npm` drops the first. "test" at 15, so the excerpt is cut.
+  assert.deepEqual(lines("term test"), ["$ npm test"]);
+  assert.deepEqual(lines("term test !npm"), ["…AIL src/login.test.ts"]);
+});
+
+test("Clues: a buffer row lights the first term that matched in its line", () => {
+  const others = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
+  const content = new Map([["p2", "FAIL src/login.test.ts\n"]]);
+  const row = listView("clues", world(), ".login FAIL", { clueData: clueData(others, content) }).rows[0];
+  assert.deepEqual(row.item.excerpt, [9, 14]);
+});

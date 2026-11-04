@@ -24,6 +24,8 @@
 
 打字時，符合的列分成兩層：先是你輸入的每個詞都完整連續出現的列，再來是只有零散字母對得上的列。每一層都維持沒打字時的順序（在 Agents 裡就是你選的排序），所以列不會隨著每次按鍵換來換去。不論有沒有打字，選取都停在第一個不是你目前所在位置的列，讓 `⏎` 帶你去別的地方；如果你所在的那列是唯一的結果，就選它。
 
+每個清單的查詢都採用 [fzf](https://github.com/junegunn/fzf) 的 extended-search 語法：`'exact`、`'whole-word'`、`^start`、`end$`、`!exclude` 與 `this | that`（見下方的 **搜尋語法**）。
+
 第一個清單 **All** 把所有 space、tab、pane 與 agent 放在一起，不必先知道要找的是哪一種。每個名稱前面都帶著它的路徑（`payments-api › refunds › nvim`），每個目的地也只出現一次：agent 代表它所在的 pane，tab 要有好幾個 pane 才會有自己的一列，space 要有好幾個 tab 才會有。agent 與 pane 排最前面，接著是 tab，最後是 space，各自依最近用過的順序排列；從沒去過的排在後面，等你處理的排最前。打字只會縮小這份清單。如果 All 裡沒有任何符合的項目，它會給一列 `Search Clues for "<query>"`；開啟後會切到 Clues，並保留同一個查詢。其他清單則顯示「Nothing matches」。
 
 最後一個清單 **Clues** 能用 pane 正在跑的指令、ssh 連到的主機、開著的檔案、監聽的 port，或印出過的文字找到它：輸入 `port 5173` 就能找到啟動 dev server 的那個 pane。為此 Recall 會在你的電腦上執行 `git`、`ps`、`lsof` 並讀取 pane 的內容，資料不會離開你的電腦。
@@ -100,6 +102,28 @@ cd herdr-recall
 </details>
 
 <details>
+<summary><strong>搜尋語法</strong></summary>
+
+每個清單的查詢都依循 fzf 的 extended-search mode。詞與詞以空格分開，每個詞都必須對上，各自對上列中的任一個欄位（名稱、位置、資料夾等等）。
+
+| 詞 | 留下哪些列 |
+| --- | --- |
+| `abc` | 某個欄位依序含有 a、b、c（模糊比對） |
+| `'abc` | 某個欄位含有完整連續的 `abc` |
+| `'abc'` | 某個欄位含有完整單字 `abc`，所以 `'api'` 找得到 `payments-api`，找不到 `rapid` |
+| `^abc` | 某個欄位以 `abc` 開頭 |
+| `abc$` | 某個欄位以 `abc` 結尾 |
+| `^abc$` | 某個欄位就是 `abc` |
+| `!abc` | 沒有任何欄位含有完整連續的 `abc`；`!^abc`、`!abc$` 與 `!'abc'` 排除那些比對，`!'abc` 則排除模糊比對對上的 |
+| `abc \| def` | 任一個詞對上即可 |
+
+`\ ` 代表詞裡面的空格。全小寫的詞不分大小寫；含大寫字母的詞會精確比對大小寫。fzf 比對的是一整行，這裡的一列則有好幾個欄位，所以 `^` 與 `$` 對的是任一個欄位的開頭或結尾：`^pay` 找得到位在 `payments-api` 的列，`refunds$` 找得到它的 `refunds` tab 裡的列。
+
+精確比對與錨定的詞都算完整連續，會讓它們的列排進上層。排除的詞不影響分層，也不會標亮任何字。在 OR 群組裡，由對上的那個詞決定分層；有好幾個詞對上時，以完整連續出現的那個為準。
+
+</details>
+
+<details>
 <summary><strong>在 Clues 裡搜尋</strong></summary>
 
 一般的搜尋會比對 pane 正在跑的東西，以及它印出過的文字。沒有輸入任何東西時，Clues 會列出每個 pane 的指令與 ssh 線索。pane 的工作目錄不是線索，請到 All 或 Panes 搜尋。前綴加一個空格可以縮小範圍：
@@ -113,6 +137,8 @@ cd herdr-recall
 | `port ` | 它的 shell 底下的程序所監聽的 port |
 | `pid ` | 它的 shell 所啟動的程序的 process ID |
 | `.` | 只比對印出過的文字 |
+
+前綴後面的文字使用上面的搜尋語法：`cmd !nvim` 列出不是 nvim 的指令，`cmd ^npm` 列出以 npm 開頭的指令。在印出過的文字裡，每個詞都要照打的樣子出現（不會用零散的字母比對），而且全部在同一行：`.FAIL !flaky` 會找到含有 FAIL 但不含 flaky 的那一行，`^` 與 `$` 則對準該行的開頭與結尾。`port ` 與 `pid ` 後面接數字。
 
 要切換清單請用分類（`⇥` / `⇧⇥`）；`ws `、`tab `、`pane ` 會當成一般文字搜尋。
 

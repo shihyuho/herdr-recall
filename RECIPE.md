@@ -57,7 +57,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - idle: a ○.
 
   In every category, Recent puts the focused rows first, most recently focused first, then the never-focused ones by status (blocked, done, working, idle, none), ties in Herdr's order; a linked worktree space still nests under its main checkout. Agents sort by Recent (that rule), Priority (blocked, done, working, idle; latest change first within each) or Grouped (Herdr's own space, tab and pane order).
-- **Search.** Fuzzy, every term matching some field:
+- **Search.** fzf's extended-search syntax (see Query syntax below), every term matching some field:
   - spaces by name, folder, branch, machine and status word;
   - tabs by name, what they run, their space, their panes, branch and status word;
   - panes and agents by name, "space › tab", folder, program, branch and status word.
@@ -69,10 +69,22 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - each tier keeps the order the list had with nothing typed: All's resting order, recency, or on Agents the chosen sort (Recent, Priority or Grouped). So one more letter never swaps two rows that stay in one tier;
   - the fuzzy score orders nothing, and the name gets no bonus. It only places highlights: a term that appears unbroken lights that run (the best-placed one, at a word start if there is one), else its best fuzzy alignment; when fields tie, the name wins.
 
+  Query syntax, as fzf 0.73's extended-search mode, which is the reference for edge cases:
+  - terms split on whitespace and all must match; `\ ` is a literal space;
+  - `'abc` matches `abc` unbroken; `'abc'` matches it with both ends at word boundaries (next to the field's edge or a character that is neither a letter nor a digit, `_` included), so `'api'` matches `payments-api` and not `rapid`;
+  - `^abc` and `abc$` anchor to the start or end of any one field (fzf has one line, a row has several); `^abc$` matches a field that is `abc`;
+  - `!abc` drops rows where `abc` appears unbroken in any field; `!^abc`, `!abc$` and `!'abc'` negate those kinds, and `!'abc` negates a fuzzy match, as in fzf;
+  - `|` between terms means OR, binding tighter than the spaces between groups; a `|` with no term before it is a term, and one at the end is ignored;
+  - an operator with nothing after it (`!`, `'`, `^`) filters nothing yet;
+  - smart case: a term with an uppercase letter matches case exactly.
+
+  With the tiers: exact and anchored terms count as unbroken, negated terms don't count, and in an OR group the alternative that matched decides (one that appears unbroken, if several match). Negated terms highlight nothing.
+
   Clues keeps its own order. On Clues:
   - a plain query also finds text panes printed;
   - a prefix and one space narrows it: `cmd`, `ssh`, `file`, `term`, `port`, `pid`;
   - `.` searches only printed text;
+  - the text after a prefix uses the query syntax: on commands and ssh hosts as anywhere, and on printed text line by line, where a plain term must appear as typed (as if quoted), every term must hold in the same line, and `^` and `$` hold at the line's ends. The row shows the first such line, around the first term that matched; `port` and `pid` take a number;
   - `ws`, `tab` and `pane` are plain text, not list switches, and a pane's folder is no clue (All and Panes search it);
   - with nothing typed it lists each pane's command and ssh clues.
 
@@ -143,3 +155,4 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - All lists each pane or agent once, led by its `space › tab › ` path, with no LOCATION column; a tab with one pane and a space with one tab have no row of their own.
 - In Clues, `port <n>` for a running dev server lists the pane that started it.
 - Typing puts rows where the term appears unbroken above rows that match by scattered letters, each group in its untyped order, and the selection skips the row you are on unless it is the only match.
+- On All, `^pay` finds the rows located in a space named `payments-api`, `'api'` doesn't find a pane titled `rapid`, and `!zsh` drops the shell panes.

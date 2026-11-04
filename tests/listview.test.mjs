@@ -333,6 +333,141 @@ test("Text found only in an agent's last message matches nothing", () => {
   assert.deepEqual(keys(listView("all", snap, "quokka")), ["to-clues"]);
 });
 
+// Queries follow fzf's extended-search mode (fzf 0.73). A row has several
+// fields where fzf has one line, so anchors hold at the start or end of
+// any one field, and `!` drops a row when the term appears in any field.
+
+/** town() with the dev-server pane retitled, to give a term a place mid-field. */
+function retitled(title) {
+  const snap = town();
+  snap.panes.find((p) => p.pane === "p-dev").title = title;
+  return snap;
+}
+
+test("`^pay` keeps rows with a field that starts with pay, lit there; plain `pay` also finds it mid-field", () => {
+  const snap = retitled("repay dev");
+  const view = listView("all", snap, "^pay");
+  // p-ref and t-hooks are located in payments-api; sp-api is named payments-api.
+  assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [
+    ["pane:p-ref", { where: [0, 1, 2] }],
+    ["agent:t-hooks", { where: [0, 1, 2] }],
+    ["space:sp-api", { title: [0, 1, 2] }],
+  ]);
+  assert.equal(view.total, 15);
+  assert.equal(keys(listView("all", snap, "pay")).includes("pane:p-dev"), true);
+});
+
+test("`refunds$` keeps rows with a field that ends with refunds: the pane located in that tab, the tab itself", () => {
+  const snap = retitled("refunds report");
+  assert.deepEqual(keys(listView("panes", snap, "refunds")), ["pane:p-ref", "pane:p-dev"]);
+  const view = listView("panes", snap, "refunds$");
+  // "payments-api › refunds": r at 15 to s at 21.
+  assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [["pane:p-ref", { where: [15, 16, 17, 18, 19, 20, 21] }]]);
+  assert.deepEqual(keys(listView("tabs", snap, "refunds$")), ["tab:tb-refunds"]);
+});
+
+test("`^term$` keeps rows with a field that is exactly the term", () => {
+  assert.deepEqual(keys(listView("all", town(), "^zsh$")), ["pane:p-cartsh", "pane:p-tf"]);
+  assert.deepEqual(keys(listView("all", town(), "^zs$")), ["to-clues"]);
+});
+
+test("`'ng` keeps only rows where ng appears unbroken; plain `ng` also takes scattered letters", () => {
+  assert.deepEqual(keys(listView("all", town(), "ng")), ["agent:t-cart", "tab:tb-checkout", "pane:p-ref", "agent:t-plan"]);
+  const view = listView("all", town(), "'ng");
+  // "fix cart rounding": n-g at 15, 16.
+  assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [
+    ["agent:t-cart", { title: [15, 16] }],
+    ["tab:tb-checkout", { detail: [15, 16] }],
+  ]);
+});
+
+test("`'api'` matches api only as a whole word: payments-api, not rapid; `'api` takes both", () => {
+  const snap = retitled("rapid build");
+  assert.deepEqual(keys(listView("all", snap, "'api'")), ["pane:p-ref", "agent:t-hooks", "space:sp-api"]);
+  assert.deepEqual(keys(listView("all", snap, "'api")), ["pane:p-ref", "pane:p-dev", "agent:t-hooks", "space:sp-api"]);
+  // "payments-api › refunds": a-p-i at 9, 10, 11.
+  assert.deepEqual(listView("all", snap, "'api'").rows[0].hits, { where: [9, 10, 11] });
+});
+
+test("Operators keep smart case: a lowercase term ignores case, an uppercase letter makes it exact", () => {
+  // "nvim README.md" names the pane and is in its tab's pane list.
+  assert.deepEqual(keys(listView("all", town(), "'readme")), ["pane:p-readme", "tab:tb-guides"]);
+  assert.deepEqual(keys(listView("all", town(), "'README")), ["pane:p-readme", "tab:tb-guides"]);
+  assert.deepEqual(keys(listView("all", town(), "'Readme")), ["to-clues"]);
+  assert.deepEqual(keys(listView("all", town(), "^Pay")), ["to-clues"]);
+});
+
+const ALL_UNTYPED = [
+  "agent:t-cart", "pane:p-ref", "pane:p-dev", "agent:t-hooks", "agent:t-guide", "agent:t-plan", "agent:t-review",
+  "pane:p-cartsh", "pane:p-readme", "pane:p-tf", "tab:tb-checkout", "tab:tb-guides", "space:sp-web", "space:sp-api", "space:sp-infra",
+];
+const without = (...gone) => ALL_UNTYPED.filter((k) => !gone.includes(k));
+
+test("`!zsh` drops the shell panes and lights nothing; the negated term matches exactly, so `!zh` drops nothing", () => {
+  const view = listView("all", town(), "!zsh");
+  assert.deepEqual(keys(view), without("pane:p-cartsh", "pane:p-tf"));
+  assert.equal(view.rows.every((r) => Object.keys(r.hits).length === 0), true);
+  assert.equal(view.total, 15);
+  assert.deepEqual(keys(listView("all", town(), "!zh")), ALL_UNTYPED);
+  // `!'zh` negates a fuzzy term, as in fzf: z-s-h holds z..h.
+  assert.deepEqual(keys(listView("all", town(), "!'zh")), without("pane:p-cartsh", "pane:p-tf"));
+});
+
+test("`!^pay` and `!refunds$` drop rows with a field that starts or ends so, and keep rows that hold it elsewhere", () => {
+  const repay = retitled("repay dev");
+  assert.deepEqual(keys(listView("all", repay, "!^pay")), without("pane:p-ref", "agent:t-hooks", "space:sp-api"));
+  const report = retitled("refunds report");
+  // p-ref is located in "payments-api › refunds"; p-dev is titled "refunds report".
+  assert.equal(keys(listView("panes", report, "!refunds$")).includes("pane:p-dev"), true);
+  assert.equal(keys(listView("panes", report, "!refunds$")).includes("pane:p-ref"), false);
+  assert.equal(keys(listView("panes", report, "!refunds")).includes("pane:p-dev"), false);
+});
+
+test("A negated term drops a row when it appears in any field; only the positive terms light up", () => {
+  // "review cart totals" is the review agent's name and sits in checkout's pane list.
+  const view = listView("all", town(), "'cart !review");
+  assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [["agent:t-cart", { title: [4, 5, 6, 7] }]]);
+  assert.deepEqual(keys(listView("all", town(), "'cart")), ["agent:t-cart", "agent:t-review", "tab:tb-checkout"]);
+});
+
+test("A negated term leaves the tiers as the other terms set them", () => {
+  assert.deepEqual(keys(listView("all", town(), "ng !zsh")), ["agent:t-cart", "tab:tb-checkout", "pane:p-ref", "agent:t-plan"]);
+});
+
+test("`a | b` keeps rows that match either; a bar with nothing after it is ignored", () => {
+  assert.deepEqual(keys(listView("all", town(), "refunds webhooks")), ["to-clues"]);
+  assert.deepEqual(keys(listView("all", town(), "refunds | webhooks")), ["pane:p-ref", "agent:t-hooks"]);
+  assert.deepEqual(keys(listView("all", town(), "refunds |")), ["pane:p-ref"]);
+  // OR binds tighter than AND: (refunds or webhooks) and nvim.
+  assert.deepEqual(keys(listView("all", town(), "refunds | webhooks 'nvim")), ["pane:p-ref"]);
+});
+
+test("An exact term puts its rows in the upper tier; in an OR group, the alternative that matched decides", () => {
+  // `ng` is unbroken in "fix cart rounding", scattered in "nvim ledger.go" and "plan redis upgrade";
+  // the shell panes match `'zsh` alone, which rises them above the scattered rows.
+  const view = listView("all", town(), "'zsh | ng");
+  assert.deepEqual(keys(view), ["agent:t-cart", "pane:p-cartsh", "pane:p-tf", "tab:tb-checkout", "pane:p-ref", "agent:t-plan"]);
+  assert.deepEqual(view.rows[1].hits, { title: [0, 1, 2] });
+  // refunds' pane holds `ledger` unbroken, so it rises although `ng` is scattered in it.
+  const either = listView("all", town(), "ng | ledger");
+  assert.deepEqual(keys(either), ["agent:t-cart", "pane:p-ref", "tab:tb-checkout", "agent:t-plan"]);
+  assert.deepEqual(either.rows[1].hits, { title: [5, 6, 7, 8, 9, 10] });
+});
+
+test("`\\ ` is a literal space inside a term", () => {
+  assert.deepEqual(keys(listView("all", town(), "'cart r")), ["agent:t-cart", "agent:t-review", "tab:tb-checkout"]);
+  const view = listView("all", town(), "'cart\\ r");
+  // "fix cart rounding": "cart r" at 4 to 9.
+  assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [
+    ["agent:t-cart", { title: [4, 5, 6, 7, 8, 9] }],
+    ["tab:tb-checkout", { detail: [4, 5, 6, 7, 8, 9] }],
+  ]);
+});
+
+test("An operator with nothing after it filters nothing yet", () => {
+  for (const query of ["!", "'", "^", "!^"]) assert.deepEqual(keys(listView("all", town(), query)), ALL_UNTYPED, query);
+});
+
 test("All, a query nothing matches: one row offering Clues for that query, and it is selected", () => {
   const view = listView("all", town(), "zzqx");
   assert.equal(view.rows.length, 1);

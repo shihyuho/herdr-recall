@@ -24,6 +24,8 @@ Each row shows where it lives, its folder, its branch and whether an agent there
 
 Typing sorts the matches into two tiers: first the rows where every term you typed appears unbroken, then the ones that match only by scattered letters. Each tier keeps the order the list had with nothing typed (in Agents, the sort you chose), so rows don't trade places as you type. The selection starts on the first row that isn't where you are now, typed or not, so `⏎` takes you somewhere else; when the row you are on is the only match, it is selected.
 
+Queries follow [fzf](https://github.com/junegunn/fzf)'s extended-search syntax in every list: `'exact`, `'whole-word'`, `^start`, `end$`, `!exclude` and `this | that` (see **Search syntax** below).
+
 **All**, the first list, has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each most recently focused first; ones you have never been to follow, those that need you first. Typing only narrows that list. When nothing in All matches, it offers one row, `Search Clues for "<query>"`; opening it switches to Clues with the same query. The other lists just say "Nothing matches".
 
 **Clues**, the last list, finds a pane by what it runs, the host it is ssh'd into, the file it has open, the port it listens on, or text it printed: `port 5173` finds the pane that started your dev server. To do that, Recall runs `git`, `ps` and `lsof` and reads pane buffers on your machine; nothing leaves it.
@@ -100,6 +102,28 @@ Bind them in `keys.json` like `mod.open:recall` above. They work once the tracke
 </details>
 
 <details>
+<summary><strong>Search syntax</strong></summary>
+
+Queries follow fzf's extended-search mode, in every list. Terms are separated by spaces, and every term must match, each in any one field of a row (its name, where it lives, its folder and so on).
+
+| Term | Keeps rows where |
+| --- | --- |
+| `abc` | a field has a, b and c in that order (fuzzy) |
+| `'abc` | a field has `abc` unbroken |
+| `'abc'` | a field has `abc` as a whole word, so `'api'` finds `payments-api` but not `rapid` |
+| `^abc` | a field starts with `abc` |
+| `abc$` | a field ends with `abc` |
+| `^abc$` | a field is `abc` |
+| `!abc` | no field has `abc` unbroken; `!^abc`, `!abc$` and `!'abc'` exclude those matches, and `!'abc` excludes fuzzy ones |
+| `abc \| def` | either term matches |
+
+`\ ` stands for a space inside a term. A lowercase term ignores case; one with an uppercase letter matches case exactly. Where fzf matches one line, a row here has several fields, so `^` and `$` hold at the start or end of any one of them: `^pay` finds the rows located in `payments-api`, and `refunds$` the ones in its `refunds` tab.
+
+Exact and anchored terms count as unbroken, so they put their rows in the upper tier. Negated terms don't change the tier and highlight nothing. In an OR group, the term that matched decides; when several match, one that appears unbroken wins.
+
+</details>
+
+<details>
 <summary><strong>Searching Clues</strong></summary>
 
 A plain query matches anything a pane runs and what it printed. With nothing typed, Clues lists each pane's command and ssh clues. A pane's folder is not a clue; search it in All or Panes. A prefix followed by one space narrows it:
@@ -113,6 +137,8 @@ A plain query matches anything a pane runs and what it printed. With nothing typ
 | `port ` | A port their shell's processes listen on |
 | `pid ` | The process ID of something their shell started |
 | `.` | Only the text they printed |
+
+The text after a prefix uses the search syntax above: `cmd !nvim` lists the commands that aren't nvim, `cmd ^npm` the ones that start with npm. In printed text, each term must appear as typed (never by scattered letters), all in one line: `.FAIL !flaky` finds a line with FAIL and without flaky, and `^` and `$` hold at the line's start and end. `port ` and `pid ` take a number.
 
 To switch lists, use the categories (`⇥` / `⇧⇥`); `ws `, `tab ` and `pane ` are searched as plain text.
 
