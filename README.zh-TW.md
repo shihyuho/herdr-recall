@@ -16,21 +16,16 @@
   <b>繁體中文</b>
 </p>
 
-[Herdr](https://herdr.dev/) app 的 recent + fuzzy 切換器，承襲 IntelliJ「Recent」的做法。一個鍵列出你待過的每個 space、tab、pane 與 agent，最近的排最前面，並停在你上一個待過的位置：按 `⌘E` 再按 `⏎`，就回到剛剛待的地方。從沒去過的排在去過的後面，等你處理的排最前（依序是 blocked、done、working、idle）。打字會以模糊比對縮小清單，接近的結果排前面，彼此之間仍維持最近的順序。
+[Herdr](https://herdr.dev/) app 的 recent + fuzzy 切換器，承襲 IntelliJ「Recent」的做法，搜尋採用 [fzf](https://github.com/junegunn/fzf) 的語法。按 `⌘E` 再按 `⏎`，就回到剛剛待的地方。
 
 ![Recall 的 Agents 清單輸入「red」：「Plan the Redis upgrade」完整連續命中排最前，後面是只有零散字母對得上的列](preview.png)
 
-每一列都標出它在哪、所在資料夾、branch，以及那裡的 agent 是否在等你。打字即可模糊搜尋列上顯示的一切（名稱、位置、資料夾、branch、「needs you」或「finished」、遠端 space 的機器名稱），拖曳欄位邊緣可以調整寬度。
+- **兩個鍵回到剛剛的地方。** `⌘E` 列出每個 space、tab、pane 與 agent，最近的排最前面，並停在你上一個待過的位置，按 `⏎` 就回去了。
+- **等你處理的 agent 一眼就看到。** 每一列都標出它在哪、所在資料夾、branch，以及那裡的 agent 是否在等你或已經完成。從沒去過的排在去過的後面，等你處理的排最前。
+- **模糊搜尋，用 fzf 的語法。** 打字即可依列上顯示的一切縮小任何清單：名稱、位置、資料夾、branch、「needs you」或「finished」、遠端 space 的機器名稱。`'exact`、`'whole-word'`、`^start`、`end$`、`!exclude` 與 `this | that` 的用法和 fzf 一樣（見下方的 **搜尋語法**）。每個詞都完整連續出現的列排前面，兩群各自維持清單原本的順序，所以列不會隨著每次按鍵換來換去。
+- **用 pane 正在做的事找到它。** 在 Clues 輸入 `port 5173`，就能找到啟動 dev server 的那個 pane；也能用它正在跑的指令、ssh 連到的主機、開著的檔案或印出過的文字來找。為此 Recall 會在你的電腦上執行 `git`、`ps`、`lsof` 並讀取 pane 的內容，資料不會離開你的電腦。
 
-打字時，符合的列分成兩層：先是你輸入的每個詞都完整連續出現的列，再來是只有零散字母對得上的列。每一層都維持沒打字時的順序（在 Agents 裡就是你選的排序），所以列不會隨著每次按鍵換來換去。不論有沒有打字，選取都停在第一個不是你目前所在位置的列，讓 `⏎` 帶你去別的地方；如果你所在的那列是唯一的結果，就選它。
-
-每個清單的查詢都採用 [fzf](https://github.com/junegunn/fzf) 的 extended-search 語法：`'exact`、`'whole-word'`、`^start`、`end$`、`!exclude` 與 `this | that`（見下方的 **搜尋語法**）。
-
-第一個清單 **All** 把所有 space、tab、pane 與 agent 放在一起，不必先知道要找的是哪一種。每個名稱前面都帶著它的路徑（`payments-api › refunds › nvim`），每個目的地也只出現一次：agent 代表它所在的 pane，tab 要有好幾個 pane 才會有自己的一列，space 要有好幾個 tab 才會有。agent 與 pane 排最前面，接著是 tab，最後是 space，各自依最近用過的順序排列；從沒去過的排在後面，等你處理的排最前。打字只會縮小這份清單。如果 All 裡沒有任何符合的項目，而且 Clues 是你顯示的分類之一，它會給一列 `Search Clues for "<query>"`；開啟後會切到 Clues，並保留同一個查詢。其他情況與其他清單則顯示「Nothing matches」。
-
-最後一個清單 **Clues** 能用 pane 正在跑的指令、ssh 連到的主機、開著的檔案、監聽的 port，或印出過的文字找到它：輸入 `port 5173` 就能找到啟動 dev server 的那個 pane。為此 Recall 會在你的電腦上執行 `git`、`ps`、`lsof` 並讀取 pane 的內容，資料不會離開你的電腦。
-
-## Install
+## 安裝
 
 Recall 需要 Herdr app，而且 `herdr-app` 要在 `PATH` 上。
 
@@ -61,6 +56,23 @@ cd herdr-recall
 **更新：** pull 這個 repo（或重新 clone），再重新執行 `./install.sh`。它會取代 `mods/recall/`，使用紀錄和欄位寬度都會保留，因為 Herdr 把它們存在那個資料夾之外。用 agent 安裝的話，請 agent 幫你做這兩步：Herdr 規定 agent 不能覆蓋已經存在的 mod，所以再請它「加入這個 mod」只會多出一份改了名字的複本，不會更新。
 
 要移除 Recall，刪掉 `~/.config/herdr-app/mods/recall`，再拿掉綁給它的按鍵。
+
+<details>
+<summary><strong>清單與順序</strong></summary>
+
+左側有六個清單，依序是 All、Spaces、Tabs、Panes、Agents 與 Clues（要顯示哪些，由 **設定** 裡的 `categories` 決定）。
+
+**沒打字時，** 每個清單都把你去過的列排前面，最近 focus 過的排最前。從沒去過的排在後面，等你處理的排最前：依序是 blocked、done、working、idle。在 Agents 裡，`⌃S` 可以把這個 Recent 順序換成 Priority（依狀態，同狀態內最近有變化的在前）或 Grouped（照 Herdr 列出的順序）。
+
+**打字時，** 符合的列分成兩層：先是你輸入的每個詞都完整連續出現的列，再來是只有零散字母對得上的列。每一層都維持沒打字時的順序（在 Agents 裡就是你選的排序），所以列不會隨著每次按鍵換來換去。
+
+**選取** 不論有沒有打字，都停在第一個不是你目前所在位置的列，讓 `⏎` 帶你去別的地方；如果你所在的那列是唯一的結果，就選它。
+
+**All** 把所有 space、tab、pane 與 agent 放在一起，不必先知道要找的是哪一種。每個名稱前面都帶著它的路徑（`payments-api › refunds › nvim`），每個目的地也只出現一次：agent 代表它所在的 pane，tab 要有好幾個 pane 才會有自己的一列，space 要有好幾個 tab 才會有。agent 與 pane 排最前面，接著是 tab，最後是 space，各自依上面的順序排列。如果 All 裡沒有任何符合的項目，而且 Clues 是你顯示的分類之一，它會給一列 `Search Clues for "<query>"`；開啟後會切到 Clues，並保留同一個查詢。其他情況與其他清單則顯示「Nothing matches」。
+
+**Clues** 把最近 focus 過的 pane 排最前面，打字時不分兩層；用法見下方的 **在 Clues 裡搜尋**。
+
+</details>
 
 <details>
 <summary><strong>按鍵與滑鼠</strong></summary>
@@ -165,10 +177,10 @@ cd herdr-recall
 
 </details>
 
-## Support
+## 支持
 
 如果 herdr-recall 對你有幫助，可以透過 [Buy Me a Coffee](https://buymeacoffee.com/methodho) 支持它的維護。
 
-## License
+## 授權
 
 [MIT](LICENSE) © Shihyu Ho

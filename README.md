@@ -16,19 +16,14 @@
   <a href="README.zh-TW.md">繁體中文</a>
 </p>
 
-A recent + fuzzy switcher for the [Herdr](https://herdr.dev/) app, in the spirit of IntelliJ's "Recent". One key lists every space, tab, pane and agent you've been in, most recent first, and opens on the one you were in just before this one: press `⌘E`, then `⏎`, and you're back where you were a moment ago. Rows you have never been to follow the ones you have, those that need you first (blocked, then done, working, idle). Typing narrows the list by fuzzy match, close matches first, with the recent order kept within them.
+A recent + fuzzy switcher for the [Herdr](https://herdr.dev/) app, in the spirit of IntelliJ's "Recent", searched with [fzf](https://github.com/junegunn/fzf)'s syntax. Press `⌘E`, then `⏎`, and you're back where you were a moment ago.
 
 ![Recall's Agents list filtered by "red": "Plan the Redis upgrade" matches unbroken and comes first, then the rows that match only by scattered letters](preview.png)
 
-Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search anything a row shows (its name, where it lives, folder, branch, "needs you" or "finished", a remote space's machine), and drag a column's edge to resize it.
-
-Typing sorts the matches into two tiers: first the rows where every term you typed appears unbroken, then the ones that match only by scattered letters. Each tier keeps the order the list had with nothing typed (in Agents, the sort you chose), so rows don't trade places as you type. The selection starts on the first row that isn't where you are now, typed or not, so `⏎` takes you somewhere else; when the row you are on is the only match, it is selected.
-
-Queries follow [fzf](https://github.com/junegunn/fzf)'s extended-search syntax in every list: `'exact`, `'whole-word'`, `^start`, `end$`, `!exclude` and `this | that` (see **Search syntax** below).
-
-**All**, the first list, has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each most recently focused first; ones you have never been to follow, those that need you first. Typing only narrows that list. When nothing in All matches and Clues is one of your categories, it offers one row, `Search Clues for "<query>"`; opening it switches to Clues with the same query. Without Clues, and in the other lists, it just says "Nothing matches".
-
-**Clues**, the last list, finds a pane by what it runs, the host it is ssh'd into, the file it has open, the port it listens on, or text it printed: `port 5173` finds the pane that started your dev server. To do that, Recall runs `git`, `ps` and `lsof` and reads pane buffers on your machine; nothing leaves it.
+- **Back in two keys.** `⌘E` lists every space, tab, pane and agent, most recent first, and opens on the one you were in just before this one, so `⏎` takes you back.
+- **Agents that need you stand out.** Each row shows where it lives, its folder, its branch, and whether an agent there needs you or has finished. Rows you have never been to follow the ones you have, those that need you first.
+- **Fuzzy search, fzf syntax.** Type to narrow any list by anything a row shows: its name, where it lives, folder, branch, "needs you" or "finished", a remote space's machine. `'exact`, `'whole-word'`, `^start`, `end$`, `!exclude` and `this | that` work as in fzf (see **Search syntax** below). Rows where every term appears unbroken come first, and both groups keep the list's own order, so rows don't trade places as you type.
+- **Find a pane by what it's doing.** In Clues, `port 5173` finds the pane that started your dev server. It also finds a pane by the command it runs, the host it is ssh'd into, the file it has open or the text it printed. To do that, Recall runs `git`, `ps` and `lsof` and reads pane buffers on your machine; nothing leaves it.
 
 ## Install
 
@@ -61,6 +56,23 @@ Then bind a key in `~/.config/herdr-app/keys.json`:
 **To update,** pull the repo (or clone it again) and re-run `./install.sh`. It replaces `mods/recall/` and keeps your history and column widths, which Herdr stores outside that folder. If you installed with your agent, ask it to do those two steps: Herdr tells agents never to overwrite a mod, so asking it to add Recall again gives you a second, renamed copy instead of an update.
 
 To remove Recall, delete `~/.config/herdr-app/mods/recall` and the keys you bound to it.
+
+<details>
+<summary><strong>Lists and order</strong></summary>
+
+Six lists sit on the left, in this order: All, Spaces, Tabs, Panes, Agents and Clues (`categories` under **Settings** picks which show).
+
+**With nothing typed,** each list puts the rows you have been to first, most recently focused first. Rows you have never been to follow, those that need you first: blocked, then done, working, idle. In Agents, `⌃S` switches this Recent order to Priority (by status, latest change first) or Grouped (as Herdr lists them).
+
+**Typing** sorts the matches into two tiers: first the rows where every term you typed appears unbroken, then the ones that match only by scattered letters. Each tier keeps the order the list had with nothing typed (in Agents, the sort you chose), so rows don't trade places as you type.
+
+**The selection** starts on the first row that isn't where you are now, typed or not, so `⏎` takes you somewhere else; when the row you are on is the only match, it is selected.
+
+**All** has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each in the order above. When nothing in All matches and Clues is one of your categories, it offers one row, `Search Clues for "<query>"`; opening it switches to Clues with the same query. Without Clues, and in the other lists, it just says "Nothing matches".
+
+**Clues** puts the most recently focused pane first, and typing there doesn't use the tiers; see **Searching Clues** below.
+
+</details>
 
 <details>
 <summary><strong>Keys and mouse</strong></summary>
