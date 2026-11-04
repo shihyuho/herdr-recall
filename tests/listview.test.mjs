@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { listView } from "../mods/recall/lib/listview.js";
 import * as mru from "../mods/recall/lib/mru.js";
-import { world, town } from "./fixtures.mjs";
+import { world, town, HOME } from "./fixtures.mjs";
 
 const ids = (view) => view.rows.map((r) => r.item.id);
 
@@ -38,14 +38,22 @@ test("Panes, typed: only matches, the untyped total, and highlights in each fiel
   assert.deepEqual(view.rows[0].hits, { where: [0, 1, 2], title: [0, 1, 2, 3] });
 });
 
-test("Panes, typed: row 0 is selected even when it is where you are", () => {
+test("Panes, typed: when the row you are on matches, the next row is selected", () => {
   const snap = world();
   snap.history = visited({ space: "sp1", tab: "tb2", pane: "p2" });
   const view = listView("panes", snap, "web");
   assert.deepEqual(ids(view), ["p2", "p1"]);
   assert.equal(view.rows[0].item.current, true);
-  assert.equal(view.selected, 0);
+  assert.equal(view.selected, 1);
   assert.deepEqual(view.rows.map((r) => r.hits), [{ title: [14, 15, 16] }, { where: [0, 1, 2] }]);
+});
+
+test("Panes, typed: when the row you are on is the only match, it is selected", () => {
+  // "me@mac:~/code/web" is the title of p2 alone, the pane you are on.
+  const view = listView("panes", world(), "mac");
+  assert.deepEqual(ids(view), ["p2"]);
+  assert.equal(view.rows[0].item.current, true);
+  assert.equal(view.selected, 0);
 });
 
 test("Panes, typed with no match: no rows, the total still counts them all", () => {
@@ -164,6 +172,75 @@ test("All, typed: `refunds` finds the pane in the tab named refunds, lit inside 
   assert.deepEqual(keys(view), ["pane:p-ref"]);
   assert.deepEqual(view.rows[0].hits, { where: [15, 16, 17, 18, 19, 20, 21] });
   assert.equal([...view.rows[0].item.crumb].slice(15, 22).join(""), "refunds");
+});
+
+// Typing sorts the matches into two tiers (ADR 0002): rows where every term
+// appears unbroken in some field, then the rest; each tier keeps the order
+// the list had with nothing typed.
+
+test("All, typed: an older row where the term appears unbroken sits above a recent row that matches by scattered letters", () => {
+  // `ng` is unbroken in "fix cart rounding" (the agent, and checkout's pane list),
+  // and only scattered in refunds' "nvim ledger.go", which was focused more recently
+  // than checkout's tab, and in "plan redis upgrade".
+  const view = listView("all", town(), "ng");
+  assert.deepEqual(keys(view), ["agent:t-cart", "tab:tb-checkout", "pane:p-ref", "agent:t-plan"]);
+});
+
+test("All, typed: each tier keeps the untyped order", () => {
+  // `ra` is unbroken in "infra" and "terraform", scattered in the rest.
+  const view = listView("all", town(), "ra");
+  assert.deepEqual(keys(view), [
+    "agent:t-plan", "pane:p-tf", "space:sp-infra",
+    "agent:t-hooks", "agent:t-guide", "agent:t-review", "pane:p-readme", "tab:tb-checkout", "tab:tb-guides",
+  ]);
+});
+
+test("All, typed: one more letter never swaps two rows that stay in one tier", () => {
+  // Under `fa` and `fai` alike, "retry failed calls" is the one unbroken match;
+  // the cart agent and checkout's tab match by scattered letters both times.
+  assert.deepEqual(keys(listView("all", town(), "fa")), [
+    "agent:t-hooks", "agent:t-cart", "agent:t-plan", "pane:p-tf", "tab:tb-checkout", "space:sp-infra",
+  ]);
+  assert.deepEqual(keys(listView("all", town(), "fai")), ["agent:t-hooks", "agent:t-cart", "tab:tb-checkout"]);
+});
+
+test("All, typed: a term that appears unbroken lights that occurrence, not scattered letters in the name", () => {
+  const snap = town();
+  snap.panes = snap.panes.map((p) => (p.pane === "p-ref" ? { ...p, title: "Add partial refunds" } : p));
+  const view = listView("all", snap, "api");
+  const row = view.rows.find((r) => r.item.key === "pane:p-ref");
+  assert.equal(row.item.crumb, "payments-api › refunds › ");
+  // "payments-api": a-p-i at 9, 10, 11; the name "Add partial refunds" stays unlit.
+  assert.deepEqual(row.hits, { where: [9, 10, 11] });
+});
+
+test("All, typed: an unbroken run inside a word still beats a closer fuzzy alignment in the name", () => {
+  // `api` sits unbroken inside the tab name "rapid"; in "Add pending invoices" it
+  // would align on three word starts, which fzf's score prefers.
+  const snap = town();
+  snap.spaces = snap.spaces.map((s) => (s.id === "sp-api" ? { ...s, name: "payments" } : s));
+  snap.spaces.find((s) => s.id === "sp-api").tabs[0].name = "rapid";
+  snap.panes = snap.panes.map((p) => (p.pane === "p-ref" ? { ...p, title: "Add pending invoices", cwd: `${HOME}/code/payments` } : p));
+  const row = listView("all", snap, "api").rows.find((r) => r.item.key === "pane:p-ref");
+  assert.equal(row.item.crumb, "payments › rapid › ");
+  assert.deepEqual(row.hits, { where: [12, 13, 14] });
+});
+
+test("Spaces, typed: when the name and another field hold the term alike, the name lights", () => {
+  // "front" is in the name "storefront" and in its folder "~/code/storefront".
+  const view = listView("spaces", town(), "front");
+  assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [["space:sp-web", { title: [5, 6, 7, 8, 9] }]]);
+});
+
+test("Agents sorted by Priority keep Priority order within each tier", () => {
+  // Priority, untyped: retry (blocked), rewrite (done), fix cart (working), plan (working), review (idle).
+  // `rt` is unbroken in "start" and "cart", only scattered in "retry failed calls".
+  assert.deepEqual(keys(listView("agents", town(), "", { agentSort: "priority" })), [
+    "agent:t-hooks", "agent:t-guide", "agent:t-cart", "agent:t-plan", "agent:t-review",
+  ]);
+  assert.deepEqual(keys(listView("agents", town(), "rt", { agentSort: "priority" })), [
+    "agent:t-guide", "agent:t-cart", "agent:t-review", "agent:t-hooks",
+  ]);
 });
 
 // Recent in Spaces, Tabs, Panes and Agents: the focused rows first, most

@@ -14,14 +14,19 @@
 //   ({ others, content, procs, listeners }, see clues.js).
 //
 // - rows: [{ item, hits }] in display order; `hits[fieldKey]` lists the
-//   highlighted code points of that field. All's items carry `crumb`, the
+//   highlighted code points of that field. Typed, every category but Clues
+//   sorts its matches into two tiers (ADR 0002): rows where every term
+//   appears unbroken in some field, then the rest, each tier in the order
+//   the list has with nothing typed. Clues keeps its own order.
+//   All's items carry `crumb`, the
 //   path drawn before the name (`space › tab › `, `space › `, or "" for a
 //   space); it begins with the `where` field, so `hits.where` lights up
 //   inside it.
 // - total: how many rows the category lists with nothing typed, or null
 //   when it shows no total (Clues).
-// - selected: the index of the row to select when the list opens (0 when
-//   there are no rows).
+// - selected: the index of the row to select when the list opens or the
+//   query changes: the first row that isn't where you are now (nor a
+//   clue's reason), typed or not; 0 when there is no such row.
 // - label: the clue-type chip to show beside the query, or null.
 //
 // The navigator renders this and keeps only its own UI state (moving the
@@ -32,12 +37,14 @@
 // row with its own item kind and actions.
 
 import { buildItems } from "./items.js";
-import { search } from "./fuzzy.js";
+import { tiered } from "./fuzzy.js";
 import { buildClues } from "./clues.js";
 
-/** The row to open on: the first that isn't where you are now and isn't a clue's reason; row 0 while a query is typed. */
-function openingRow(rows, query) {
-  if (query) return 0;
+/**
+ * The row to open on, typed or not: the first that isn't where you are now
+ * and isn't a clue's reason; row 0 when there is no such row.
+ */
+function openingRow(rows) {
   const first = rows.findIndex((r) => !r.item.current && r.item.kind !== "hint");
   return first < 0 ? 0 : first;
 }
@@ -47,9 +54,9 @@ const NO_CLUES = { others: new Map(), content: new Map(), procs: null, listeners
 export function listView(category, snap, query, options = {}) {
   if (category === "clues") {
     const { rows, label } = buildClues(snap, options.clueData ?? NO_CLUES, query);
-    return { rows, total: null, selected: openingRow(rows, query), label };
+    return { rows, total: null, selected: openingRow(rows), label };
   }
   const items = buildItems(category, snap, { agentSort: options.agentSort });
-  const rows = search(items, query, (i) => i.fields);
-  return { rows, total: items.length, selected: openingRow(rows, query), label: null };
+  const rows = tiered(items, query, (i) => i.fields);
+  return { rows, total: items.length, selected: openingRow(rows), label: null };
 }

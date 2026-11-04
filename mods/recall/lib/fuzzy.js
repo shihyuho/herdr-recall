@@ -8,6 +8,10 @@
 // Scoring follows fzf's shape: each matched character scores, characters at
 // a word boundary or right after the previous match score extra, and gaps
 // between matches cost. So "fl" ranks "fix-login" above "conflict".
+//
+// `search` orders by that score (Clues still does). `tiered`, which every
+// other list uses, orders by tier instead and keeps the given order within
+// each; there the score only decides where highlights go.
 
 const SCORE_MATCH = 16;
 const BONUS_BOUNDARY = 10;
@@ -145,6 +149,84 @@ export function search(items, query, fieldsOf) {
   });
   out.sort((a, b) => b.score - a.score || a.order - b.order);
   return out.map(({ item, hits }) => ({ item, hits }));
+}
+
+/**
+ * The best place in one text where a term appears unbroken (as one run of
+ * consecutive characters, smart case): `{ score, indices }`, or null when it
+ * appears nowhere unbroken. Of several occurrences, the one fzf would score
+ * highest wins, so a run at a word start beats one inside a word.
+ */
+function unbrokenIn(text, term) {
+  const hay = chars(text);
+  const needle = chars(term);
+  const m = needle.length;
+  if (m === 0 || m > hay.length) return null;
+  const sensitive = term !== term.toLowerCase();
+  const h = sensitive ? hay : hay.map((c) => c.toLowerCase());
+  const q = sensitive ? needle : needle.map((c) => c.toLowerCase());
+  let best = null;
+  for (let s = 0; s + m <= h.length; s++) {
+    let k = 0;
+    while (k < m && h[s + k] === q[k]) k++;
+    if (k < m) continue;
+    let score = SCORE_MATCH * m + BONUS_CONSECUTIVE * (m - 1) + boundaryBonus(hay, s) * BONUS_FIRST_MULTIPLIER;
+    for (let i = s + 1; i < s + m; i++) score += boundaryBonus(hay, i);
+    if (!best || score > best.score) best = { score, indices: Array.from({ length: m }, (_, i) => s + i) };
+  }
+  return best;
+}
+
+/**
+ * Where one term lands among an item's fields: `{ key, indices, unbroken }`,
+ * or null when it matches no field. A field where the term appears unbroken
+ * beats any fuzzy alignment; among equals the higher score wins, and the
+ * name (`title`) wins a tie.
+ */
+function placeTerm(fields, term) {
+  let best = null;
+  const better = (c) => {
+    if (!best) return true;
+    if (c.unbroken !== best.unbroken) return c.unbroken;
+    if (c.score !== best.score) return c.score > best.score;
+    return c.key === "title" && best.key !== "title";
+  };
+  for (const f of fields) {
+    if (!f.text) continue;
+    const exact = unbrokenIn(f.text, term);
+    const r = exact ?? matchTerm(f.text, term);
+    if (!r) continue;
+    const c = { key: f.key, indices: r.indices, score: r.score, unbroken: !!exact };
+    if (better(c)) best = c;
+  }
+  return best;
+}
+
+/**
+ * Filters items by a query and sorts the matches into two tiers (ADR 0002):
+ * items where every term appears unbroken in some field, then the rest.
+ * Each tier keeps the items' given order; the fuzzy score only decides
+ * where a term's highlight goes. Returns `[{ item, hits }]` as `search`.
+ */
+export function tiered(items, query, fieldsOf) {
+  const ts = terms(query);
+  if (ts.length === 0) return items.map((item) => ({ item, hits: {} }));
+  const upper = [];
+  const lower = [];
+  for (const item of items) {
+    const fields = fieldsOf(item);
+    const hits = {};
+    let unbroken = true;
+    let matched = true;
+    for (const term of ts) {
+      const p = placeTerm(fields, term);
+      if (!p) { matched = false; break; }
+      unbroken &&= p.unbroken;
+      hits[p.key] = [...new Set([...(hits[p.key] ?? []), ...p.indices])].sort((a, b) => a - b);
+    }
+    if (matched) (unbroken ? upper : lower).push({ item, hits });
+  }
+  return [...upper, ...lower];
 }
 
 /**

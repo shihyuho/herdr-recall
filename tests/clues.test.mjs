@@ -73,6 +73,28 @@ test("Clues: `port N` finds the pane whose shell started the listener", () => {
   assert.deepEqual(rows("port 1").map((r) => [r.item.kind, r.item.reason]), [["hint", "nothing listening"]]);
 });
 
+test("Clues, typed: the selection skips your pane and a clue's reason row, landing on your pane when nothing else is left", () => {
+  // p2 is where you are; its shell (pid 20) started vite. dockerd (pid 99) is in no pane.
+  const others = new Map([
+    ["p1", { cwd: `${HOME}/code/web`, command: "claude", ssh: null, shellPid: 10 }],
+    ["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }],
+  ]);
+  const procs = new Map([
+    [10, { ppid: 1, command: "-zsh" }], [11, { ppid: 10, command: "node api" }],
+    [20, { ppid: 1, command: "-zsh" }], [21, { ppid: 20, command: "node vite" }],
+    [99, { ppid: 1, command: "dockerd" }],
+  ]);
+  const view = (listeners) => listView("clues", world(), "port 5173", { clueData: clueData(others, new Map(), procs, listeners) });
+  const shown = (v) => v.rows.map((r) => [r.item.kind, r.item.id, r.item.current]);
+
+  const alone = view([{ port: 5173, pid: 21, addr: "*:5173" }, { port: 5173, pid: 99, addr: "[::1]:5173" }]);
+  assert.deepEqual(shown(alone), [["other", "p2", true], ["hint", null, false]]);
+  assert.equal(alone.selected, 0);
+
+  const shared = view([{ port: 5173, pid: 21, addr: "*:5173" }, { port: 5173, pid: 11, addr: "127.0.0.1:5173" }, { port: 5173, pid: 99, addr: "[::1]:5173" }]);
+  assert.equal(shared.rows[shared.selected].item.id, "p1");
+});
+
 test("Clues: a pane's folder is no clue, typed or not, and `cwd ` is plain text", () => {
   const others = new Map([...worldOthers(), ["p2", { cwd: `${HOME}/scratch/zebra`, command: "-zsh", ssh: null, shellPid: 20 }], ["p3", { cwd: `${HOME}/code/api`, command: "cwd-tool", ssh: null, shellPid: 30 }]]);
   const rows = (query) => listView("clues", world(), query, { clueData: clueData(others) }).rows;

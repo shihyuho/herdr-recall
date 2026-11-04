@@ -16,11 +16,13 @@
   <a href="README.zh-TW.md">繁體中文</a>
 </p>
 
-An IntelliJ-style "Recent" switcher for the [Herdr](https://herdr.dev/) app. One key lists your spaces, tabs, panes and agents, most recently focused first, and opens on the one you were in just before this one: press `⌘E`, then `⏎`, and you're back where you were a moment ago. Rows you have never been to follow the ones you have, those that need you first (blocked, then done, working, idle).
+A recent + fuzzy switcher for the [Herdr](https://herdr.dev/) app, in the spirit of IntelliJ's "Recent". One key lists every space, tab, pane and agent you've been in, most recent first, and opens on the one you were in just before this one: press `⌘E`, then `⏎`, and you're back where you were a moment ago. Rows you have never been to follow the ones you have, those that need you first (blocked, then done, working, idle). Typing narrows the list by fuzzy match, close matches first, with the recent order kept within them.
 
 ![Recall's Agents list: a blocked agent reads "needs you", a finished one "finished"](preview.png)
 
 Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search anything a row shows (its name, where it lives, folder, branch, "needs you" or "finished", a remote space's machine), and drag a column's edge to resize it.
+
+Typing sorts the matches into two tiers: first the rows where every term you typed appears unbroken, then the ones that match only by scattered letters. Each tier keeps the order the list had with nothing typed (in Agents, the sort you chose), so rows don't trade places as you type. The selection starts on the first row that isn't where you are now, typed or not, so `⏎` takes you somewhere else; when the row you are on is the only match, it is selected.
 
 **All**, the first list, has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each most recently focused first; ones you have never been to follow, those that need you first. Typing only narrows that list.
 

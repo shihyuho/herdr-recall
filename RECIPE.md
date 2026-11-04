@@ -1,6 +1,6 @@
 # Recall
 
-One key lists your spaces, tabs, panes and agents, most recently focused first, and opens on the one you were in just before this one, so Enter takes you back. Each row shows where it lives, its folder, its branch and whether an agent there needs you. The All list has every space, tab, pane and agent in one place, and a Clues list finds a pane by what it runs, its ssh host, port, process or the text it printed. This is a dialog you add to your current layout, not a layout of its own.
+Recall is recent + fuzzy. One key lists every space, tab, pane and agent you've been in, most recently focused first, and opens on the one you were in just before this one, so Enter takes you back. Typing narrows the list by fuzzy match, close matches first, with the recent order kept within them. Each row shows where it lives, its folder, its branch and whether an agent there needs you. The All list has every space, tab, pane and agent in one place, and a Clues list finds a pane by what it runs, its ssh host, port, process or the text it printed. This is a dialog you add to your current layout, not a layout of its own.
 
 ![Recall](preview.png)
 
@@ -27,7 +27,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
 ## How it behaves
 
-- **Opening.** It opens on the category asked for, else the one used last, else the first. The selection starts on the first row that isn't where you are now, so Enter goes back. It keeps aiming there until you move, because focus can settle after the first frame. Pressing the open key again closes it.
+- **Opening.** It opens on the category asked for, else the one used last, else the first. The selection starts on the first row that isn't where you are now, so Enter goes back; Clues' reason rows ("not in any pane", "nothing listening") are skipped too. When every row is where you are, the first is selected. The same rule picks the row again each time the query changes. It keeps aiming there until you move, because focus can settle after the first frame. Pressing the open key again closes it.
 - **Keys.**
 
   | Key | Action |
@@ -64,7 +64,12 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
   The status word is what the STATUS column shows: "needs you" for blocked, "finished" for done. An agent's last message is not searched. Matching a branch, status word or machine highlights nothing; letters light up only in the name and path.
 
-  All searches each row as its own category does. On Clues:
+  All searches each row as its own category does. Typing sorts the matches into two tiers (ADR 0002):
+  - first the rows where every term appears unbroken (as one run of letters, smart case) in some field, then the rest;
+  - each tier keeps the order the list had with nothing typed: All's resting order, recency, or on Agents the chosen sort (Recent, Priority or Grouped). So one more letter never swaps two rows that stay in one tier;
+  - the fuzzy score orders nothing, and the name gets no bonus. It only places highlights: a term that appears unbroken lights that run (the best-placed one, at a word start if there is one), else its best fuzzy alignment; when fields tie, the name wins.
+
+  Clues keeps its own order. On Clues:
   - a plain query also finds text panes printed;
   - a prefix and one space narrows it: `cmd`, `ssh`, `file`, `term`, `port`, `pid`;
   - `.` searches only printed text;
@@ -137,3 +142,4 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - Dragging LOCATION's divider widens it; the width is still there after reopening, and a double-click restores 210px.
 - All lists each pane or agent once, led by its `space › tab › ` path, with no LOCATION column; a tab with one pane and a space with one tab have no row of their own.
 - In Clues, `port <n>` for a running dev server lists the pane that started it.
+- Typing puts rows where the term appears unbroken above rows that match by scattered letters, each group in its untyped order, and the selection skips the row you are on unless it is the only match.
