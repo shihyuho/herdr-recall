@@ -92,6 +92,11 @@ function spaceLabel(space, worktrees) {
   return space.name;
 }
 
+/** The word the STATUS column shows for a status, or "" when it shows none. */
+function statusText(status) {
+  return status === "blocked" ? "needs you" : status === "done" ? "finished" : "";
+}
+
 /** Every space as a row, in Herdr's order. */
 function spaceRows(snap, ix) {
   return snap.spaces.map((s) => {
@@ -119,6 +124,8 @@ function spaceRows(snap, ix) {
         { key: "title", text: title },
         { key: "path", text: path },
         { key: "branch", text: s.branch ?? "" },
+        { key: "machine", text: s.machine ?? "" },
+        { key: "status", text: statusText(s.status) },
       ],
       actions: [["space.select", { id: s.id }]],
     };
@@ -191,6 +198,8 @@ function tabRows(snap, ix) {
           { key: "detail", text: t.named ? paneLabel(lead) : runs },
           { key: "where", text: spaceLabel(s, snap.worktrees) },
           { key: "panes", text: ps.map(paneLabel).join(" ") },
+          { key: "branch", text: lead?.branch ?? "" },
+          { key: "status", text: statusText(t.status) },
         ],
         actions: [["tab.select", { id: t.id }]],
       });
@@ -237,6 +246,8 @@ function paneRows(snap, ix) {
         { key: "where", text: where },
         { key: "path", text: path },
         { key: "detail", text: d.program?.name ?? "" },
+        { key: "branch", text: d.branch ?? "" },
+        { key: "status", text: statusText(d.status) },
       ],
       actions: [["tab.select", { id: p.tab }], ["pane.focus", { pane: p.pane }]],
     });
@@ -283,6 +294,8 @@ function agentRows(snap, ix) {
         { key: "where", text: where },
         { key: "detail", text: a.program?.name ?? "" },
         { key: "path", text: path },
+        { key: "branch", text: pane?.branch ?? "" },
+        { key: "status", text: statusText(a.status) },
       ],
       actions: [["agent.focus", { terminal: a.address }]],
     };

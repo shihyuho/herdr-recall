@@ -208,3 +208,50 @@ test("Agents, Recent: focused first, then never-focused by status with ties in H
   assert.deepEqual(ids(listView("agents", snap, "", { agentSort: "priority" })), ["t-hooks", "t-guide", "t-cart", "t-plan", "t-review"]);
   assert.deepEqual(ids(listView("agents", snap, "", { agentSort: "grouped" })), ["t-cart", "t-review", "t-hooks", "t-guide", "t-plan"]);
 });
+
+// A row can be found by anything it shows: its branch, its status word and its space's machine.
+function onBranches() {
+  const snap = town();
+  snap.panes.find((p) => p.pane === "p-cart").branch = "hotfix/zeta";
+  snap.panes.find((p) => p.pane === "p-hooks").branch = "hotfix/zeta";
+  snap.panes.find((p) => p.pane === "p-dev").branch = "hotfix/zeta";
+  return snap;
+}
+
+test("Typing a branch name finds the panes and agents on it, in Panes, Agents and All; highlights stay off it", () => {
+  const snap = onBranches();
+  assert.deepEqual(keys(listView("panes", snap, "zeta")).sort(), ["pane:p-cart", "pane:p-dev", "pane:p-hooks"]);
+  assert.deepEqual(keys(listView("agents", snap, "zeta")).sort(), ["agent:t-cart", "agent:t-hooks"]);
+  const all = listView("all", snap, "zeta");
+  assert.deepEqual(keys(all).sort(), ["agent:t-cart", "agent:t-hooks", "pane:p-dev", "tab:tb-checkout"]);
+  for (const r of all.rows) assert.deepEqual(Object.keys(r.hits).filter((k) => ["title", "where", "path", "detail"].includes(k)), []);
+  assert.deepEqual(keys(listView("panes", snap, "nomatchbranch")), []);
+});
+
+test("Typing a branch name finds a tab whose lead pane is on it", () => {
+  const snap = onBranches();
+  assert.deepEqual(keys(listView("tabs", snap, "zeta")).sort(), ["tab:tb-checkout", "tab:tb-dev", "tab:tb-hooks"]);
+});
+
+test("`needs` finds the blocked agents and `finished` the done ones, as the STATUS column words them", () => {
+  const snap = town();
+  assert.deepEqual(keys(listView("agents", snap, "needs")), ["agent:t-hooks"]);
+  assert.deepEqual(keys(listView("agents", snap, "finished")), ["agent:t-guide"]);
+  assert.equal(keys(listView("all", snap, "needs")).includes("agent:t-hooks"), true);
+  assert.equal(keys(listView("all", snap, "finished")).includes("agent:t-guide"), true);
+  // The raw status names are not what a row shows.
+  assert.deepEqual(keys(listView("agents", snap, "blocked")), []);
+});
+
+test("A space on another machine is found by the machine's name", () => {
+  assert.deepEqual(keys(listView("spaces", town(), "build-box")), ["space:sp-infra"]);
+  assert.deepEqual(keys(listView("all", town(), "build-box")), ["space:sp-infra"]);
+});
+
+test("Text found only in an agent's last message matches nothing", () => {
+  const snap = town();
+  snap.terminals = [{ address: "t-cart", report: { msg: "quokka migration finished" } }];
+  assert.equal(itemOf(listView("agents", snap, ""), "agent:t-cart").message, "quokka migration finished");
+  assert.deepEqual(keys(listView("agents", snap, "quokka")), []);
+  assert.deepEqual(keys(listView("all", snap, "quokka")), []);
+});

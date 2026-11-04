@@ -20,7 +20,7 @@ An IntelliJ-style "Recent" switcher for the [Herdr](https://herdr.dev/) app. One
 
 ![Recall's Agents list: a blocked agent reads "needs you", a finished one "finished"](preview.png)
 
-Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search, and drag a column's edge to resize it.
+Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search anything a row shows (its name, where it lives, folder, branch, "needs you" or "finished", a remote space's machine), and drag a column's edge to resize it.
 
 **All**, the first list, has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each most recently focused first; ones you have never been to follow, those that need you first. Typing only narrows that list.
 

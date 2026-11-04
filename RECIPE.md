@@ -58,9 +58,11 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
   In every category, Recent puts the focused rows first, most recently focused first, then the never-focused ones by status (blocked, done, working, idle, none), ties in Herdr's order; a linked worktree space still nests under its main checkout. Agents sort by Recent (that rule), Priority (blocked, done, working, idle; latest change first within each) or Grouped (Herdr's own space, tab and pane order).
 - **Search.** Fuzzy, every term matching some field:
-  - spaces by name, folder and branch;
-  - tabs by name, what they run, their space and their panes;
-  - panes and agents by name, "space › tab", folder and program.
+  - spaces by name, folder, branch, machine and status word;
+  - tabs by name, what they run, their space, their panes, branch and status word;
+  - panes and agents by name, "space › tab", folder, program, branch and status word.
+
+  The status word is what the STATUS column shows: "needs you" for blocked, "finished" for done. An agent's last message is not searched. Matching a branch, status word or machine highlights nothing; letters light up only in the name and path.
 
   All searches each row as its own category does. On Clues:
   - a plain query also finds text panes printed;
