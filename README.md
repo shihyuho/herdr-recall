@@ -52,7 +52,9 @@ Then bind a key in `~/.config/herdr-app/keys.json`:
 
 **Then, either way,** press that key once. It starts Recall's tracker, which records every focus change from then on and comes back each time Herdr starts.
 
-To update a script install, `git pull` and re-run `./install.sh`. To remove Recall, delete `~/.config/herdr-app/mods/recall` and the keys you bound to it.
+**To update,** pull the repo (or clone it again) and re-run `./install.sh`. It replaces `mods/recall/` and keeps your history and column widths, which Herdr stores outside that folder. If you installed with your agent, ask it to do those two steps: Herdr tells agents never to overwrite a mod, so asking it to add Recall again gives you a second, renamed copy instead of an update.
+
+To remove Recall, delete `~/.config/herdr-app/mods/recall` and the keys you bound to it.
 
 <details>
 <summary><strong>Keys and mouse</strong></summary>
