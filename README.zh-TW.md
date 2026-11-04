@@ -52,7 +52,9 @@ cd herdr-recall
 
 **不論用哪種方式，** 先按一次那個鍵。這會啟動 Recall 的 tracker，從此記錄每一次切換焦點，之後每次啟動 Herdr 都會自動帶起來。
 
-用腳本安裝的話，更新時先 `git pull`，再重新執行 `./install.sh`。要移除 Recall，刪掉 `~/.config/herdr-app/mods/recall`，再拿掉綁給它的按鍵。
+**更新：** pull 這個 repo（或重新 clone），再重新執行 `./install.sh`。它會取代 `mods/recall/`，使用紀錄和欄位寬度都會保留，因為 Herdr 把它們存在那個資料夾之外。用 agent 安裝的話，請 agent 幫你做這兩步：Herdr 規定 agent 不能覆蓋已經存在的 mod，所以再請它「加入這個 mod」只會多出一份改了名字的複本，不會更新。
+
+要移除 Recall，刪掉 `~/.config/herdr-app/mods/recall`，再拿掉綁給它的按鍵。
 
 <details>
 <summary><strong>按鍵與滑鼠</strong></summary>
