@@ -237,17 +237,29 @@ export function parseQuery(query) {
 }
 
 /**
- * Where one term matches one text: `{ score, indices, unbroken }`, or null.
- * A fuzzy term is unbroken where it appears as one run, and its highlight
- * goes there; other kinds are unbroken by definition. With `scoreOnly`, a
- * fuzzy term takes its best-scoring alignment, as Clues ranks.
+ * How a match is placed, chosen by the caller:
+ * - TIERED (typing in every list but Clues, ADR 0002) prefers an unbroken
+ *   run: for a fuzzy term's highlight, among fields, and among an OR
+ *   group's alternatives; the name (`title`) wins a tie between fields.
+ * - RANKED (Clues and its buffer search) goes by score alone, as fzf does:
+ *   a fuzzy term takes its best-scoring alignment, the first field wins a
+ *   tie, and an OR group takes the first alternative that matched.
  */
-function matchIn(text, term, scoreOnly) {
+const TIERED = { preferUnbroken: true, nameWinsTie: true };
+const RANKED = { preferUnbroken: false, nameWinsTie: false };
+
+/**
+ * Where one term matches one text: `{ score, indices, unbroken }`, or null.
+ * A fuzzy term is unbroken where it appears as one run, and under
+ * `preferUnbroken` its highlight goes there; other kinds are unbroken by
+ * definition.
+ */
+function matchIn(text, term, policy) {
   const { text: needle, sensitive } = term;
   let r;
   switch (term.kind) {
     case "fuzzy": {
-      const exact = scoreOnly ? null : unbrokenIn(text, needle, sensitive);
+      const exact = policy.preferUnbroken ? unbrokenIn(text, needle, sensitive) : null;
       if (exact) return { ...exact, unbroken: true };
       r = align(text, needle, sensitive);
       return r && { ...r, unbroken: false };
@@ -264,23 +276,22 @@ function matchIn(text, term, scoreOnly) {
 
 /**
  * Where one term lands among an item's fields: `{ key, indices, score,
- * unbroken }`, or null when it matches no field. A field where the term is
- * unbroken beats any fuzzy alignment; among equals the higher score wins,
- * and the name (`title`) wins a tie. With `scoreOnly`, the higher score
- * alone decides and the first field wins a tie.
+ * unbroken }`, or null when it matches no field. Under `preferUnbroken` a
+ * field where the term is unbroken beats any fuzzy alignment; then the
+ * higher score wins, and a tie goes to the name under `nameWinsTie`, else
+ * to the first field.
  */
-function placeTerm(fields, term, scoreOnly) {
+function placeTerm(fields, term, policy) {
   let best = null;
   const better = (c) => {
     if (!best) return true;
-    if (scoreOnly) return c.score > best.score;
-    if (c.unbroken !== best.unbroken) return c.unbroken;
+    if (policy.preferUnbroken && c.unbroken !== best.unbroken) return c.unbroken;
     if (c.score !== best.score) return c.score > best.score;
-    return c.key === "title" && best.key !== "title";
+    return policy.nameWinsTie && c.key === "title" && best.key !== "title";
   };
   for (const f of fields) {
     if (!f.text) continue;
-    const r = matchIn(f.text, term, scoreOnly);
+    const r = matchIn(f.text, term, policy);
     if (!r) continue;
     const c = { key: f.key, indices: r.indices, score: r.score, unbroken: r.unbroken };
     if (better(c)) best = c;
@@ -293,37 +304,37 @@ const ABSENT = { key: null, indices: [], score: 0, unbroken: true };
 
 /**
  * How one group of alternatives lands, or null when none holds. The
- * alternative that matched decides: of several, an unbroken one, else the
- * first (as in fzf; with `scoreOnly`, always the first). A group held only
- * by a negated term that appears nowhere lands ABSENT.
+ * alternative that matched decides: of several, the first (as in fzf), or
+ * under `preferUnbroken` an unbroken one first. A group held only by a
+ * negated term that appears nowhere lands ABSENT.
  */
-function placeGroup(fields, group, scoreOnly) {
+function placeGroup(fields, group, policy) {
   let pick = null;
   let absent = false;
   for (const term of group) {
-    const p = placeTerm(fields, term, scoreOnly);
+    const p = placeTerm(fields, term, policy);
     if (term.inv) {
       absent ||= !p;
       continue;
     }
-    if (p && (!pick || (!scoreOnly && p.unbroken && !pick.unbroken))) pick = p;
+    if (p && (!pick || (policy.preferUnbroken && p.unbroken && !pick.unbroken))) pick = p;
   }
   return pick ?? (absent ? ABSENT : null);
 }
 
 /**
- * Matches parsed groups against an item's fields: `{ score, hits, unbroken,
- * first }` (`first` is the indices of the first matched term, or null), or
+ * Matches parsed groups against an item's fields under a policy (TIERED or
+ * RANKED): `{ score, hits, unbroken, first }` (`first` is the indices of the first matched term, or null), or
  * null when some group fails. `unbroken` holds when every group landed
  * unbroken; negated terms don't count.
  */
-function evaluate(fields, groups, scoreOnly = false) {
+function evaluate(fields, groups, policy) {
   const hits = {};
   let score = 0;
   let unbroken = true;
   let first = null;
   for (const group of groups) {
-    const p = placeGroup(fields, group, scoreOnly);
+    const p = placeGroup(fields, group, policy);
     if (!p) return null;
     score += p.score;
     unbroken &&= p.unbroken;
@@ -355,7 +366,7 @@ export function literalGroups(query, exactCase = false) {
  */
 export function matchLiteralGroups(text, literal) {
   if (literal.length === 0) return null;
-  const r = evaluate([{ key: "line", text }], literal, true);
+  const r = evaluate([{ key: "line", text }], literal, RANKED);
   return r && (r.first ?? []);
 }
 
@@ -367,7 +378,7 @@ export function matchLiteralGroups(text, literal) {
  * with score 0 and no hits.
  */
 export function matchFields(fields, query) {
-  const r = evaluate(fields, parseQuery(query), true);
+  const r = evaluate(fields, parseQuery(query), RANKED);
   return r && { score: r.score, hits: r.hits };
 }
 
@@ -383,7 +394,7 @@ export function tiered(items, query, fieldsOf) {
   const upper = [];
   const lower = [];
   for (const item of items) {
-    const r = evaluate(fieldsOf(item), groups);
+    const r = evaluate(fieldsOf(item), groups, TIERED);
     if (r) (r.unbroken ? upper : lower).push({ item, hits: r.hits });
   }
   return [...upper, ...lower];
