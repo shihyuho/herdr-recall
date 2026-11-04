@@ -2,7 +2,7 @@
 // who sees which rows stay, in what order, and which characters light up.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchTerm, matchFields, search, segments } from "../mods/recall/lib/fuzzy.js";
+import { matchTerm, matchFields, segments } from "../mods/recall/lib/fuzzy.js";
 
 test("a term that is not a subsequence matches nothing", () => {
   assert.equal(matchTerm("fix-login", "lgf"), null);
@@ -20,8 +20,7 @@ test("the tightest run wins over scattered letters", () => {
 });
 
 test("word starts rank above letters inside a word", () => {
-  const rows = search(["conflict", "fix-login"], "fl", (s) => [{ key: "t", text: s }]);
-  assert.deepEqual(rows.map((r) => r.item), ["fix-login", "conflict"]);
+  assert.ok(matchTerm("fix-login", "fl").score > matchTerm("conflict", "fl").score);
 });
 
 test("lowercase ignores case, uppercase matches exactly", () => {
@@ -42,16 +41,6 @@ test("every term must match some field; terms may use different fields", () => {
   const r = matchFields(fields, "auth claude");
   assert.deepEqual(r.hits, { where: [0, 1, 2, 3], title: [0, 1, 2, 3, 4, 5] });
   assert.equal(matchFields(fields, "auth codex"), null);
-});
-
-test("an empty query keeps every item in its given order", () => {
-  const rows = search(["b", "a", "c"], "   ", (s) => [{ key: "t", text: s }]);
-  assert.deepEqual(rows.map((r) => r.item), ["b", "a", "c"]);
-});
-
-test("equal scores keep the given (recency) order", () => {
-  const rows = search(["tab two", "tab one"], "tab", (s) => [{ key: "t", text: s }]);
-  assert.deepEqual(rows.map((r) => r.item), ["tab two", "tab one"]);
 });
 
 test("segments split text into matched and unmatched runs", () => {

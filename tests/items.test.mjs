@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildItems, groupWorktrees } from "../mods/recall/lib/items.js";
-import { search } from "../mods/recall/lib/fuzzy.js";
+import { listView } from "../mods/recall/lib/listview.js";
 import * as mru from "../mods/recall/lib/mru.js";
 import { world } from "./fixtures.mjs";
 
@@ -36,7 +36,7 @@ test("a pane Herdr hasn't drawn shows its agent's title, a shell its folder", ()
 });
 
 test("panes can be found by their tab and space names", () => {
-  const rows = search(buildItems("panes", world()), "api nvim", (i) => i.fields);
+  const rows = listView("panes", world(), "api nvim").rows;
   assert.deepEqual(rows.map((r) => r.item.id), ["p3"]);
 });
 

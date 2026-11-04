@@ -11,9 +11,9 @@
 // a word boundary or right after the previous match score extra, and gaps
 // between matches cost. So "fl" ranks "fix-login" above "conflict".
 //
-// `search` orders by that score (Clues still does). `tiered`, which every
-// other list uses, orders by tier instead and keeps the given order within
-// each; there the score only decides where highlights go.
+// `tiered` orders by tier, not by score, and keeps the given order within
+// each tier; the score only decides where highlights go (and how Clues
+// ranks its rows, through `matchFields`).
 
 const SCORE_MATCH = 16;
 const BONUS_BOUNDARY = 10;
@@ -364,27 +364,10 @@ export function matchFields(fields, query) {
 }
 
 /**
- * Filters items by a query and orders them best match first. Items keep
- * their given order when scores tie, and when the query is empty.
- * `fieldsOf(item)` gives the item's searchable fields.
- */
-export function search(items, query, fieldsOf) {
-  const groups = parseQuery(query);
-  if (groups.length === 0) return items.map((item) => ({ item, hits: {} }));
-  const out = [];
-  items.forEach((item, order) => {
-    const r = evaluate(fieldsOf(item), groups, true);
-    if (r) out.push({ item, hits: r.hits, score: r.score, order });
-  });
-  out.sort((a, b) => b.score - a.score || a.order - b.order);
-  return out.map(({ item, hits }) => ({ item, hits }));
-}
-
-/**
  * Filters items by a query and sorts the matches into two tiers (ADR 0002):
  * items where every term appears unbroken in some field, then the rest.
  * Each tier keeps the items' given order; the fuzzy score only decides
- * where a term's highlight goes. Returns `[{ item, hits }]` as `search`.
+ * where a term's highlight goes. Returns `[{ item, hits }]`.
  */
 export function tiered(items, query, fieldsOf) {
   const groups = parseQuery(query);

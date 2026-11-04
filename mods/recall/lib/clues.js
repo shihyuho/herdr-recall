@@ -1,5 +1,5 @@
 // Rows of the Clues category, from a snapshot plus what main.js fetched:
-//   data = { others: Map pane → { cwd, command, ssh, shellPid },
+//   data = { paneState: Map pane → { cwd, command, ssh, shellPid },
 //            content: Map pane → text, procs: Map | null, listeners: [] | null }
 // Clues covers every terminal pane, agents included, so `.text` finds the
 // agent session that printed it. (herdr-recent-navigator leaves agents out.)
@@ -7,8 +7,8 @@
 import { index, tabLabel, tildify } from "./items.js";
 import * as mru from "./mru.js";
 import {
-  SOURCE_ORDER, bufferKind, commandIsShell, contentExcerpt, paneForPid, parseFilter, rankOthers, sshHost,
-} from "./others.js";
+  SOURCE_ORDER, bufferKind, commandIsShell, contentExcerpt, paneForPid, parseFilter, rankClues, sshHost,
+} from "./clue-extract.js";
 
 function firstLine(text) {
   return (text ?? "").split("\n").map((l) => l.trim()).find(Boolean) ?? "";
@@ -44,9 +44,9 @@ function candidates(snap) {
 function row(c, source, detail, context, home, extra = {}) {
   const shown = context === "-" ? "-" : tildify(context, home);
   return {
-    kind: "other",
+    kind: "clue",
     source,
-    key: `other:${source}:${c.pane.pane}${extra.suffix ?? ""}`,
+    key: `clue:${source}:${c.pane.pane}${extra.suffix ?? ""}`,
     id: c.pane.pane,
     title: detail,
     detail: shown,
@@ -115,7 +115,7 @@ function byRecency(rows) {
 function stateRows(cs, data, home, only) {
   const rows = [];
   for (const c of cs) {
-    const o = data.others.get(c.pane.pane);
+    const o = data.paneState.get(c.pane.pane);
     if (!o) continue;
     if (o.ssh && (!only || only === "ssh")) rows.push(row(c, "ssh", o.ssh, sshHost(o.ssh), home));
     if (o.command && !commandIsShell(o.command) && (!only || only === "cmd")) rows.push(row(c, "cmd", o.command, o.cwd || "-", home));
@@ -128,7 +128,7 @@ function contentRows(cs, data, home, needle, only) {
   for (const c of cs) {
     const text = data.content.get(c.pane.pane);
     if (!text) continue;
-    const kind = bufferKind(data.others.get(c.pane.pane) ?? { cwd: c.cwd, command: null }, c.title);
+    const kind = bufferKind(data.paneState.get(c.pane.pane) ?? { cwd: c.cwd, command: null }, c.title);
     if (only && kind.kind !== only) continue;
     if (!needle) {
       rows.push(row(c, kind.kind, kind.file ? tildify(kind.file, home) : firstLine(text), kind.context, home, { suffix: ":buffer" }));
@@ -144,7 +144,7 @@ function contentRows(cs, data, home, needle, only) {
 function shellMap(cs, data) {
   const shells = new Map();
   for (const c of cs) {
-    const pid = data.others.get(c.pane.pane)?.shellPid;
+    const pid = data.paneState.get(c.pane.pane)?.shellPid;
     if (pid) shells.set(pid, c);
   }
   return shells;
@@ -159,7 +159,7 @@ function pidRows(cs, data, home, needle) {
   if (owner) return [row(owner, "pid", procs.get(pid)?.command || `pid ${pid}`, "-", home)];
   if (!procs || procs.size === 0) return [hint("pid", `pid ${pid}`, "ps/lsof unavailable")];
   if (!procs.has(pid)) return [hint("pid", `pid ${pid}`, "no such process")];
-  if (data.others.size === 0) return [];
+  if (data.paneState.size === 0) return [];
   return [hint("pid", procs.get(pid).command || `pid ${pid}`, "not in any pane", "")];
 }
 
@@ -184,7 +184,7 @@ function portRows(cs, data, home, needle) {
     if (r) rows.push(r);
     else orphans.push(l);
   }
-  const hints = data.others.size ? orphans.map((l) => hint("port", l.addr, "not in any pane", procs.get(l.pid)?.command || `pid ${l.pid}`)) : [];
+  const hints = data.paneState.size ? orphans.map((l) => hint("port", l.addr, "not in any pane", procs.get(l.pid)?.command || `pid ${l.pid}`)) : [];
   if (!rows.length && !orphans.length) return [hint("port", `port ${port}`, "nothing listening")];
   return [...byRecency(rows), ...hints];
 }
@@ -215,5 +215,5 @@ export function buildClues(snap, data, query) {
     rows = stateRows(cs, data, home, filter);
     ranked = n;
   }
-  return { rows: rankOthers(byRecency(rows), ranked), filter, label, needle };
+  return { rows: rankClues(byRecency(rows), ranked), filter, label, needle };
 }

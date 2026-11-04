@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
   bufferKind, commandIsShell, contentExcerpt, isShellPromptTitle, paneForPid, parseEditorTarget,
   parseFilter, parseLsof, parsePs, parseSshTarget, stripAnsi,
-} from "../mods/recall/lib/others.js";
+} from "../mods/recall/lib/clue-extract.js";
 
 test("ssh target: destination with -l user and -p port folded in", () => {
   assert.equal(parseSshTarget("ssh -l deploy -p 2200 web1"), "deploy@web1:2200");

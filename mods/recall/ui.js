@@ -8,7 +8,7 @@
 //
 // navigator(nav, ctx) draws the dialog from the navigator's state and
 // changes nothing but through nav's own methods:
-//   reads  nav.{category, tabs, rows, at, scroll, input, mode, query,
+//   reads  nav.{category, categories, rows, at, scroll, input, mode, query,
 //               agentSort, widths, resizing, keys, configError}
 //   calls  nav.{switchTo, focusForMode, open,
 //               startResize, resizeTo, endResize}
@@ -19,6 +19,7 @@ import { v_flex, h_flex, Input, v_virtual_list } from "gpui-base";
 import { theme, shared } from "herdr";
 import { segments } from "./lib/fuzzy.js";
 import { location } from "./lib/columns.js";
+import { STATUS_WORD } from "./lib/items.js";
 
 // Each category's rail label, header title and rail icon (icons/<icon>.svg).
 const CATEGORY = {
@@ -30,9 +31,9 @@ const CATEGORY = {
   clues: { label: "Clues", title: "Find by Clue", icon: "search" },
 };
 const SORT_LABEL = { mru: "Recent", priority: "Priority", grouped: "Grouped" };
-const SOURCE_COLOR = { ssh: "ansi6", cmd: "ansi3", file: "ansi5", term: "ansi4", cwd: "ansi2", port: "ansi6", pid: "ansi5" };
-const CHIP_COLOR = { ".": "accent", ws: "ansi3", tab: "ansi1", pane: "ansi4", port: "ansi6", pid: "ansi5" };
-const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", other: "panes", hint: "search", "to-clues": "search" };
+const SOURCE_COLOR = { ssh: "ansi6", cmd: "ansi3", file: "ansi5", term: "ansi4", port: "ansi6", pid: "ansi5" };
+const CHIP_COLOR = { ".": "accent", port: "ansi6", pid: "ansi5" };
+const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", clue: "panes", hint: "search", "to-clues": "search" };
 const PREFIXES = "cmd ssh file term port pid";
 const SPINNER = "mods/workspace-chrome/spinner.svg";
 const ROW = 30;
@@ -64,9 +65,8 @@ function glyph(t, status, size) {
 }
 
 function statusWord(t, status) {
-  if (status === "blocked") return div().flex_none().text_size(11.5).text_color(t.blocked).child("needs you");
-  if (status === "done") return div().flex_none().text_size(11.5).text_color(t.done).child("finished");
-  return null;
+  const word = STATUS_WORD[status];
+  return word ? div().flex_none().text_size(11.5).text_color(t[status]).child(word) : null;
 }
 
 function icon(t, item, size) {
@@ -117,7 +117,7 @@ function sortToggle(t, nav) {
 
 function header(t, nav, view) {
   const label = view.label;
-  const count = nav.query.trim() && view.total !== null ? `${nav.rows.length}/${view.total}` : String(nav.rows.length);
+  const count = nav.query.trim() && view.total !== null ? `${view.count}/${view.total}` : String(view.count);
   const search = h_flex().flex_1().h(30).px(10).gap(8).items_center().rounded(8).border_1()
     .border_color(nav.mode === "navigation" ? t.border : t.accent).bg(t.background)
     .children([
@@ -149,7 +149,7 @@ function rail(t, nav) {
       .child(div().text_size(9.5).text_color(on ? t.foreground : t.dim).child(CATEGORY[c].label));
   };
   return v_flex().w(60).h_full().flex_none().py(6).gap(2).items_center().border_r(1).border_color(t.border)
-    .children(nav.tabs.map(entry));
+    .children(nav.categories.map(entry));
 }
 
 // The columns, by the key the widths are stored under. Every one
@@ -194,12 +194,12 @@ function columnHead(t, nav) {
 
 function row(t, nav, { item, hits }, on) {
   const w = nav.widths;
-  const other = item.kind === "other" || item.kind === "hint";
+  const clue = item.kind === "clue" || item.kind === "hint";
   const cell = (w, text, color) => div().w(w).flex_none().truncate().text_size(12).text_color(color).child(text || "");
   return h_flex().h(ROW).mx(4).px(8).gap(8).items_center().rounded(6)
     .when(on, (el) => el.bg(t.selection))
     .child(glyph(t, item.status, 10))
-    .child(other
+    .child(clue
       ? div().w(30).flex_none().text_size(11).font_semibold().text_color(item.kind === "hint" ? t.dim : t[SOURCE_COLOR[item.source]] ?? t.dim).child(item.source)
       : h_flex().w(30).flex_none().child(icon(t, item, 14)))
     .child(h_flex().flex_1().min_w(0).gap(8).items_center().overflow_hidden()

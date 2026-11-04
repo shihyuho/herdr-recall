@@ -21,7 +21,7 @@ import {
 import * as mru from "./lib/mru.js";
 import { listView } from "./lib/listview.js";
 import { actionFor, isPrintable, normalizeKey, parseConfig, parseOpenCommand } from "./lib/config.js";
-import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/others.js";
+import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/clue-extract.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
 import { DEFAULT_WIDTHS, dragWidth, loadWidths } from "./lib/columns.js";
 import { navigator } from "./ui.js";
@@ -44,7 +44,7 @@ const KEY_ACTIONS = {
   dismiss: "recall::dismiss",
   force_quit: "recall::force_quit",
 };
-const OTHERS_EVERY = 10000;
+const PANE_STATE_EVERY = 10000;
 const CONTENT_EVERY = 30000;
 
 function fresh(open) {
@@ -162,7 +162,7 @@ export default class Recall extends View {
     this.follow = true;
     this.done = false;
     this.worktrees = null;
-    this.data = { others: new Map(), content: new Map(), procs: null, listeners: null };
+    this.data = { paneState: new Map(), content: new Map(), procs: null, listeners: null };
     this.handle = cx.focus_handle();
     this.scroll = VirtualListScrollHandle.new();
     this.input = InputState.new({ placeholder: "Type to search" });
@@ -207,7 +207,7 @@ export default class Recall extends View {
   }
 
   applyConfig(config, cx) {
-    this.tabs = config.tabs;
+    this.categories = config.categories;
     this.keys = config.keys;
     this.modal = config.modal;
     this.mode = this.modal ? "navigation" : "type";
@@ -237,8 +237,8 @@ export default class Recall extends View {
 
   /** The asked-for category, else the last one used, else the first configured. */
   startCategory() {
-    for (const c of [this.requested, shared(LAST)]) if (c && this.tabs.includes(c)) return c;
-    return this.tabs[0];
+    for (const c of [this.requested, shared(LAST)]) if (c && this.categories.includes(c)) return c;
+    return this.categories[0];
   }
 
   focusForMode() {
@@ -266,7 +266,7 @@ export default class Recall extends View {
     const target = category ?? this.category;
     const sameSort = !sort || sort === this.agentSort;
     if (target === this.category && sameSort) return this.dismiss();
-    if (this.tabs.includes(target)) this.switchTo(target, sort);
+    if (this.categories.includes(target)) this.switchTo(target, sort);
   }
 
   // ── Navigator: data ────────────────────────────────────────────────────
@@ -289,10 +289,10 @@ export default class Recall extends View {
   refreshClues(cx) {
     if (this.role !== "navigator" || this.category !== "clues" || this.done) return;
     const now = Date.now();
-    if (!this.othersAt || now - this.othersAt >= OTHERS_EVERY) {
-      this.othersAt = now;
+    if (!this.paneStateAt || now - this.paneStateAt >= PANE_STATE_EVERY) {
+      this.paneStateAt = now;
       cx.spawn(async (cx) => {
-        await Promise.all([this.fetchOthers(), this.fetchLocator()]);
+        await Promise.all([this.fetchPaneState(), this.fetchLocator()]);
         cx.notify();
       });
     }
@@ -309,7 +309,7 @@ export default class Recall extends View {
     return panes().filter((p) => p.terminal);
   }
 
-  async fetchOthers() {
+  async fetchPaneState() {
     await Promise.all(this.clueTargets().map(async (p) => {
       try {
         const r = await hc(["get", p.terminal, "--json"]);
@@ -317,7 +317,7 @@ export default class Recall extends View {
         const j = JSON.parse(r.stdout);
         const fg = j.foreground;
         const command = fg?.argv?.length ? fg.argv.join(" ") : fg?.name ?? null;
-        this.data.others.set(p.pane, {
+        this.data.paneState.set(p.pane, {
           cwd: fg?.cwd ?? j.cwd ?? p.cwd ?? null,
           command: command && command.trim() ? command : null,
           ssh: command ? parseSshTarget(command) : null,
@@ -380,8 +380,8 @@ export default class Recall extends View {
   }
 
   cycleCategory(step) {
-    const i = Math.max(0, this.tabs.indexOf(this.category));
-    this.switchTo(this.tabs[(i + step + this.tabs.length) % this.tabs.length]);
+    const i = Math.max(0, this.categories.indexOf(this.category));
+    this.switchTo(this.categories[(i + step + this.categories.length) % this.categories.length]);
   }
 
   move(step) {
@@ -480,7 +480,7 @@ export default class Recall extends View {
 
   renderNavigator() {
     const t = theme();
-    const view = listView(this.category, this.snapshot(), this.query, { agentSort: this.agentSort, clueData: this.data, cluesAvailable: this.tabs.includes("clues") });
+    const view = listView(this.category, this.snapshot(), this.query, { agentSort: this.agentSort, clueData: this.data, cluesAvailable: this.categories.includes("clues") });
     this.rows = view.rows;
 
     // Open on the row listView picks (the one before where you are, as
@@ -496,7 +496,7 @@ export default class Recall extends View {
       this.scroll.scroll_to_item(this.at, "center");
       this.follow = false;
     }
-    const loading = this.category === "clues" && this.clueTargets().length > 0 && !this.data.others.size;
+    const loading = this.category === "clues" && this.clueTargets().length > 0 && !this.data.paneState.size;
 
     const act = (fn) => (_e, cx) => { fn(); cx.notify(); };
     return v_flex()

@@ -10,7 +10,15 @@
 
 import * as mru from "./mru.js";
 
-export const STATUS_RANK = { blocked: 0, done: 1, working: 2, idle: 3 };
+const STATUS_RANK = { blocked: 0, done: 1, working: 2, idle: 3 };
+
+/** Sort rank of a status: blocked first, then done, working, idle; no status last. */
+export function statusRank(status) {
+  return STATUS_RANK[status] ?? 9;
+}
+
+/** The word the STATUS column shows, and a search matches, for a status. */
+export const STATUS_WORD = { blocked: "needs you", done: "finished" };
 
 /** `/Users/me/x` as `~/x` when it is under home. */
 export function tildify(path, home) {
@@ -92,11 +100,6 @@ function spaceLabel(space, worktrees) {
   return space.name;
 }
 
-/** The word the STATUS column shows for a status, or "" when it shows none. */
-function statusText(status) {
-  return status === "blocked" ? "needs you" : status === "done" ? "finished" : "";
-}
-
 /** Every space as a row, in Herdr's order. */
 function spaceRows(snap, ix) {
   return snap.spaces.map((s) => {
@@ -125,7 +128,7 @@ function spaceRows(snap, ix) {
         { key: "path", text: path },
         { key: "branch", text: s.branch ?? "" },
         { key: "machine", text: s.machine ?? "" },
-        { key: "status", text: statusText(s.status) },
+        { key: "status", text: STATUS_WORD[s.status] ?? "" },
       ],
       actions: [["space.select", { id: s.id }]],
     };
@@ -199,7 +202,7 @@ function tabRows(snap, ix) {
           { key: "where", text: spaceLabel(s, snap.worktrees) },
           { key: "panes", text: ps.map(paneLabel).join(" ") },
           { key: "branch", text: lead?.branch ?? "" },
-          { key: "status", text: statusText(t.status) },
+          { key: "status", text: STATUS_WORD[t.status] ?? "" },
         ],
         actions: [["tab.select", { id: t.id }]],
       });
@@ -247,7 +250,7 @@ function paneRows(snap, ix) {
         { key: "path", text: path },
         { key: "detail", text: d.program?.name ?? "" },
         { key: "branch", text: d.branch ?? "" },
-        { key: "status", text: statusText(d.status) },
+        { key: "status", text: STATUS_WORD[d.status] ?? "" },
       ],
       actions: [["tab.select", { id: p.tab }], ["pane.focus", { pane: p.pane }]],
     });
@@ -295,7 +298,7 @@ function agentRows(snap, ix) {
         { key: "detail", text: a.program?.name ?? "" },
         { key: "path", text: path },
         { key: "branch", text: pane?.branch ?? "" },
-        { key: "status", text: statusText(a.status) },
+        { key: "status", text: STATUS_WORD[a.status] ?? "" },
       ],
       actions: [["agent.focus", { terminal: a.address }]],
     };
@@ -310,7 +313,7 @@ function agentRows(snap, ix) {
 function agentItems(snap, ix, sort) {
   const items = agentRows(snap, ix);
   if (sort === "priority") {
-    return [...items].sort((a, b) => (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9) || b.seq - a.seq || a.model - b.model);
+    return [...items].sort((a, b) => statusRank(a.status) - statusRank(b.status) || b.seq - a.seq || a.model - b.model);
   }
   if (sort === "grouped") return items;
   return recentOrder(items);
@@ -329,7 +332,7 @@ function recentCompare(a, b) {
   const y = b.item;
   if ((x.at != null) !== (y.at != null)) return x.at != null ? -1 : 1;
   if (x.at != null && x.at !== y.at) return y.at - x.at;
-  if (x.at == null) return (STATUS_RANK[x.status] ?? 9) - (STATUS_RANK[y.status] ?? 9) || a.i - b.i;
+  if (x.at == null) return statusRank(x.status) - statusRank(y.status) || a.i - b.i;
   return a.i - b.i;
 }
 

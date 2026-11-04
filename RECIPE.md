@@ -22,7 +22,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - a 16px space badge: the space's first letter, white and bold, on the space's color.
   - The name takes what the other columns leave. Defaults are LOCATION 210px, FOLDER 240px, BRANCH 140px, STATUS 70px.
   - A linked worktree's space sits indented under its main checkout and reads "repo ⎇ branch".
-  - Empty states read "Reading panes…", "Nothing matches" or "Nothing here yet". The exception is All with a query nothing matches: it shows one selected row, a search glass and `Search Clues for "<query>"`; opening it (Enter or click) switches to Clues and leaves the query in the search field. If Clues is not in `categories`, All shows "Nothing matches" instead.
+  - Empty states read "Reading panes…", "Nothing matches" or "Nothing here yet". The exception is All with a query nothing matches, when Clues is one of the visible categories: it shows one selected row, a search glass and `Search Clues for "<query>"`; opening it (Enter or click) switches to Clues and leaves the query in the search field. Otherwise All shows "Nothing matches".
 - **Footer**, 28px high on the chrome background with a top border: the keys worth knowing now as small key chips with dim labels (`⏎ open`, `↑↓ move`, `⇥ category`, `⌃S sort` on Agents, `esc close` at the right). A broken `recall.json` shows its error here in the blocked color.
 
 ## How it behaves
@@ -100,7 +100,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - `lib/`: pure functions, tested with `node --test 'tests/*.test.mjs'`:
     - `listview.js` for what a category shows: its rows with their highlights, the total and the opening selection;
     - `items.js` for the rows of each category, All's included;
-    - `clues.js` and `others.js` for Clues;
+    - `clues.js` and `clue-extract.js` for Clues;
     - `fuzzy.js` for search;
     - `mru.js` for recency;
     - `config.js` for `recall.json`;

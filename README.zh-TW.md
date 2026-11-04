@@ -26,7 +26,7 @@
 
 每個清單的查詢都採用 [fzf](https://github.com/junegunn/fzf) 的 extended-search 語法：`'exact`、`'whole-word'`、`^start`、`end$`、`!exclude` 與 `this | that`（見下方的 **搜尋語法**）。
 
-第一個清單 **All** 把所有 space、tab、pane 與 agent 放在一起，不必先知道要找的是哪一種。每個名稱前面都帶著它的路徑（`payments-api › refunds › nvim`），每個目的地也只出現一次：agent 代表它所在的 pane，tab 要有好幾個 pane 才會有自己的一列，space 要有好幾個 tab 才會有。agent 與 pane 排最前面，接著是 tab，最後是 space，各自依最近用過的順序排列；從沒去過的排在後面，等你處理的排最前。打字只會縮小這份清單。如果 All 裡沒有任何符合的項目，它會給一列 `Search Clues for "<query>"`；開啟後會切到 Clues，並保留同一個查詢。其他清單則顯示「Nothing matches」。
+第一個清單 **All** 把所有 space、tab、pane 與 agent 放在一起，不必先知道要找的是哪一種。每個名稱前面都帶著它的路徑（`payments-api › refunds › nvim`），每個目的地也只出現一次：agent 代表它所在的 pane，tab 要有好幾個 pane 才會有自己的一列，space 要有好幾個 tab 才會有。agent 與 pane 排最前面，接著是 tab，最後是 space，各自依最近用過的順序排列；從沒去過的排在後面，等你處理的排最前。打字只會縮小這份清單。如果 All 裡沒有任何符合的項目，而且 Clues 是你顯示的分類之一，它會給一列 `Search Clues for "<query>"`；開啟後會切到 Clues，並保留同一個查詢。其他情況與其他清單則顯示「Nothing matches」。
 
 最後一個清單 **Clues** 能用 pane 正在跑的指令、ssh 連到的主機、開著的檔案、監聽的 port，或印出過的文字找到它：輸入 `port 5173` 就能找到啟動 dev server 的那個 pane。為此 Recall 會在你的電腦上執行 `git`、`ps`、`lsof` 並讀取 pane 的內容，資料不會離開你的電腦。
 

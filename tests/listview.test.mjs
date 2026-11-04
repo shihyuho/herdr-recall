@@ -494,6 +494,24 @@ test("The query is trimmed in the Clues row's title", () => {
   assert.equal(listView("all", town(), "  zzqx ").rows[0].item.title, 'Search Clues for "zzqx"');
 });
 
+// The header reads `count/total`: the count is what matched, so the Clues
+// offer row (not a match) is not counted.
+test("count is the number of matching rows: 0 for a query All turns into the Clues offer", () => {
+  const miss = listView("all", town(), "zzqx");
+  assert.equal(miss.rows.length, 1);
+  assert.equal(miss.count, 0);
+  assert.equal(miss.total, listView("all", town(), "").rows.length);
+});
+
+test("count equals the rows when they all match, typed or not", () => {
+  const typed = listView("all", town(), "api");
+  assert.ok(typed.rows.length > 0);
+  assert.equal(typed.count, typed.rows.length);
+  const open = listView("all", town(), "");
+  assert.equal(open.count, open.rows.length);
+  assert.equal(listView("all", town(), "zzqx", { cluesAvailable: false }).count, 0);
+});
+
 for (const category of ["spaces", "tabs", "panes", "agents"]) {
   test(`${category}, a query nothing matches: no rows, so "Nothing matches"`, () => {
     assert.equal(listView(category, town(), "zzqx").rows.length, 0);

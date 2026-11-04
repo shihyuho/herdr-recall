@@ -44,7 +44,7 @@ function categoryId(name) {
  * aliases resolve, unknown names drop, duplicates keep the first. A list
  * left empty shows only "all"; no list at all shows every category.
  */
-export function normalizeTabs(value) {
+export function normalizeCategories(value) {
   if (!Array.isArray(value)) return [...CATEGORY_IDS];
   const out = [];
   for (const raw of value) {
@@ -144,7 +144,7 @@ export function actionFor(keys, keystroke) {
 export function normalizeConfig(raw) {
   const obj = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   const keys = normalizeKeys(obj.keybindings);
-  return { tabs: normalizeTabs(obj.categories !== undefined ? obj.categories : obj.tabs), keys, modal: isModal(keys) };
+  return { categories: normalizeCategories(obj.categories !== undefined ? obj.categories : obj.tabs), keys, modal: isModal(keys) };
 }
 
 /** Parses recall.json text; invalid JSON reads as no settings, with the error. */

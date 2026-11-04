@@ -2,7 +2,7 @@
 // printed, or the port or process it owns. Pure functions; main.js fetches
 // the data (herdr-core, ps, lsof) and hands it in.
 //
-// Rules follow herdr-recent-navigator's Others tab so a query works the same:
+// Rules follow herdr-recent-navigator's tab for the same job, so a query works the same:
 // filter prefixes need one space after the label, `.` searches buffers.
 // The text after a prefix uses the query syntax of every list (fuzzy.js):
 // on state rows as anywhere, and on buffers line by line with plain terms
@@ -10,9 +10,9 @@
 
 import { matchFields, matchLiteral, parseQuery } from "./fuzzy.js";
 
-export const SOURCE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, port: 5, pid: 6 };
+export const SOURCE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, port: 4, pid: 5 };
 const SOURCE_LABELS = ["ssh", "cmd", "term", "file"];
-const OTHER_LABELS = [["port", "port"], ["pid", "pid"]];
+const OWNER_LABELS = [["port", "port"], ["pid", "pid"]];
 
 const SHELLS = new Set(["zsh", "bash", "sh", "dash", "ksh", "tcsh", "fish", "csh", "ash", "nu", "elvish", "xonsh", "pwsh", "powershell"]);
 const EDITORS = new Set(["nvim", "vim", "vi", "code", "cursor", "neovim", "emacs", "helix", "hx", "nano", "micro", "sublime", "kak", "lvim", "zed"]);
@@ -124,16 +124,16 @@ function absolute(path, cwd) {
  * Whether a pane's buffer counts as a file or a terminal, and what to show
  * as its context: the edited file (absolute, `:line`) or the pane's cwd.
  */
-export function bufferKind(other, title) {
-  const editor = other?.command != null
-    ? (commandIsEditor(other.command) ? other.command : null)
+export function bufferKind(state, title) {
+  const editor = state?.command != null
+    ? (commandIsEditor(state.command) ? state.command : null)
     : (commandIsEditor(title) ? title : null);
   if (editor && !isShellPromptTitle(title)) {
     const target = parseEditorTarget(editor);
-    if (target) return { kind: "file", file: absolute(target.path, other?.cwd), context: absolute(target.path, other?.cwd) + (target.line ? `:${target.line}` : "") };
-    return { kind: "file", file: null, context: other?.cwd || "-" };
+    if (target) return { kind: "file", file: absolute(target.path, state?.cwd), context: absolute(target.path, state?.cwd) + (target.line ? `:${target.line}` : "") };
+    return { kind: "file", file: null, context: state?.cwd || "-" };
   }
-  return { kind: "term", file: null, context: other?.cwd || "-" };
+  return { kind: "term", file: null, context: state?.cwd || "-" };
 }
 
 /** Escape sequences out of terminal text: CSI, OSC and charset selects. */
@@ -198,7 +198,7 @@ export function parseFilter(query) {
   for (const label of SOURCE_LABELS) {
     if (rest.startsWith(`${label} `)) return { filter: label, label, needle: rest.slice(label.length + 1) };
   }
-  for (const [label, filter] of OTHER_LABELS) {
+  for (const [label, filter] of OWNER_LABELS) {
     if (rest.startsWith(`${label} `)) return { filter, label, needle: rest.slice(label.length + 1) };
   }
   return { filter: content ? "content" : null, label: content ? "." : null, needle: rest };
@@ -253,7 +253,7 @@ export function paneForPid(pid, shells, procs) {
 }
 
 /** Orders Clues rows: a detail hit outranks hits elsewhere; ties keep recency. */
-export function rankOthers(rows, query) {
+export function rankClues(rows, query) {
   if (!parseQuery(query).length) return rows.map((item) => ({ item, hits: {} }));
   const out = [];
   rows.forEach((item, order) => {

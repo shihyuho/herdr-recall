@@ -2,7 +2,7 @@
 // tested through. Pure: no gpui, no Herdr runtime, so `node --test` drives
 // it with fixture snapshots.
 //
-//   listView(category, snap, query, options) → { rows, total, selected, label }
+//   listView(category, snap, query, options) → { rows, count, total, selected, label }
 //
 // - category: a category id: "all" (every space, tab, pane and agent),
 //   "spaces", "tabs", "panes", "agents" or "clues" (the clue search).
@@ -14,7 +14,7 @@
 //   categories, so All has nowhere to send a query it cannot match
 //   (default true).
 // - options.clueData: the clues read so far for Clues
-//   ({ others, content, procs, listeners }, see clues.js).
+//   ({ paneState, content, procs, listeners }, see clues.js).
 //
 // - rows: [{ item, hits }] in display order; `hits[fieldKey]` lists the
 //   highlighted code points of that field. Typed, every category but Clues
@@ -27,6 +27,8 @@
 //   path drawn before the name (`space › tab › `, `space › `, or "" for a
 //   space); it begins with the `where` field, so `hits.where` lights up
 //   inside it.
+// - count: how many rows match (the header's n in n/total); the Clues offer
+//   row is not a match, so it is 0 when that is all there is.
 // - total: how many rows the category lists with nothing typed, or null
 //   when it shows no total (Clues).
 // - selected: the index of the row to select when the list opens or the
@@ -54,18 +56,19 @@ function openingRow(rows) {
   return first < 0 ? 0 : first;
 }
 
-const NO_CLUES = { others: new Map(), content: new Map(), procs: null, listeners: null };
+const NO_CLUES = { paneState: new Map(), content: new Map(), procs: null, listeners: null };
 
 export function listView(category, snap, query, options = {}) {
   if (category === "clues") {
     const { rows, label } = buildClues(snap, options.clueData ?? NO_CLUES, query);
-    return { rows, total: null, selected: openingRow(rows), label };
+    return { rows, count: rows.length, total: null, selected: openingRow(rows), label };
   }
   const items = buildItems(category, snap, { agentSort: options.agentSort });
   const rows = tiered(items, query, (i) => i.fields);
+  const matched = rows.length;
   // All finds nothing: offer the search that looks deeper (Clues keeps the query).
   if (category === "all" && query.trim() && !rows.length && options.cluesAvailable !== false) {
     rows.push({ item: { kind: "to-clues", key: "to-clues", title: `Search Clues for "${query.trim()}"`, actions: [] }, hits: {} });
   }
-  return { rows, total: items.length, selected: openingRow(rows), label: null };
+  return { rows, count: matched, total: items.length, selected: openingRow(rows), label: null };
 }
