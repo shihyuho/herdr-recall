@@ -63,14 +63,16 @@ function row(c, clue, detail, context, home, extra = {}) {
     at: c.at,
     rank: c.rank,
     order: c.order,
-    fields: [
-      { key: "clue", text: clue },
-      { key: "title", text: detail },
-      { key: "detail", text: shown === "-" ? "" : shown },
-      { key: "where", text: c.where },
-      // A buffer row's whole line, so a term the excerpt cut off still matches.
-      ...(extra.line ? [{ key: "line", text: extra.line }] : []),
-    ],
+    // A buffer row shows only its excerpt, so it is searched by that and its whole
+    // line (a term the excerpt cut off still matches); other rows by all they show.
+    fields: extra.line
+      ? [{ key: "title", text: detail }, { key: "line", text: extra.line }]
+      : [
+        { key: "clue", text: clue },
+        { key: "title", text: detail },
+        { key: "detail", text: shown === "-" ? "" : shown },
+        { key: "where", text: c.where },
+      ],
     actions: [["tab.select", { id: c.pane.tab }], ["pane.focus", { pane: c.pane.pane }]],
     ...(extra.item ?? {}),
   };

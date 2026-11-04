@@ -200,6 +200,7 @@ function tabRows(snap, ix) {
           { key: "title", text: title },
           { key: "detail", text: t.named ? paneLabel(lead) : runs },
           { key: "where", text: spaceLabel(s, snap.worktrees) },
+          { key: "path", text: tildify(lead?.cwd, snap.home) },
           { key: "panes", text: ps.map(paneLabel).join(" ") },
           { key: "branch", text: lead?.branch ?? "" },
           { key: "status", text: STATUS_WORD[t.status] ?? "" },
@@ -360,7 +361,10 @@ function allItems(snap, ix) {
   for (const p of snap.panes) {
     const agent = p.terminal ? agents.get(p.terminal) : null;
     if (agent) {
-      out.push(agent);
+      // The agent history's head stays put while a shell has focus, so its `at` can be
+      // older than its pane's: the row takes the later of the two.
+      const ats = [agent.at, mru.lastFocused(snap.history, "pane", p.pane)].filter((x) => x != null);
+      out.push({ ...agent, at: ats.length ? Math.max(...ats) : null });
       agents.delete(p.terminal);
     } else if (panes.has(p.pane)) out.push(shellNamed(panes.get(p.pane), p));
   }

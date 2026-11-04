@@ -1,4 +1,5 @@
-// Settings: ~/.config/herdr-app/recall.json, every key optional.
+// Settings: ~/.config/herdr-app/recall.json, every key optional. The module also
+// holds the category ids, which open commands (`parseOpenCommand`) name too.
 //
 //   {
 //     "categories": ["all", "spaces", "tabs", "panes", "agents", "clues"],

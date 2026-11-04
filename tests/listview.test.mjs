@@ -517,3 +517,28 @@ for (const category of ["spaces", "tabs", "panes", "agents"]) {
     assert.equal(listView(category, town(), "zzqx").rows.length, 0);
   });
 }
+
+test("All, nothing typed: returning to an agent after a shell pane puts it back on top, and Agents' own Recent order is unchanged", () => {
+  // t1 agent hooks, t2 shell cartsh, t3 hooks again, t4 shell tf (where you are now).
+  const snap = town();
+  let h = mru.empty();
+  h = mru.record(h, { space: "sp-api", tab: "tb-hooks", pane: "p-hooks", agent: "t-hooks" }, 1000);
+  h = mru.record(h, { space: "sp-web", tab: "tb-checkout", pane: "p-cartsh", agent: null }, 2000);
+  h = mru.record(h, { space: "sp-api", tab: "tb-hooks", pane: "p-hooks", agent: "t-hooks" }, 3000);
+  h = mru.record(h, { space: "sp-infra", tab: "tb-tf", pane: "p-tf", agent: null }, 4000);
+  snap.history = h;
+  snap.focused = { ...snap.focused, space: "sp-infra", tab: "tb-tf", pane: "p-tf", terminal: "t-tf", agent: null };
+  for (const a of snap.agents) a.focused = false;
+
+  const all = listView("all", snap, "");
+  assert.deepEqual(keys(all).slice(0, 3), ["pane:p-tf", "agent:t-hooks", "pane:p-cartsh"]);
+  assert.equal(all.selected, 1);
+
+  assert.deepEqual(keys(listView("agents", snap, "")).slice(0, 2), ["agent:t-hooks", "agent:t-guide"]);
+});
+
+test("Tabs and All, typed: a folder finds the tab that shows it", () => {
+  const snap = town();
+  assert.deepEqual(keys(listView("tabs", snap, "code/docs")), ["tab:tb-guides"]);
+  assert.ok(keys(listView("all", snap, "code/docs")).includes("tab:tb-guides"));
+});

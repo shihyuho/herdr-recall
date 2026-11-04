@@ -253,9 +253,7 @@ export function rankClues(rows, query) {
   if (!parseQuery(query).length) return rows.map((item) => ({ item, hits: {} }));
   const out = [];
   rows.forEach((item, order) => {
-    // A buffer row shows only its line, so only the line (and its title) is searched.
-    const searched = item.fields.some((f) => f.key === "line") ? item.fields.filter((f) => f.key === "line" || f.key === "title") : item.fields;
-    const full = matchFields(searched, query);
+    const full = matchFields(item.fields, query);
     if (!full) return;
     const detail = matchFields(item.fields.filter((f) => f.key === "title"), query);
     out.push({ item, hits: full.hits, primary: detail?.score ?? 0, secondary: full.score, order });

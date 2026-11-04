@@ -34,14 +34,6 @@ test("a stored history that is broken loads empty", () => {
   assert.deepEqual(mru.load({ v: 1, tab: [{ id: "x", at: 1 }, { id: 3 }] }).tab, [{ id: "x", at: 1 }]);
 });
 
-test("order: recent first, never-focused after in their given order", () => {
-  let h = mru.empty();
-  h = mru.record(h, focus("s", "b", null), 1);
-  h = mru.record(h, focus("s", "d", null), 2);
-  const sorted = mru.order(h, "tab", ["a", "b", "c", "d"], (x) => x);
-  assert.deepEqual(sorted, ["d", "b", "a", "c"]);
-});
-
 test("previous skips where you are and ids that no longer exist", () => {
   let h = mru.empty();
   for (const [t, at] of [["t1", 1], ["gone", 2], ["t3", 3]]) h = mru.record(h, focus("s", t, null), at);

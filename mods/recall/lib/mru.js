@@ -1,6 +1,6 @@
 // Recency history: which spaces, tabs, panes and agents were focused, most
-// recent first. The tracker records every focus change; the navigator orders
-// its lists by it and the quick-focus commands jump back through it.
+// recent first. The tracker records every focus change; the navigator reads
+// each row's last focus from it and the quick-focus commands jump back through it.
 //
 // Shape (kept in shared state, so it survives restarts):
 //   { v: 1, space: [{ id, at }], tab: [{ id, space, at }],
@@ -59,23 +59,6 @@ export function prune(history, live) {
     if (kept.length !== next[kind].length) next = { ...next, [kind]: kept };
   }
   return next;
-}
-
-/**
- * Orders items most recently focused first; items never focused follow in
- * their given order. `idOf(item)` gives the id the history knows it by.
- */
-export function order(history, kind, items, idOf) {
-  const rank = new Map(history[kind].map((e, i) => [e.id, i]));
-  return items
-    .map((item, i) => ({ item, i, r: rank.get(idOf(item)) }))
-    .sort((a, b) => {
-      if (a.r !== undefined && b.r !== undefined) return a.r - b.r;
-      if (a.r !== undefined) return -1;
-      if (b.r !== undefined) return 1;
-      return a.i - b.i;
-    })
-    .map((x) => x.item);
 }
 
 /** When an id was last focused (ms), or null. */
