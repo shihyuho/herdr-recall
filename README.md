@@ -20,7 +20,7 @@ An IntelliJ-style "Recent" switcher for the [Herdr](https://herdr.dev/) app. One
 
 ![Recall's Agents list: a blocked agent reads "needs you", a finished one "finished"](preview.png)
 
-Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search, click a column head to sort by it, and drag a column's edge to resize it.
+Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search, and drag a column's edge to resize it.
 
 The **All** list finds a pane by what it runs, the host it is ssh'd into, the file it has open, the port it listens on, or text it printed: `port 5173` finds the pane that started your dev server. To do that, Recall runs `git`, `ps` and `lsof` and reads pane buffers on your machine; nothing leaves it.
 
@@ -72,10 +72,9 @@ To remove Recall, delete `~/.config/herdr-app/mods/recall` and the keys you boun
 | --- | --- |
 | Click a row | Go to it |
 | Click a category on the left | Switch to it |
-| Click a column head | Sort by it: up, then down, then back to the recent order |
 | Drag the line left of a column head | Resize that column; double-click the line to reset it |
 
-Pressing the open key again closes the switcher, or switches to the category that key opens. A sort lasts until the switcher closes; column widths are kept.
+Pressing the open key again closes the switcher, or switches to the category that key opens. Column widths are kept.
 
 </details>
 

@@ -12,7 +12,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **Header**, 48px high with a bottom border: the category's title on the left (150px, 14px semibold: "Recent Spaces", "Recent Tabs", "Recent Panes", "Agents", "Find Anywhere"), then a search field filling the rest (30px high, radius 8, a search icon, the row count on the right as `7` or `3/7` while searching; its border is the accent color while you type). On Agents, a segmented control follows: Recent, Priority, Grouped. "Esc" sits at the far right.
 - **Rail** on the left, 60px wide with a right border: one 48×46 entry per category (Spaces, Tabs, Panes, Agents, All), a 16px icon over a 9.5px label. The current one has the selected background and an accent icon.
 - **Table** filling the rest:
-  - A 26px column head in 10.5px semibold capitals: NAME, LOCATION (CONTENTS on Spaces), FOLDER, BRANCH, STATUS. The column being sorted by is in the accent color with ▲ or ▼. A 1px divider sits left of every head but NAME.
+  - A 26px column head in 10.5px semibold capitals: NAME, LOCATION (CONTENTS on Spaces), FOLDER, BRANCH, STATUS. A 1px divider sits left of every head but NAME.
   - Rows 30px high, radius 6. The selected row has the theme's selection background. Left to right:
     - the status glyph;
     - the program's icon in a 30px column (on All, a colored source label instead: `cmd`, `ssh`, `cwd`, `file`, `term`, `port`, `pid`);
@@ -42,7 +42,6 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   Typing searches. Binding a movement key to a letter in `recall.json` turns on vim-style input: `j` `k` move, `h` `l` switch categories, `/` starts searching, and Escape leaves the search first.
 - **Mouse.**
   - Click a row to go there, or a rail entry to switch category.
-  - Click a column head to sort: ascending, then descending, then back to the category's own order. The selected row stays selected, a worktree moves with its main checkout, and empty values sort last. The sort lasts while the dialog is open.
   - Drag the divider left of a head to resize that column, between 48px and 520px; the name column gives or takes the difference, so the divider stays under the pointer. Double-click the divider to restore its default. Widths are kept for next time.
 - **Agent status.**
   - working: a spinner in the working color;
@@ -77,7 +76,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - `fuzzy.js` for search;
     - `mru.js` for recency;
     - `config.js` for `recall.json`;
-    - `columns.js` for location text, sorting and widths;
+    - `columns.js` for location text and widths;
     - `worktrees.js` for worktree grouping;
   - `icons/`: `spaces`, `tabs`, `panes`, `agents`, `all` and `search` SVGs.
 - **Two roles of one mod**, told apart by `props().role`:
@@ -123,6 +122,6 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - After the first `⌘E`, going from tab A to tab B and pressing `⌘E` opens with A's row selected, and Enter returns to A. Pressing `⌘E` twice closes the dialog.
 - `recall.previous-tab` jumps back to the previous tab even when it is in another space.
 - On Agents, a blocked agent reads "needs you" and Ctrl+S cycles Recent, Priority and Grouped.
-- Clicking NAME sorts ▲, again ▼, and a third time restores recency, with the same row still selected.
+- Clicking a column head changes nothing: no sort, no ▲ or ▼.
 - Dragging LOCATION's divider widens it; the width is still there after reopening, and a double-click restores 210px.
 - In All, `port <n>` for a running dev server lists the pane that started it.

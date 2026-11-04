@@ -1,15 +1,14 @@
 // The navigator's look ("Columns" layout): a header with the category
 // title and the search box, then an icon rail of the categories beside a
-// table of the rows: name, location, folder, branch and status. A click on a
-// column head sorts by it; dragging the edge left of a head resizes that
+// table of the rows: name, location, folder, branch and status. Dragging the edge left of a head resizes that
 // column (a double-click on it puts it back). A one-line footer under them
 // names the keys.
 //
 // navigator(nav, ctx) draws the dialog from the navigator's state and
 // changes nothing but through nav's own methods:
 //   reads  nav.{category, tabs, rows, at, scroll, input, mode, query,
-//               agentSort, sort, widths, resizing, keys, configError}
-//   calls  nav.{switchTo, focusForMode, open, sortBy,
+//               agentSort, widths, resizing, keys, configError}
+//   calls  nav.{switchTo, focusForMode, open,
 //               startResize, resizeTo, endResize}
 //   ctx  = { view, loading }  (view: what rowsFor returned)
 
@@ -149,7 +148,7 @@ function rail(t, nav) {
     .children(nav.tabs.map(entry));
 }
 
-// The columns, by the key lib/columns.js sorts and sizes them by. Every one
+// The columns, by the key the widths are stored under. Every one
 // but the name has a width of its own (nav.widths); the name takes the rest.
 const COLUMNS = [
   { key: "name", label: () => "NAME" },
@@ -170,13 +169,10 @@ function edge(t, nav, column) {
 
 function columnHead(t, nav) {
   const head = (c) => {
-    const on = nav.sort?.column === c.key;
-    const label = h_flex().id(`recall-col-${c.key}`).size_full().min_w(0).items_center().cursor_pointer()
+    const label = h_flex().id(`recall-col-${c.key}`).size_full().min_w(0).items_center()
       .when(Boolean(c.right), (el) => el.justify_end())
-      .text_color(on ? t.accent : t.dim)
-      .hover((x) => x.text_color(t.foreground))
-      .on_click((_e, cx) => { nav.sortBy(c.key); nav.focusForMode(); cx.notify(); })
-      .child(div().truncate().child(c.label(nav) + (on ? (nav.sort.dir > 0 ? " ▲" : " ▼") : "")));
+      .text_color(t.dim)
+      .child(div().truncate().child(c.label(nav)));
     if (c.key === "name") return h_flex().flex_1().min_w(0).h_full().child(label);
     return h_flex().w(nav.widths[c.key]).flex_none().h_full().relative().child(label).child(edge(t, nav, c.key));
   };

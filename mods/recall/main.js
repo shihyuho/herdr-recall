@@ -25,7 +25,7 @@ import { buildAll } from "./lib/all.js";
 import { actionFor, isPrintable, normalizeKey, parseConfig } from "./lib/config.js";
 import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/others.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
-import { DEFAULT_WIDTHS, dragWidth, loadWidths, nextSort, sortRows } from "./lib/columns.js";
+import { DEFAULT_WIDTHS, dragWidth, loadWidths } from "./lib/columns.js";
 import { navigator } from "./ui.js";
 
 const MOD = "recall";
@@ -165,8 +165,6 @@ export default class Recall extends View {
     this.requested = p.category ?? null;
     this.category = this.startCategory();
     this.agentSort = p.agentSort ?? "mru";
-    this.sort = null;
-    this.keepKey = null;
     this.widths = loadWidths(shared(WIDTHS));
     this.resizing = null;
     this.query = "";
@@ -385,7 +383,6 @@ export default class Recall extends View {
     this.category = category;
     if (sort && AGENT_SORTS.includes(sort)) {
       this.agentSort = sort;
-      this.sort = null;
     }
     this.at = null;
     this.follow = true;
@@ -457,15 +454,8 @@ export default class Recall extends View {
 
   cycleSort() {
     this.agentSort = AGENT_SORTS[(AGENT_SORTS.indexOf(this.agentSort) + 1) % AGENT_SORTS.length];
-    this.sort = null;
     this.at = null;
     this.follow = true;
-  }
-
-  /** A click on a column head: the next sort, the selected row staying selected. */
-  sortBy(column) {
-    this.sort = nextSort(this.sort, column);
-    this.keepKey = this.rows?.[this.at]?.item.key ?? null;
   }
 
   /** A press on a column's left edge starts resizing it; a double-click puts its width back. */
@@ -506,16 +496,7 @@ export default class Recall extends View {
   renderNavigator() {
     const t = theme();
     const view = this.rowsFor(this.category, this.snapshot());
-    this.rows = sortRows(view.rows, this.sort);
-    if (this.keepKey) {
-      const i = this.rows.findIndex((r) => r.item.key === this.keepKey);
-      if (i >= 0) {
-        this.at = i;
-        this.auto = false;
-        this.follow = true;
-      }
-      this.keepKey = null;
-    }
+    this.rows = view.rows;
 
     // Open on the row before where you are, as IntelliJ's Recent Files does.
     // Until the person moves, keep re-aiming: focus can settle after the
