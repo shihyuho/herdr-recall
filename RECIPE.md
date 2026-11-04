@@ -71,7 +71,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - `mod.json`: `{ "place": "none", "title": "Recall", "overlay": { "kind": "dialog", "width": 0.74, "height": 0.7 } }`;
   - `main.js`: the view and its state;
   - `ui.js`: the drawing;
-  - `lib/`: pure functions, tested with `node --test tests/`:
+  - `lib/`: pure functions, tested with `node --test 'tests/*.test.mjs'`:
     - `items.js` for the rows of each category;
     - `all.js` and `others.js` for All;
     - `fuzzy.js` for search;
@@ -119,7 +119,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
 ## Done when
 
-- `herdr-app check mods/recall` passes, and `node --test tests/` passes.
+- `herdr-app check mods/recall` passes, and `node --test 'tests/*.test.mjs'` passes.
 - After the first `⌘E`, going from tab A to tab B and pressing `⌘E` opens with A's row selected, and Enter returns to A. Pressing `⌘E` twice closes the dialog.
 - `recall.previous-tab` jumps back to the previous tab even when it is in another space.
 - On Agents, a blocked agent reads "needs you" and Ctrl+S cycles Recent, Priority and Grouped.

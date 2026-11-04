@@ -1,0 +1,24 @@
+name: test
+
+# The mod's pure logic (mods/recall/lib) under node:test. The mod itself
+# needs the Herdr app to load, so `herdr-app check` stays a local step.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # lib/*.js are ES modules without a package.json: Node reads them as
+      # such only from 22.7 on, when module syntax detection became default.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      # A glob, not a folder: Node 24 reads `tests/` as a module path.
+      - run: node --test 'tests/*.test.mjs'
