@@ -25,7 +25,7 @@
 - **模糊搜尋，用 fzf 的語法。** 打字即可依列上顯示的一切縮小任何清單：名稱、位置、資料夾、branch、「needs you」或「finished」、遠端 space 的機器名稱。`'exact`、`'whole-word'`、`^start`、`end$`、`!exclude` 與 `this | that` 的用法和 fzf 一樣（見下方的 **搜尋語法**）。每個詞都完整連續出現的列排前面，兩群各自維持清單原本的順序，所以列不會隨著每次按鍵換來換去。
 - **用 pane 正在做的事找到它。** 在 Clues 輸入 `port 5173`，就能找到啟動 dev server 的那個 pane；也能用它正在跑的指令、ssh 連到的主機、開著的檔案或印出過的文字來找。為此 Recall 會在你的電腦上執行 `git`、`ps`、`lsof` 並讀取 pane 的內容，資料不會離開你的電腦。
 
-## 安裝
+## Install
 
 Recall 需要 Herdr app，而且 `herdr-app` 要在 `PATH` 上。
 
@@ -177,10 +177,10 @@ cd herdr-recall
 
 </details>
 
-## 支持
+## Support
 
 如果 herdr-recall 對你有幫助，可以透過 [Buy Me a Coffee](https://buymeacoffee.com/methodho) 支持它的維護。
 
-## 授權
+## License
 
 [MIT](LICENSE) © Shihyu Ho
