@@ -18,7 +18,7 @@
 
 [Herdr](https://herdr.dev/) app 的 recent + fuzzy 切換器，承襲 IntelliJ「Recent」的做法。一個鍵列出你待過的每個 space、tab、pane 與 agent，最近的排最前面，並停在你上一個待過的位置：按 `⌘E` 再按 `⏎`，就回到剛剛待的地方。從沒去過的排在去過的後面，等你處理的排最前（依序是 blocked、done、working、idle）。打字會以模糊比對縮小清單，接近的結果排前面，彼此之間仍維持最近的順序。
 
-![Recall 的 Agents 清單：等你處理的 agent 顯示「needs you」，完成的顯示「finished」](preview.png)
+![Recall 的 Agents 清單輸入「red」：「Plan the Redis upgrade」完整連續命中排最前，後面是只有零散字母對得上的列](preview.png)
 
 每一列都標出它在哪、所在資料夾、branch，以及那裡的 agent 是否在等你。打字即可模糊搜尋列上顯示的一切（名稱、位置、資料夾、branch、「needs you」或「finished」、遠端 space 的機器名稱），拖曳欄位邊緣可以調整寬度。
 

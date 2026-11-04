@@ -18,7 +18,7 @@
 
 A recent + fuzzy switcher for the [Herdr](https://herdr.dev/) app, in the spirit of IntelliJ's "Recent". One key lists every space, tab, pane and agent you've been in, most recent first, and opens on the one you were in just before this one: press `⌘E`, then `⏎`, and you're back where you were a moment ago. Rows you have never been to follow the ones you have, those that need you first (blocked, then done, working, idle). Typing narrows the list by fuzzy match, close matches first, with the recent order kept within them.
 
-![Recall's Agents list: a blocked agent reads "needs you", a finished one "finished"](preview.png)
+![Recall's Agents list filtered by "red": "Plan the Redis upgrade" matches unbroken and comes first, then the rows that match only by scattered letters](preview.png)
 
 Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search anything a row shows (its name, where it lives, folder, branch, "needs you" or "finished", a remote space's machine), and drag a column's edge to resize it.
 
