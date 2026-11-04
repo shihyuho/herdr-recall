@@ -56,7 +56,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - done: a ● in the done color, plus "finished";
   - idle: a ○.
 
-  Agents sort by Recent (last focused first), Priority (blocked, done, working, idle; latest change first within each) or Grouped (Herdr's own space, tab and pane order).
+  In every category, Recent puts the focused rows first, most recently focused first, then the never-focused ones by status (blocked, done, working, idle, none), ties in Herdr's order; a linked worktree space still nests under its main checkout. Agents sort by Recent (that rule), Priority (blocked, done, working, idle; latest change first within each) or Grouped (Herdr's own space, tab and pane order).
 - **Search.** Fuzzy, every term matching some field:
   - spaces by name, folder and branch;
   - tabs by name, what they run, their space and their panes;

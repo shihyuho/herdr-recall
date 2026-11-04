@@ -16,7 +16,7 @@
   <b>繁體中文</b>
 </p>
 
-[Herdr](https://herdr.dev/) app 的 IntelliJ 風格「Recent」切換器。一個鍵列出所有 space、tab、pane 與 agent，最近用過的排最前面，並停在你上一個待過的位置：按 `⌘E` 再按 `⏎`，就回到剛剛待的地方。
+[Herdr](https://herdr.dev/) app 的 IntelliJ 風格「Recent」切換器。一個鍵列出所有 space、tab、pane 與 agent，最近用過的排最前面，並停在你上一個待過的位置：按 `⌘E` 再按 `⏎`，就回到剛剛待的地方。從沒去過的排在去過的後面，等你處理的排最前（依序是 blocked、done、working、idle）。
 
 ![Recall 的 Agents 清單：等你處理的 agent 顯示「needs you」，完成的顯示「finished」](preview.png)
 

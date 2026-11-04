@@ -126,7 +126,7 @@ function spaceRows(snap, ix) {
 }
 
 function spaceItems(snap, ix) {
-  return groupWorktrees(mru.order(snap.history, "space", spaceRows(snap, ix), (i) => i.id), snap.worktrees);
+  return groupWorktrees(recentOrder(spaceRows(snap, ix)), snap.worktrees);
 }
 
 /**
@@ -200,7 +200,7 @@ function tabRows(snap, ix) {
 }
 
 function tabItems(snap, ix) {
-  return mru.order(snap.history, "tab", tabRows(snap, ix), (i) => i.id);
+  return recentOrder(tabRows(snap, ix));
 }
 
 /** Every pane as a row, in Herdr's order. */
@@ -245,7 +245,7 @@ function paneRows(snap, ix) {
 }
 
 function paneItems(snap, ix) {
-  return mru.order(snap.history, "pane", paneRows(snap, ix), (i) => i.id);
+  return recentOrder(paneRows(snap, ix));
 }
 
 /** Every agent as a row, in Herdr's order. */
@@ -300,29 +300,35 @@ function agentItems(snap, ix, sort) {
     return [...items].sort((a, b) => (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9) || b.seq - a.seq || a.model - b.model);
   }
   if (sort === "grouped") return items;
-  return mru.order(snap.history, "agent", items, (i) => i.id);
+  return recentOrder(items);
 }
 
 // All's levels: the most specific destinations first.
 const LEVEL = { agent: 0, pane: 0, tab: 1, space: 2 };
 
 /**
- * All's order with nothing typed: by level; within a level the focused
- * rows, most recent first, then the never-focused by status (blocked,
- * done, working, idle, none); ties keep the given (Herdr's) order.
+ * Recent order within one kind of row: the focused rows first, most recent
+ * first, then the never-focused by status (blocked, done, working, idle,
+ * none); ties keep the given (Herdr's) order. Compares `{ item, i }`.
  */
+function recentCompare(a, b) {
+  const x = a.item;
+  const y = b.item;
+  if ((x.at != null) !== (y.at != null)) return x.at != null ? -1 : 1;
+  if (x.at != null && x.at !== y.at) return y.at - x.at;
+  if (x.at == null) return (STATUS_RANK[x.status] ?? 9) - (STATUS_RANK[y.status] ?? 9) || a.i - b.i;
+  return a.i - b.i;
+}
+
+function recentOrder(items) {
+  return items.map((item, i) => ({ item, i })).sort(recentCompare).map(({ item }) => item);
+}
+
+/** All's order with nothing typed: by level, then the Recent order within each. */
 function restingOrder(items) {
   return items
     .map((item, i) => ({ item, i }))
-    .sort((a, b) => {
-      const x = a.item;
-      const y = b.item;
-      if (LEVEL[x.kind] !== LEVEL[y.kind]) return LEVEL[x.kind] - LEVEL[y.kind];
-      if ((x.at != null) !== (y.at != null)) return x.at != null ? -1 : 1;
-      if (x.at != null && x.at !== y.at) return y.at - x.at;
-      if (x.at == null) return (STATUS_RANK[x.status] ?? 9) - (STATUS_RANK[y.status] ?? 9) || a.i - b.i;
-      return a.i - b.i;
-    })
+    .sort((a, b) => LEVEL[a.item.kind] - LEVEL[b.item.kind] || recentCompare(a, b))
     .map(({ item }) => item);
 }
 

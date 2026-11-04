@@ -16,7 +16,7 @@
   <a href="README.zh-TW.md">繁體中文</a>
 </p>
 
-An IntelliJ-style "Recent" switcher for the [Herdr](https://herdr.dev/) app. One key lists your spaces, tabs, panes and agents, most recently focused first, and opens on the one you were in just before this one: press `⌘E`, then `⏎`, and you're back where you were a moment ago.
+An IntelliJ-style "Recent" switcher for the [Herdr](https://herdr.dev/) app. One key lists your spaces, tabs, panes and agents, most recently focused first, and opens on the one you were in just before this one: press `⌘E`, then `⏎`, and you're back where you were a moment ago. Rows you have never been to follow the ones you have, those that need you first (blocked, then done, working, idle).
 
 ![Recall's Agents list: a blocked agent reads "needs you", a finished one "finished"](preview.png)
 

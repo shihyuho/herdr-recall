@@ -165,3 +165,46 @@ test("All, typed: `refunds` finds the pane in the tab named refunds, lit inside 
   assert.deepEqual(view.rows[0].hits, { where: [15, 16, 17, 18, 19, 20, 21] });
   assert.equal([...view.rows[0].item.crumb].slice(15, 22).join(""), "refunds");
 });
+
+// Recent in Spaces, Tabs, Panes and Agents: the focused rows first, most
+// recent first; rows never focused by status (blocked, done, working, idle,
+// none), ties in Herdr's order. town()'s history: dev-server, refunds, then
+// checkout, so recency differs from Herdr's order.
+
+test("Tabs, nothing typed: focused tabs by recency, then never-focused ones blocked, done, working, none", () => {
+  const view = listView("tabs", town(), "");
+  assert.deepEqual(ids(view), [
+    "tb-checkout", "tb-refunds", "tb-dev", // focused, most recent first
+    "tb-hooks", "tb-guides", "tb-plan", "tb-tf", // blocked, done, working, none
+  ]);
+});
+
+test("Spaces, nothing typed: focused spaces by recency, then never-focused ones by status", () => {
+  const snap = town();
+  snap.spaces[3].status = "blocked"; // infra now needs you; docs is done
+  assert.deepEqual(ids(listView("spaces", snap, "")), ["sp-web", "sp-api", "sp-infra", "sp-docs"]);
+});
+
+test("Spaces: a linked worktree still nests under its main checkout, whatever the status order", () => {
+  const snap = town();
+  snap.spaces[3].status = "blocked";
+  snap.worktrees = new Map([["sp-infra", { linked: true, main: "sp-docs", repo: "docs", branch: "feat" }]]);
+  const view = listView("spaces", snap, "");
+  assert.deepEqual(ids(view), ["sp-web", "sp-api", "sp-docs", "sp-infra"]);
+  assert.equal(view.rows[3].item.nested, true);
+});
+
+test("Panes, nothing typed: focused panes by recency, then never-focused ones by status, ties in Herdr's order", () => {
+  assert.deepEqual(ids(listView("panes", town(), "")), [
+    "p-cart", "p-ref", "p-dev", // focused, most recent first
+    "p-hooks", "p-guide", "p-plan", "p-review", "p-cartsh", "p-readme", "p-tf", // blocked, done, working, idle, none
+  ]);
+});
+
+test("Agents, Recent: focused first, then never-focused by status with ties in Herdr's order; Priority and Grouped keep their own", () => {
+  const snap = town();
+  snap.agents.find((a) => a.address === "t-review").status = "working"; // ties with t-plan; it comes first in Herdr
+  assert.deepEqual(ids(listView("agents", snap, "", { agentSort: "mru" })), ["t-cart", "t-hooks", "t-guide", "t-review", "t-plan"]);
+  assert.deepEqual(ids(listView("agents", snap, "", { agentSort: "priority" })), ["t-hooks", "t-guide", "t-cart", "t-plan", "t-review"]);
+  assert.deepEqual(ids(listView("agents", snap, "", { agentSort: "grouped" })), ["t-cart", "t-review", "t-hooks", "t-guide", "t-plan"]);
+});
