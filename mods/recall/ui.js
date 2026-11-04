@@ -1,8 +1,10 @@
 // The navigator's look ("Columns" layout): a header with the category
 // title and the search box, then an icon rail of the categories beside a
-// table of the rows: name, location, folder, branch and status. Dragging the edge left of a head resizes that
-// column (a double-click on it puts it back). A one-line footer under them
-// names the keys.
+// table of the rows: name, location, folder, branch and status. On All the
+// name is led by its path (`space › tab › `) and there is no location
+// column. Dragging the edge left of a head resizes that column (a
+// double-click on it puts it back). A one-line footer under them names
+// the keys.
 //
 // navigator(nav, ctx) draws the dialog from the navigator's state and
 // changes nothing but through nav's own methods:
@@ -18,17 +20,19 @@ import { theme, shared } from "herdr";
 import { segments } from "./lib/fuzzy.js";
 import { location } from "./lib/columns.js";
 
+// Each category's rail label, header title and rail icon (icons/<icon>.svg).
 const CATEGORY = {
-  spaces: { label: "Spaces", title: "Recent Spaces" },
-  tabs: { label: "Tabs", title: "Recent Tabs" },
-  panes: { label: "Panes", title: "Recent Panes" },
-  agents: { label: "Agents", title: "Agents" },
-  all: { label: "All", title: "Find Anywhere" },
+  all: { label: "All", title: "Find Anywhere", icon: "all" },
+  spaces: { label: "Spaces", title: "Recent Spaces", icon: "spaces" },
+  tabs: { label: "Tabs", title: "Recent Tabs", icon: "tabs" },
+  panes: { label: "Panes", title: "Recent Panes", icon: "panes" },
+  agents: { label: "Agents", title: "Agents", icon: "agents" },
+  clues: { label: "Clues", title: "Find by Clue", icon: "search" },
 };
 const SORT_LABEL = { mru: "Recent", priority: "Priority", grouped: "Grouped" };
 const SOURCE_COLOR = { ssh: "ansi6", cmd: "ansi3", file: "ansi5", term: "ansi4", cwd: "ansi2", port: "ansi6", pid: "ansi5" };
 const CHIP_COLOR = { ".": "accent", ws: "ansi3", tab: "ansi1", pane: "ansi4", port: "ansi6", pid: "ansi5" };
-const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", other: "panes", hint: "all" };
+const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", other: "panes", hint: "search" };
 const PREFIXES = "cmd ssh cwd file term port pid ws tab pane";
 const SPINNER = "mods/workspace-chrome/spinner.svg";
 const ROW = 30;
@@ -141,7 +145,7 @@ function rail(t, nav) {
       .when(on, (el) => el.bg(t.selected))
       .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
       .on_click((_e, cx) => { nav.switchTo(c); nav.focusForMode(); cx.notify(); })
-      .child(svg(`mods/recall/icons/${c}.svg`).size(16).text_color(on ? t.accent : t.muted))
+      .child(svg(`mods/recall/icons/${CATEGORY[c].icon}.svg`).size(16).text_color(on ? t.accent : t.muted))
       .child(div().text_size(9.5).text_color(on ? t.foreground : t.dim).child(CATEGORY[c].label));
   };
   return v_flex().w(60).h_full().flex_none().py(6).gap(2).items_center().border_r(1).border_color(t.border)
@@ -157,6 +161,10 @@ const COLUMNS = [
   { key: "branch", label: () => "BRANCH" },
   { key: "status", right: true, label: () => "STATUS" },
 ];
+
+/** All leads each name with its path, so it shows no location column. */
+const hasLocation = (nav) => nav.category !== "all";
+const shownColumns = (nav) => COLUMNS.filter((c) => c.key !== "location" || hasLocation(nav));
 
 /** The grip on a column's left edge, over the gap before it. */
 function edge(t, nav, column) {
@@ -180,7 +188,7 @@ function columnHead(t, nav) {
     .text_size(10.5).font_semibold().border_b(1).border_color(t.border)
     .child(div().w(10).flex_none())
     .child(div().w(30).flex_none())
-    .children(COLUMNS.map(head))
+    .children(shownColumns(nav).map(head))
     .child(div().w(16).flex_none());
 }
 
@@ -196,11 +204,15 @@ function row(t, nav, { item, hits }, on) {
       : h_flex().w(30).flex_none().child(icon(t, item, 14)))
     .child(h_flex().flex_1().min_w(0).gap(8).items_center().overflow_hidden()
       .when(Boolean(item.nested), (el) => el.pl(18))
-      .child(highlighted(item.title, titleHits(item, hits), item.kind === "hint" ? t.dim : t.foreground, t.accent)
-        .when(Boolean(item.current), (d) => d.font_semibold()))
+      .child(h_flex().flex_none().items_center()
+        // All's path, dimmed, right before the name; it starts with the
+        // `where` field, so that field's hits light up inside it.
+        .when(Boolean(item.crumb), (el) => el.child(highlighted(item.crumb, hits.where, t.dim, t.accent)))
+        .child(highlighted(item.title, titleHits(item, hits), item.kind === "hint" ? t.dim : t.foreground, t.accent)
+          .when(Boolean(item.current), (d) => d.font_semibold())))
       .when(item.kind === "hint", (el) => el.child(div().flex_none().text_color(t.blocked).child(`(${item.reason})`)))
       .when(Boolean(item.message), (el) => el.child(div().min_w(0).truncate().text_size(12).text_color(t.dim).child(item.message))))
-    .child(cell(w.location, location(item), t.muted))
+    .when(hasLocation(nav), (el) => el.child(cell(w.location, location(item), t.muted)))
     .child(cell(w.folder, item.path, t.dim))
     .child(cell(w.branch, item.branch, t.dim))
     .child(h_flex().w(w.status).flex_none().justify_end().child(statusWord(t, item.status) ?? div()))
@@ -239,7 +251,7 @@ function hints(nav) {
   if (nav.mode === "navigation") out = [[first("select"), "open"], [move, "move"], ["/", "filter"], [first("next_category"), "category"], close];
   else if (nav.mode === "filtering") out = [[first("select"), "open"], [move, "move"], [first("dismiss"), "done"], [first("force_quit"), "close"]];
   else out = [[first("select"), "open"], [move, "move"], [first("next_category"), "category"], close];
-  const extra = nav.category === "agents" ? [["⌃S", "sort"]] : nav.category === "all" ? [[".", "buffers"], [PREFIXES, "prefixes"]] : [];
+  const extra = nav.category === "agents" ? [["⌃S", "sort"]] : nav.category === "clues" ? [[".", "buffers"], [PREFIXES, "prefixes"]] : [];
   return [...out.slice(0, -1), ...extra, out[out.length - 1]];
 }
 

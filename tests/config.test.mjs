@@ -2,12 +2,12 @@
 // what keys do; a config written for herdr-recent-navigator keeps working.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { actionFor, normalizeKey, parseConfig } from "../mods/recall/lib/config.js";
+import { actionFor, normalizeKey, parseConfig, parseOpenCommand } from "../mods/recall/lib/config.js";
 
-test("no config: every category, default order, modeless keys", () => {
+test("no config: every category, All first and Clues last, modeless keys", () => {
   const { config, error } = parseConfig(null);
   assert.equal(error, null);
-  assert.deepEqual(config.tabs, ["spaces", "tabs", "panes", "agents", "all"]);
+  assert.deepEqual(config.tabs, ["all", "spaces", "tabs", "panes", "agents", "clues"]);
   assert.equal(config.modal, false);
   assert.equal(actionFor(config.keys, "ctrl-n"), "move_down");
   assert.equal(actionFor(config.keys, "j"), null);
@@ -15,9 +15,26 @@ test("no config: every category, default order, modeless keys", () => {
 
 test("tabs: order and visibility, aliases, junk dropped, never empty", () => {
   const tabs = (t) => parseConfig(JSON.stringify({ tabs: t })).config.tabs;
-  assert.deepEqual(tabs(["tabs", " Workspaces ", "agents", "panes", "others"]), ["tabs", "spaces", "agents", "panes", "all"]);
+  assert.deepEqual(tabs(["tabs", " Workspaces ", "agents", "panes", "all"]), ["tabs", "spaces", "agents", "panes", "all"]);
   assert.deepEqual(tabs(["agents", "agents", "bogus", 3]), ["agents"]);
   assert.deepEqual(tabs([]), ["all"]);
+});
+
+test("tabs: `others` is Clues, the list it meant in herdr-recent-navigator; `all` is the new All", () => {
+  const tabs = (t) => parseConfig(JSON.stringify({ tabs: t })).config.tabs;
+  assert.deepEqual(tabs(["others", "agents"]), ["clues", "agents"]);
+  assert.deepEqual(tabs(["Clues", "all"]), ["clues", "all"]);
+  assert.deepEqual(tabs(["others", "clues"]), ["clues"]);
+});
+
+test("open commands: each names the category it opens, `others` opening Clues", () => {
+  assert.deepEqual(parseOpenCommand("open"), { category: null, sort: null });
+  assert.deepEqual(parseOpenCommand("open-all"), { category: "all", sort: null });
+  assert.deepEqual(parseOpenCommand("open-clues"), { category: "clues", sort: null });
+  assert.deepEqual(parseOpenCommand("open-others"), { category: "clues", sort: null });
+  assert.deepEqual(parseOpenCommand("open-workspaces"), { category: "spaces", sort: null });
+  assert.deepEqual(parseOpenCommand("open-agents-priority"), { category: "agents", sort: "priority" });
+  assert.deepEqual(parseOpenCommand("open-agents-recent"), { category: "agents", sort: "mru" });
 });
 
 test("navigator key spelling reads as Herdr keystrokes", () => {
@@ -53,6 +70,6 @@ test("a malformed keybindings table falls back to every default", () => {
 
 test("broken JSON reads as defaults and says why", () => {
   const { config, error } = parseConfig("{ tabs: [");
-  assert.deepEqual(config.tabs, ["spaces", "tabs", "panes", "agents", "all"]);
+  assert.deepEqual(config.tabs, ["all", "spaces", "tabs", "panes", "agents", "clues"]);
   assert.match(error, /^recall\.json: /);
 });

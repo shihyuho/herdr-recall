@@ -22,7 +22,9 @@ An IntelliJ-style "Recent" switcher for the [Herdr](https://herdr.dev/) app. One
 
 Each row shows where it lives, its folder, its branch and whether an agent there needs you. Type to fuzzy-search, and drag a column's edge to resize it.
 
-The **All** list finds a pane by what it runs, the host it is ssh'd into, the file it has open, the port it listens on, or text it printed: `port 5173` finds the pane that started your dev server. To do that, Recall runs `git`, `ps` and `lsof` and reads pane buffers on your machine; nothing leaves it.
+**All**, the first list, has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each most recently focused first; ones you have never been to follow, those that need you first. Typing only narrows that list.
+
+**Clues**, the last list, finds a pane by what it runs, the host it is ssh'd into, the file it has open, the port it listens on, or text it printed: `port 5173` finds the pane that started your dev server. To do that, Recall runs `git`, `ps` and `lsof` and reads pane buffers on your machine; nothing leaves it.
 
 ## Install
 
@@ -84,7 +86,7 @@ Pressing the open key again closes the switcher, or switches to the category tha
 | Command | Does |
 | --- | --- |
 | `recall.open` | Open on the last category used |
-| `recall.open-<category>` | Open on `spaces`, `tabs`, `panes`, `agents` or `all` |
+| `recall.open-<category>` | Open on `all`, `spaces`, `tabs`, `panes`, `agents` or `clues` (`others` opens Clues too) |
 | `recall.open-agents-<sort>` | Open on agents sorted by `recent`, `priority` or `grouped` |
 | `recall.previous-tab` | Jump back to the previous tab, across spaces |
 | `recall.previous-pane` | Jump back to the previous pane |
@@ -96,7 +98,7 @@ Bind them in `keys.json` like `mod.open:recall` above. They work once the tracke
 </details>
 
 <details>
-<summary><strong>Searching All</strong></summary>
+<summary><strong>Searching Clues</strong></summary>
 
 A plain query matches anything a pane runs, where it is, and what it printed. A prefix followed by one space narrows it:
 
@@ -122,7 +124,7 @@ Every key in `~/.config/herdr-app/recall.json` is optional:
 
 ```json
 {
-  "tabs": ["spaces", "tabs", "panes", "agents", "all"],
+  "tabs": ["all", "spaces", "tabs", "panes", "agents", "clues"],
   "keybindings": {
     "move_up": ["k", "up"],
     "move_down": ["j", "down"]
@@ -130,7 +132,7 @@ Every key in `~/.config/herdr-app/recall.json` is optional:
 }
 ```
 
-- `tabs`: which categories show, in this order. The switcher opens on the one used last, else the first.
+- `tabs`: which categories show, in this order. The switcher opens on the one used last, else the first. `others`, herdr-recent-navigator's name, means `clues`.
 - `keybindings`: `next_category`, `previous_category`, `move_up`, `move_down`, `select`, `dismiss`, `force_quit`, `backspace`. Binding a movement key to a letter, as above, turns on vim-style input: `j` `k` move, `h` `l` switch categories, `/` starts searching.
 - Keys use Herdr's spelling (`ctrl-p`, `shift-tab`) or herdr-recent-navigator's (`C-p`, `S-Tab`), so a config from there works as it is.
 

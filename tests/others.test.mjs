@@ -1,4 +1,4 @@
-// Contract: the All tab finds a pane by what it runs, prints or owns, with
+// Contract: Clues finds a pane by what it runs, prints or owns, with
 // the query grammar herdr-recent-navigator users already type.
 import { test } from "node:test";
 import assert from "node:assert/strict";

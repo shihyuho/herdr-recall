@@ -4,19 +4,22 @@
 //
 //   listView(category, snap, query, options) → { rows, total, selected, label }
 //
-// - category: a category id ("spaces", "tabs", "panes", "agents", or "all",
-//   which is still the clue search).
+// - category: a category id: "all" (every space, tab, pane and agent),
+//   "spaces", "tabs", "panes", "agents" or "clues" (the clue search).
 // - snap: a Herdr snapshot as items.js reads it, focus history included
 //   ({ spaces, panes, agents, terminals, focused, history, home, worktrees }).
 // - query: what the person typed, as typed.
 // - options.agentSort: Agents' order, "mru" | "priority" | "grouped".
-// - options.clueData: the clues read so far for the clue search
-//   ({ others, content, procs, listeners }, see all.js).
+// - options.clueData: the clues read so far for Clues
+//   ({ others, content, procs, listeners }, see clues.js).
 //
 // - rows: [{ item, hits }] in display order; `hits[fieldKey]` lists the
-//   highlighted code points of that field.
+//   highlighted code points of that field. All's items carry `crumb`, the
+//   path drawn before the name (`space › tab › `, `space › `, or "" for a
+//   space); it begins with the `where` field, so `hits.where` lights up
+//   inside it.
 // - total: how many rows the category lists with nothing typed, or null
-//   when it shows no total (the clue search).
+//   when it shows no total (Clues).
 // - selected: the index of the row to select when the list opens (0 when
 //   there are no rows).
 // - label: the clue-type chip to show beside the query, or null.
@@ -30,7 +33,7 @@
 
 import { buildItems } from "./items.js";
 import { search } from "./fuzzy.js";
-import { buildAll } from "./all.js";
+import { buildClues } from "./clues.js";
 
 /** The row to open on: the first that isn't where you are now and isn't a clue's reason; row 0 while a query is typed. */
 function openingRow(rows, query) {
@@ -42,8 +45,8 @@ function openingRow(rows, query) {
 const NO_CLUES = { others: new Map(), content: new Map(), procs: null, listeners: null };
 
 export function listView(category, snap, query, options = {}) {
-  if (category === "all") {
-    const { rows, label } = buildAll(snap, options.clueData ?? NO_CLUES, query);
+  if (category === "clues") {
+    const { rows, label } = buildClues(snap, options.clueData ?? NO_CLUES, query);
     return { rows, total: null, selected: openingRow(rows, query), label };
   }
   const items = buildItems(category, snap, { agentSort: options.agentSort });

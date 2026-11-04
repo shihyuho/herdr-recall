@@ -1,6 +1,6 @@
 # Recall
 
-One key lists your spaces, tabs, panes and agents, most recently focused first, and opens on the one you were in just before this one, so Enter takes you back. Each row shows where it lives, its folder, its branch and whether an agent there needs you. An All list finds a pane by what it runs, its ssh host, folder, port, process or the text it printed. This is a dialog you add to your current layout, not a layout of its own.
+One key lists your spaces, tabs, panes and agents, most recently focused first, and opens on the one you were in just before this one, so Enter takes you back. Each row shows where it lives, its folder, its branch and whether an agent there needs you. The All list has every space, tab, pane and agent in one place, and a Clues list finds a pane by what it runs, its ssh host, folder, port, process or the text it printed. This is a dialog you add to your current layout, not a layout of its own.
 
 ![Recall](preview.png)
 
@@ -9,14 +9,14 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 ## What you see
 
 - A dialog in the middle of the window, 74% of its width and 70% of its height, on the theme's popover background. Text is 13px in the theme's foreground.
-- **Header**, 48px high with a bottom border: the category's title on the left (150px, 14px semibold: "Recent Spaces", "Recent Tabs", "Recent Panes", "Agents", "Find Anywhere"), then a search field filling the rest (30px high, radius 8, a search icon, the row count on the right as `7` or `3/7` while searching; its border is the accent color while you type). On Agents, a segmented control follows: Recent, Priority, Grouped. "Esc" sits at the far right.
-- **Rail** on the left, 60px wide with a right border: one 48×46 entry per category (Spaces, Tabs, Panes, Agents, All), a 16px icon over a 9.5px label. The current one has the selected background and an accent icon.
+- **Header**, 48px high with a bottom border: the category's title on the left (150px, 14px semibold: "Find Anywhere", "Recent Spaces", "Recent Tabs", "Recent Panes", "Agents", "Find by Clue"), then a search field filling the rest (30px high, radius 8, a search icon, the row count on the right as `7` or `3/7` while searching; its border is the accent color while you type). On Agents, a segmented control follows: Recent, Priority, Grouped. "Esc" sits at the far right.
+- **Rail** on the left, 60px wide with a right border: one 48×46 entry per category (All, Spaces, Tabs, Panes, Agents, Clues), a 16px icon over a 9.5px label. All's icon is four small squares; Clues' is the search glass. The current one has the selected background and an accent icon.
 - **Table** filling the rest:
-  - A 26px column head in 10.5px semibold capitals: NAME, LOCATION (CONTENTS on Spaces), FOLDER, BRANCH, STATUS. A 1px divider sits left of every head but NAME.
+  - A 26px column head in 10.5px semibold capitals: NAME, LOCATION (CONTENTS on Spaces, and no such column on All), FOLDER, BRANCH, STATUS. A 1px divider sits left of every head but NAME.
   - Rows 30px high, radius 6. The selected row has the theme's selection background. Left to right:
     - the status glyph;
-    - the program's icon in a 30px column (on All, a colored source label instead: `cmd`, `ssh`, `cwd`, `file`, `term`, `port`, `pid`);
-    - the name, with matched letters in the accent color and semibold, and the row you are in now semibold. An agent's last message follows in dim 12px;
+    - the program's icon in a 30px column (the tab icon on All's tab rows; on Clues, a colored source label instead: `cmd`, `ssh`, `cwd`, `file`, `term`, `port`, `pid`);
+    - the name, with matched letters in the accent color and semibold, and the row you are in now semibold. On All the name is led by its path in dim: `space › tab › ` for a pane or agent, `space › ` for a tab, nothing for a space; matched letters light up in the path too. An agent's last message follows in dim 12px;
     - location ("space › tab") in muted 12px, folder and branch in dim 12px;
     - "needs you" (blocked color) or "finished" (done color) right-aligned in STATUS;
     - a 16px space badge: the space's first letter, white and bold, on the space's color.
@@ -43,6 +43,13 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **Mouse.**
   - Click a row to go there, or a rail entry to switch category.
   - Drag the divider left of a head to resize that column, between 48px and 520px; the name column gives or takes the difference, so the divider stays under the pointer. Double-click the divider to restore its default. Widths are kept for next time.
+- **All.** One row per destination:
+  - every agent, standing for the pane it runs in;
+  - every pane without an agent; a bare shell with no title of its own is named after its program (`zsh`), not its folder;
+  - every tab with more than one pane;
+  - every space with more than one tab, and no space rows at all when there is only one space.
+
+  With nothing typed, agents and panes come first, then tabs, then spaces. Within each, the focused rows come first, most recently focused first, then the never-focused ones by status: blocked, done, working, idle, none, ties in Herdr's order. Typing filters that same list, so it only shrinks, and the count reads `n/total` with the untyped total.
 - **Agent status.**
   - working: a spinner in the working color;
   - blocked: a ● in the blocked color, plus "needs you";
@@ -55,13 +62,13 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - tabs by name, what they run, their space and their panes;
   - panes and agents by name, "space › tab", folder and program.
 
-  On All:
+  All searches each row as its own category does. On Clues:
   - a plain query also finds text panes printed;
   - a prefix and one space narrows it: `cmd`, `ssh`, `cwd`, `file`, `term`, `port`, `pid`;
   - `.` searches only printed text;
   - `ws`, `tab` and `pane` switch to those lists.
 
-  All re-reads what panes run every 10 s and the buffers of new panes every 30 s while it shows.
+  Clues re-reads what panes run every 10 s and the buffers of new panes every 30 s while it shows.
 - **Jumping back without the dialog.** `recall.previous-tab`, `-pane`, `-agent` and `-space` go to the most recently focused one that still exists and isn't where you are, across spaces.
 
 ## Built from
@@ -72,14 +79,14 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - `ui.js`: the drawing;
   - `lib/`: pure functions, tested with `node --test 'tests/*.test.mjs'`:
     - `listview.js` for what a category shows: its rows with their highlights, the total and the opening selection;
-    - `items.js` for the rows of each category;
-    - `all.js` and `others.js` for All;
+    - `items.js` for the rows of each category, All's included;
+    - `clues.js` and `others.js` for Clues;
     - `fuzzy.js` for search;
     - `mru.js` for recency;
     - `config.js` for `recall.json`;
     - `columns.js` for location text and widths;
     - `worktrees.js` for worktree grouping;
-  - `icons/`: `spaces`, `tabs`, `panes`, `agents`, `all` and `search` SVGs.
+  - `icons/`: `spaces`, `tabs`, `panes`, `agents`, `all` and `search` SVGs (`search` is Clues' icon and the search field's).
 - **Two roles of one mod**, told apart by `props().role`:
   - **The tracker** is a kept, frameless 1×1 window (`key: "recall-tracker"`, `keep: true`). Its render records every focus change, as space, tab, pane and agent, into shared `recall.history`. It answers `recall.open`, `recall.open-<category>`, `recall.open-agents-<sort>` and `recall.previous-*` from `nextCommand()`.
   - **The navigator** is the dialog. Opening it opens the tracker, so one open starts tracking.
@@ -99,9 +106,9 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - it reads `space.colors`, as Herdr's own mods keep it, so badges match the sidebar.
 - **Programs run** (all local; nothing reaches the network):
   - `git -C <folder> rev-parse --path-format=absolute --show-toplevel --git-common-dir` for each local space, to find worktrees;
-  - for All: `hc get <t> --json` and `hc read <t> --lines 3000` for each terminal, `ps -eo pid=,ppid=,command=`, and `lsof -nP -iTCP -sTCP:LISTEN -F pn` (else `/usr/sbin/lsof`).
+  - for Clues: `hc get <t> --json` and `hc read <t> --lines 3000` for each terminal, `ps -eo pid=,ppid=,command=`, and `lsof -nP -iTCP -sTCP:LISTEN -F pn` (else `/usr/sbin/lsof`).
 - **Settings:** `~/.config/herdr-app/recall.json`, optional:
-  - `tabs`: which categories show, in order;
+  - `tabs`: which categories show, in order: `all`, `spaces`, `tabs`, `panes`, `agents`, `clues` by default, with `others` read as `clues` (as are `recall.open-others` and `recall.open-clues`) and an empty list showing only All;
   - `keybindings`: `next_category`, `previous_category`, `move_up`, `move_down`, `select`, `dismiss`, `force_quit` and `backspace`, each a list of keys in Herdr's spelling or `C-p` / `S-Tab` style.
 - **Art:** the six icons above, and the spinner from the shipped `mods/workspace-chrome/spinner.svg`.
 
@@ -125,4 +132,5 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - On Agents, a blocked agent reads "needs you" and Ctrl+S cycles Recent, Priority and Grouped.
 - Clicking a column head changes nothing: no sort, no ▲ or ▼.
 - Dragging LOCATION's divider widens it; the width is still there after reopening, and a double-click restores 210px.
-- In All, `port <n>` for a running dev server lists the pane that started it.
+- All lists each pane or agent once, led by its `space › tab › ` path, with no LOCATION column; a tab with one pane and a space with one tab have no row of their own.
+- In Clues, `port <n>` for a running dev server lists the pane that started it.

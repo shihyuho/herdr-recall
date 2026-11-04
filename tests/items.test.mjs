@@ -3,10 +3,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildItems, groupWorktrees } from "../mods/recall/lib/items.js";
-import { buildAll } from "../mods/recall/lib/all.js";
 import { search } from "../mods/recall/lib/fuzzy.js";
 import * as mru from "../mods/recall/lib/mru.js";
-import { world, HOME } from "./fixtures.mjs";
+import { world } from "./fixtures.mjs";
 
 const titles = (items) => items.map((i) => i.title);
 
@@ -64,62 +63,4 @@ test("a linked worktree sits under its main checkout; an orphan keeps its place"
   assert.deepEqual(groupWorktrees(items, worktrees).map((i) => [i.id, Boolean(i.nested)]), [
     ["notes", false], ["shed", false], ["wt", true], ["orphan", false],
   ]);
-});
-
-const data = (others = new Map(), content = new Map(), procs = null, listeners = null) => ({ others, content, procs, listeners });
-
-test("All lists what every pane runs and where, agents included; a bare shell has no cmd row", () => {
-  const snap = world();
-  const others = new Map([
-    ["p1", { cwd: `${HOME}/code/web`, command: "claude", ssh: null, shellPid: 10 }],
-    ["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }],
-    ["p3", { cwd: `${HOME}/code/api`, command: "nvim main.go", ssh: null, shellPid: 30 }],
-  ]);
-  const rows = buildAll(snap, data(others), "").rows.map((r) => [r.item.source, r.item.id, r.item.title]);
-  assert.deepEqual(rows, [
-    ["cmd", "p1", "claude"],
-    ["cwd", "p1", "~/code/web"],
-    ["cwd", "p2", "~/code/web"],
-    ["cmd", "p3", "nvim main.go"],
-    ["cwd", "p3", "~/code/api"],
-  ]);
-});
-
-test("All: `.text` finds the agent session that printed it", () => {
-  const snap = world();
-  const content = new Map([
-    ["p1", "> 登入失敗的原因是 token 過期\n"],
-    ["p2", "$ ls\n"],
-  ]);
-  const rows = buildAll(snap, data(new Map(), content), ".token 過期").rows;
-  assert.deepEqual(rows.map((r) => [r.item.id, r.item.title]), [["p1", "> 登入失敗的原因是 token 過期"]]);
-  assert.deepEqual(rows[0].item.actions, [["tab.select", { id: "tb1" }], ["pane.focus", { pane: "p1" }]]);
-});
-
-test("All: a plain query also finds text in a pane's buffer", () => {
-  const snap = world();
-  const others = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
-  const content = new Map([["p2", "$ npm test\nFAIL src/login.test.ts\n"]]);
-  const rows = buildAll(snap, data(others, content), "FAIL").rows;
-  assert.deepEqual(rows.map((r) => [r.item.source, r.item.title]), [["term", "FAIL src/login.test.ts"]]);
-  assert.deepEqual(buildAll(snap, data(others, content), ".nothing").rows, []);
-});
-
-test("All: `port N` finds the pane whose shell started the listener", () => {
-  const snap = world();
-  const others = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
-  const procs = new Map([[21, { ppid: 20, command: "node vite" }], [20, { ppid: 1, command: "-zsh" }], [99, { ppid: 1, command: "dockerd" }]]);
-  const listeners = [{ port: 5173, pid: 21, addr: "*:5173" }, { port: 8080, pid: 99, addr: "*:8080" }];
-  const hit = buildAll(snap, data(others, new Map(), procs, listeners), "port 5173").rows;
-  assert.deepEqual(hit.map((r) => [r.item.kind, r.item.id, r.item.title, r.item.detail]), [["other", "p2", "*:5173", "node vite"]]);
-  const orphan = buildAll(snap, data(others, new Map(), procs, listeners), "port 8080").rows;
-  assert.deepEqual(orphan.map((r) => [r.item.kind, r.item.title, r.item.reason]), [["hint", "*:8080", "not in any pane"]]);
-  const none = buildAll(snap, data(others, new Map(), procs, listeners), "port 1").rows;
-  assert.deepEqual(none.map((r) => [r.item.kind, r.item.reason]), [["hint", "nothing listening"]]);
-});
-
-test("All: `ws `, `tab `, `pane ` swap to those lists", () => {
-  const r = buildAll(world(), data(), "ws api");
-  assert.equal(r.filter, "spaces");
-  assert.deepEqual(r.rows.map((x) => x.item.id), ["sp2"]);
 });

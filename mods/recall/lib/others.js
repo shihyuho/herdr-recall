@@ -1,8 +1,8 @@
-// The All category: find a pane by what it runs, where it is, what it
+// The Clues category: find a pane by what it runs, where it is, what it
 // printed, or the port or process it owns. Pure functions; main.js fetches
 // the data (herdr-core, ps, lsof) and hands it in.
 //
-// Rules follow herdr-recent-navigator's All tab so a query works the same:
+// Rules follow herdr-recent-navigator's Others tab so a query works the same:
 // filter prefixes need one space after the label, `.` searches buffers, a
 // plain query is fuzzy on state rows and a literal substring on buffers.
 
@@ -188,7 +188,7 @@ function indexOfChars(cs, ns, eq) {
 }
 
 /**
- * The All tab's filter prefix. Returns `{ filter, needle }` where filter is
+ * Clues' filter prefix. Returns `{ filter, needle }` where filter is
  * null (plain query), "content" (a leading `.`), a source label (ssh, cmd,
  * term, file, cwd), "port", "pid", or a category to swap to ("spaces",
  * "tabs", "panes"). A label must be followed by exactly one space; the
@@ -255,7 +255,7 @@ export function paneForPid(pid, shells, procs) {
   }
 }
 
-/** Orders All rows: a detail hit outranks hits elsewhere; ties keep recency. */
+/** Orders Clues rows: a detail hit outranks hits elsewhere; ties keep recency. */
 export function rankOthers(rows, query) {
   if (!terms(query).length) return rows.map((item) => ({ item, hits: {} }));
   const out = [];

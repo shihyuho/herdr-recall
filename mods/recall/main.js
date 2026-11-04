@@ -20,7 +20,7 @@ import {
 } from "herdr";
 import * as mru from "./lib/mru.js";
 import { listView } from "./lib/listview.js";
-import { actionFor, isPrintable, normalizeKey, parseConfig } from "./lib/config.js";
+import { actionFor, isPrintable, normalizeKey, parseConfig, parseOpenCommand } from "./lib/config.js";
 import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/others.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
 import { DEFAULT_WIDTHS, dragWidth, loadWidths } from "./lib/columns.js";
@@ -37,7 +37,6 @@ const TRACKER = { mod: MOD, kind: "window", key: "recall-tracker", keep: true, f
 const DIALOG = { kind: "dialog", width: 0.74, height: 0.7 };
 
 const AGENT_SORTS = ["mru", "priority", "grouped"];
-const AGENT_SORT_ALIASES = { recent: "mru", mru: "mru", priority: "priority", grouped: "grouped" };
 const KEY_CONTEXT = "RecallNavigator";
 const KEY_ACTIONS = {
   next_category: "recall::next_category",
@@ -50,13 +49,6 @@ const CONTENT_EVERY = 30000;
 
 function fresh(open) {
   return open && typeof open.at === "number" && Date.now() - open.at < FRESH;
-}
-
-/** "open", "open-tabs", "open-agents-priority" → { category, sort }. */
-function parseOpen(command) {
-  const [, category, sort] = command.split("-");
-  const cat = category === "workspaces" ? "spaces" : category === "others" ? "all" : category;
-  return { category: cat ?? null, sort: AGENT_SORT_ALIASES[sort] ?? null };
 }
 
 export default class Recall extends View {
@@ -106,7 +98,7 @@ export default class Recall extends View {
   trackerCommand(command) {
     if (command === "open" || command.startsWith("open-")) {
       if (fresh(shared(OPEN))) return; // the open navigator takes it
-      const { category, sort } = parseOpen(command);
+      const { category, sort } = parseOpenCommand(command);
       openOverlay({ ...DIALOG, mod: MOD, props: { category, agentSort: sort, from: "tracker" } });
     } else if (command.startsWith("previous-")) {
       this.jumpBack(command.slice("previous-".length));
@@ -206,8 +198,8 @@ export default class Recall extends View {
       this.worktrees = await this.probeWorktrees();
       cx.notify();
     });
-    cx.timer.every(1000, (cx) => this.refreshAll(cx));
-    this.refreshAll(cx);
+    cx.timer.every(1000, (cx) => this.refreshClues(cx));
+    this.refreshClues(cx);
   }
 
   beat() {
@@ -269,7 +261,7 @@ export default class Recall extends View {
 
   navigatorCommand(command) {
     if (command !== "open" && !command.startsWith("open-")) return;
-    const { category, sort } = parseOpen(command);
+    const { category, sort } = parseOpenCommand(command);
     const target = category ?? this.category;
     const sameSort = !sort || sort === this.agentSort;
     if (target === this.category && sameSort) return this.dismiss();
@@ -292,9 +284,9 @@ export default class Recall extends View {
     return resolveWorktrees(probes.filter(Boolean));
   }
 
-  /** While All shows: what panes run every 10 s, their buffers every 30 s (new panes only). */
-  refreshAll(cx) {
-    if (this.role !== "navigator" || this.category !== "all" || this.done) return;
+  /** While Clues shows: what panes run every 10 s, their buffers every 30 s (new panes only). */
+  refreshClues(cx) {
+    if (this.role !== "navigator" || this.category !== "clues" || this.done) return;
     const now = Date.now();
     if (!this.othersAt || now - this.othersAt >= OTHERS_EVERY) {
       this.othersAt = now;
@@ -312,12 +304,12 @@ export default class Recall extends View {
     }
   }
 
-  allTargets() {
+  clueTargets() {
     return panes().filter((p) => p.terminal);
   }
 
   async fetchOthers() {
-    await Promise.all(this.allTargets().map(async (p) => {
+    await Promise.all(this.clueTargets().map(async (p) => {
       try {
         const r = await hc(["get", p.terminal, "--json"]);
         if (r.code !== 0) return;
@@ -335,7 +327,7 @@ export default class Recall extends View {
   }
 
   async fetchContent() {
-    const missing = this.allTargets().filter((p) => !this.data.content.has(p.pane));
+    const missing = this.clueTargets().filter((p) => !this.data.content.has(p.pane));
     await Promise.all(missing.map(async (p) => {
       try {
         const r = await hc(["read", p.terminal, "--lines", "3000"]);
@@ -503,7 +495,7 @@ export default class Recall extends View {
       this.scroll.scroll_to_item(this.at, "center");
       this.follow = false;
     }
-    const loading = this.category === "all" && this.allTargets().length > 0 && !this.data.others.size;
+    const loading = this.category === "clues" && this.clueTargets().length > 0 && !this.data.others.size;
 
     const act = (fn) => (_e, cx) => { fn(); cx.notify(); };
     return v_flex()

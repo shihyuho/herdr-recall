@@ -1,7 +1,7 @@
-// Rows of the All category, from a snapshot plus what main.js fetched:
+// Rows of the Clues category, from a snapshot plus what main.js fetched:
 //   data = { others: Map pane → { cwd, command, ssh, shellPid },
 //            content: Map pane → text, procs: Map | null, listeners: [] | null }
-// All means every terminal pane, agents included, so `.text` finds the
+// Clues covers every terminal pane, agents included, so `.text` finds the
 // agent session that printed it. (herdr-recent-navigator leaves agents out.)
 
 import { buildItems, index, tabLabel, tildify } from "./items.js";
@@ -17,7 +17,7 @@ function firstLine(text) {
   return (text ?? "").split("\n").map((l) => l.trim()).find(Boolean) ?? "";
 }
 
-/** The panes the All tab can list, each with what a row needs to say where it is. */
+/** The panes Clues can list, each with what a row needs to say where it is. */
 function candidates(snap) {
   const ix = index(snap);
   const out = [];
@@ -192,10 +192,10 @@ function portRows(cs, data, home, needle) {
 }
 
 /**
- * The All tab's rows for a query, ranked: `{ rows: [{ item, hits }], filter,
+ * Clues' rows for a query, ranked: `{ rows: [{ item, hits }], filter,
  * label, needle }`. `label` is the prefix to show as a chip.
  */
-export function buildAll(snap, data, query) {
+export function buildClues(snap, data, query) {
   const { filter, label, needle } = parseFilter(query);
   const n = needle.trim();
   if (SWAPS[filter]) {
