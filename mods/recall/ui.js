@@ -10,7 +10,7 @@
 //               agentSort, widths, resizing, keys, configError}
 //   calls  nav.{switchTo, focusForMode, open,
 //               startResize, resizeTo, endResize}
-//   ctx  = { view, loading }  (view: what rowsFor returned)
+//   ctx  = { view, loading }  (view: what lib/listview.js's listView returned)
 
 import { div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, Input, v_virtual_list } from "gpui-base";
@@ -113,7 +113,7 @@ function sortToggle(t, nav) {
 
 function header(t, nav, view) {
   const label = view.label;
-  const count = nav.query.trim() && view.total !== undefined ? `${nav.rows.length}/${view.total}` : String(nav.rows.length);
+  const count = nav.query.trim() && view.total !== null ? `${nav.rows.length}/${view.total}` : String(nav.rows.length);
   const search = h_flex().flex_1().h(30).px(10).gap(8).items_center().rounded(8).border_1()
     .border_color(nav.mode === "navigation" ? t.border : t.accent).bg(t.background)
     .children([

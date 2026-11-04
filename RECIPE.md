@@ -71,6 +71,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - `main.js`: the view and its state;
   - `ui.js`: the drawing;
   - `lib/`: pure functions, tested with `node --test 'tests/*.test.mjs'`:
+    - `listview.js` for what a category shows: its rows with their highlights, the total and the opening selection;
     - `items.js` for the rows of each category;
     - `all.js` and `others.js` for All;
     - `fuzzy.js` for search;

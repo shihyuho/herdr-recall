@@ -18,10 +18,8 @@ import {
   spaces, panes, agents, terminals, focused, theme, props, run, shared, setShared,
   openOverlay, closeOverlay, nextCommand, home, appHome, readTextFile, exec, hc,
 } from "herdr";
-import { search } from "./lib/fuzzy.js";
 import * as mru from "./lib/mru.js";
-import { buildItems } from "./lib/items.js";
-import { buildAll } from "./lib/all.js";
+import { listView } from "./lib/listview.js";
 import { actionFor, isPrintable, normalizeKey, parseConfig } from "./lib/config.js";
 import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/others.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
@@ -487,24 +485,17 @@ export default class Recall extends View {
 
   // ── Navigator: view ────────────────────────────────────────────────────
 
-  rowsFor(category, snap) {
-    if (category === "all") return buildAll(snap, this.data, this.query);
-    const items = buildItems(category, snap, { agentSort: this.agentSort });
-    return { rows: search(items, this.query, (i) => i.fields), filter: null, label: null, total: items.length };
-  }
-
   renderNavigator() {
     const t = theme();
-    const view = this.rowsFor(this.category, this.snapshot());
+    const view = listView(this.category, this.snapshot(), this.query, { agentSort: this.agentSort, clueData: this.data });
     this.rows = view.rows;
 
-    // Open on the row before where you are, as IntelliJ's Recent Files does.
-    // Until the person moves, keep re-aiming: focus can settle after the
-    // first frame.
+    // Open on the row listView picks (the one before where you are, as
+    // IntelliJ's Recent Files does). Until the person moves, keep
+    // re-aiming: focus can settle after the first frame.
     if (this.at === null || this.auto) {
       this.auto = true;
-      const first = this.rows.findIndex((r) => !r.item.current && r.item.kind !== "hint");
-      this.at = this.query || first < 0 ? 0 : first;
+      this.at = view.selected;
       this.follow = true;
     }
     this.at = Math.max(0, Math.min(this.at, this.rows.length - 1));
