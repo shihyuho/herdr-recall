@@ -7,7 +7,7 @@
 // on state rows as anywhere, and on buffers line by line with plain terms
 // read literally.
 
-import { literalGroups, matchFields, matchLiteralGroups, parseQuery } from "./fuzzy.js";
+import { literalGroups, literalMayHold, matchFields, matchLiteralGroups, parseQuery } from "./fuzzy.js";
 
 export const CLUE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, port: 4, pid: 5 };
 const CLUE_LABELS = ["ssh", "cmd", "term", "file", "port", "pid"];
@@ -163,6 +163,7 @@ export function contentExcerpt(content, needle) {
   const lines = content.split("\n").filter((l) => l.trim());
   for (const exactCase of [true, false]) {
     const groups = literalGroups(needle, exactCase);
+    if (!literalMayHold(content, groups)) continue; // no line can hold it
     for (const line of lines) {
       const hit = matchLiteralGroups(line, groups);
       if (hit) return excerpt(line, hit[0] ?? 0, hit.length);

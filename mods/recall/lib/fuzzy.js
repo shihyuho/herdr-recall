@@ -356,7 +356,41 @@ export function literalGroups(query, exactCase = false) {
     ...t,
     kind: t.kind === "fuzzy" && !t.inv ? "exact" : t.kind,
     sensitive: (exactCase && !t.inv) || t.sensitive,
+    folded: foldWhole(t.text),
   })));
+}
+
+/**
+ * Text lowered in one native call, for substring checks. Whole-string
+ * lowering differs from `fold`'s code point by code point only in Greek
+ * final sigma (Σ lowers to ς at a word's end), so σ stands for ς on both
+ * sides: whatever `fold` matches, this still contains.
+ */
+function foldWhole(text) {
+  return text.toLowerCase().replaceAll("ς", "σ");
+}
+
+/**
+ * False when `text` cannot hold the groups prepared by literalGroups: some
+ * group of positive terms has none of them anywhere in it, checked by
+ * native substring search. Every positive literal kind (exact, boundary,
+ * prefix, suffix, equal) holds only where its text appears unbroken, so a
+ * false here never drops a match; a group with a negated term can hold
+ * through an absence, so it is not checked. `text` may be one line or a
+ * whole buffer.
+ *
+ * A render must finish within Herdr's short time limit, and walking a
+ * pane's buffer code point by code point exceeds it: this lets Clues skip a
+ * buffer or a line natively.
+ */
+export function literalMayHold(text, literal) {
+  let lowered = null;
+  for (const group of literal) {
+    if (group.some((t) => t.inv)) continue;
+    const found = group.some((t) => (t.sensitive ? text.includes(t.text) : (lowered ??= foldWhole(text)).includes(t.folded)));
+    if (!found) return false;
+  }
+  return true;
 }
 
 /**
@@ -365,7 +399,7 @@ export function literalGroups(query, exactCase = false) {
  * negated terms held), or null.
  */
 export function matchLiteralGroups(text, literal) {
-  if (literal.length === 0) return null;
+  if (literal.length === 0 || !literalMayHold(text, literal)) return null;
   const r = evaluate([{ key: "line", text }], literal, RANKED);
   return r && (r.first ?? []);
 }
