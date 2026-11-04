@@ -16,33 +16,21 @@
   <b>繁體中文</b>
 </p>
 
-[Herdr](https://herdr.dev/) app 的 IntelliJ 風格「Recent」切換器。一個鍵列出所有 space、tab、pane 與 agent，最近用過的排最前面，並停在你上一個待過的位置，按 `⏎` 就回去了。
-
-每一列都標出它在哪、所在資料夾、branch，以及那裡的 agent 是否在等你。打字即可模糊搜尋，點欄位標題可以排序，拖曳欄位邊緣可以調整寬度。
-
-**All** 清單能用 pane 正在跑的指令、ssh 連到的主機、開著的檔案、監聽的 port，或印出過的文字找到它。為此 Recall 會在你的電腦上執行 `git`、`ps`、`lsof` 並讀取 pane 的內容，資料不會離開你的電腦。
-
-## See it in action
+[Herdr](https://herdr.dev/) app 的 IntelliJ 風格「Recent」切換器。一個鍵列出所有 space、tab、pane 與 agent，最近用過的排最前面，並停在你上一個待過的位置：按 `⌘E` 再按 `⏎`，就回到剛剛待的地方。
 
 ![Recall 的 Agents 清單：等你處理的 agent 顯示「needs you」，完成的顯示「finished」](preview.png)
 
-**你按下**
+每一列都標出它在哪、所在資料夾、branch，以及那裡的 agent 是否在等你。打字即可模糊搜尋，點欄位標題可以排序，拖曳欄位邊緣可以調整寬度。
 
-> `⌘E` `⏎`
-
-**你回到了**
-
-> 剛剛待過的那個 tab，不管它在哪個 space。
-
-**你在 All 輸入**
-
-> `port 5173`
-
-**你找到了**
-
-> 啟動 dev server 的那個 pane。
+**All** 清單能用 pane 正在跑的指令、ssh 連到的主機、開著的檔案、監聽的 port，或印出過的文字找到它：輸入 `port 5173` 就能找到啟動 dev server 的那個 pane。為此 Recall 會在你的電腦上執行 `git`、`ps`、`lsof` 並讀取 pane 的內容，資料不會離開你的電腦。
 
 ## Install
+
+Recall 需要 Herdr app，而且 `herdr-app` 要在 `PATH` 上。
+
+**請 agent 安裝。** 請 Herdr 裡的 agent 加入 `github.com/shihyuho/herdr-recall` 這個 mod。它會把 `mods/recall/` 複製到位、把 [`keys.json`](keys.json) 裡的 `⌘E` 加進你的按鍵設定（如果你已經在用這個鍵，會先問你），並執行 `herdr-app check`。
+
+**用腳本安裝。** 需要 `rsync`。
 
 ```bash
 git clone https://github.com/shihyuho/herdr-recall.git
@@ -55,18 +43,19 @@ cd herdr-recall
 ```json
 {
   "global": {
-    "cmd-e": "mod.open:recall",
-    "ctrl-s t": "recall.previous-tab"
+    "cmd-e": "mod.open:recall"
   }
 }
 ```
 
-也可以請 Herdr 裡的 agent 加入 `github.com/shihyuho/herdr-recall` 這個 mod：它會把 `mods/recall/` 複製到位、把上面的按鍵合併進你的設定（要取代你已經在用的按鍵前會先問），並執行 `herdr-app check`。
+`cmd-e` 在 macOS 上就是 `⌘E`；其他系統請挑一個還沒用到的鍵。
 
-不論用哪種方式，先按一次 `⌘E`。這會啟動 Recall 的 tracker，從此記錄每一次切換焦點，之後每次啟動 Herdr 都會自動帶起來。用腳本安裝的話，更新時 pull 後重新執行 `./install.sh`。
+**不論用哪種方式，** 先按一次那個鍵。這會啟動 Recall 的 tracker，從此記錄每一次切換焦點，之後每次啟動 Herdr 都會自動帶起來。
+
+用腳本安裝的話，更新時先 `git pull`，再重新執行 `./install.sh`。要移除 Recall，刪掉 `~/.config/herdr-app/mods/recall`，再拿掉綁給它的按鍵。
 
 <details>
-<summary><strong>切換器裡的按鍵</strong></summary>
+<summary><strong>按鍵與滑鼠</strong></summary>
 
 | 按鍵 | 作用 |
 | --- | --- |
@@ -77,7 +66,14 @@ cd herdr-recall
 | `Esc` | 先清掉搜尋，再關閉 |
 | `⌃C` | 關閉 |
 
-再按一次開啟的按鍵會關閉切換器；如果那個按鍵開的是別的分類，就切換過去。
+| 滑鼠 | 作用 |
+| --- | --- |
+| 點一列 | 前往那裡 |
+| 點左側的分類 | 切換過去 |
+| 點欄位標題 | 依該欄排序：先升冪、再降冪，第三次回到最近使用的順序 |
+| 拖曳欄位標題左邊的分隔線 | 調整那一欄的寬度；在分隔線上雙擊可以還原 |
+
+再按一次開啟的按鍵會關閉切換器；如果那個按鍵開的是別的分類，就切換過去。排序只維持到切換器關閉，欄位寬度則會記住。
 
 </details>
 
@@ -94,7 +90,7 @@ cd herdr-recall
 | `recall.previous-agent` | 跳回上一個 agent |
 | `recall.previous-space` | 跳回上一個 space |
 
-`mod.open:recall` 會直接開啟切換器；`recall.*` 指令則透過 tracker 送達。
+綁定方式和上面的 `mod.open:recall` 一樣寫在 `keys.json`。這些指令要等 tracker 啟動後才有作用，也就是第一次打開切換器之後。
 
 </details>
 
@@ -133,15 +129,11 @@ cd herdr-recall
 }
 ```
 
-- `tabs`：要顯示哪些分類，以及它們的順序。
+- `tabs`：要顯示哪些分類，以及它們的順序。切換器會開在上次用的分類，沒有的話就是第一個。
 - `keybindings`：`next_category`、`previous_category`、`move_up`、`move_down`、`select`、`dismiss`、`force_quit`、`backspace`。像上面這樣把移動鍵綁成字母，就會切換成 vim 式輸入：`j` `k` 移動，`h` `l` 切換分類，`/` 開始搜尋。
 - 按鍵可以用 Herdr 的寫法（`ctrl-p`、`shift-tab`），也可以用 herdr-recent-navigator 的寫法（`C-p`、`S-Tab`），所以那邊的設定可以直接搬過來用。
 
 </details>
-
-## Related Projects
-
-- [Herdr](https://herdr.dev/)，Recall 所屬的 app。更多 mod 請見 [herdr.dev/mods](https://herdr.dev/mods)。
 
 ## Support
 

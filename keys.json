@@ -1,6 +1,5 @@
 {
   "global": {
-    "cmd-e": "mod.open:recall",
-    "ctrl-s t": "recall.previous-tab"
+    "cmd-e": "mod.open:recall"
   }
 }

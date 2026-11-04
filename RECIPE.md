@@ -86,7 +86,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **A `keys.json` snippet**, merged into the person's keys:
 
   ```json
-  { "global": { "cmd-e": "mod.open:recall", "ctrl-s t": "recall.previous-tab" } }
+  { "global": { "cmd-e": "mod.open:recall" } }
   ```
 
 - **`herdr` functions:** `spaces`, `panes`, `agents`, `terminals`, `focused`, `theme`, `props`, `run`, `shared`, `setShared`, `openOverlay`, `closeOverlay`, `nextCommand`, `home`, `appHome`, `readTextFile`, `exec`, `hc`.
