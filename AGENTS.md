@@ -4,6 +4,8 @@
 
 Issues are tracked as GitHub Issues on this repo, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
+Write everything published to GitHub in English (specs, tickets, comments, pull requests), because the repo is open source, even when the conversation is in another language.
+
 ### Triage labels
 
 Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
