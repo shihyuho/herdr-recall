@@ -16,7 +16,7 @@ const worldPaneState = () => new Map([
   ["p3", { cwd: `${HOME}/code/api`, command: "nvim main.go", ssh: null, shellPid: 30 }],
 ]);
 
-const clueRows = (view) => view.rows.map((r) => [r.item.source, r.item.id]);
+const clueRows = (view) => view.rows.map((r) => [r.item.clue, r.item.id]);
 
 test("Clues, nothing typed: each pane's command, latest pane first, no total, the selection skips your pane", () => {
   const snap = world();
@@ -39,7 +39,7 @@ test("Clues, typed with a clue-type word: its chip, the matching clue and its hi
 
 test("Clues lists what every pane runs and where, agents included; a bare shell has no cmd row", () => {
   const view = listView("clues", world(), "", { clueData: clueData(worldPaneState()) });
-  assert.deepEqual(view.rows.map((r) => [r.item.source, r.item.id, r.item.title]), [
+  assert.deepEqual(view.rows.map((r) => [r.item.clue, r.item.id, r.item.title]), [
     ["cmd", "p1", "claude"],
     ["cmd", "p3", "nvim main.go"],
   ]);
@@ -59,7 +59,7 @@ test("Clues: a plain query also finds text in a pane's buffer", () => {
   const paneState = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
   const content = new Map([["p2", "$ npm test\nFAIL src/login.test.ts\n"]]);
   const rows = listView("clues", world(), "FAIL", { clueData: clueData(paneState, content) }).rows;
-  assert.deepEqual(rows.map((r) => [r.item.source, r.item.title]), [["term", "FAIL src/login.test.ts"]]);
+  assert.deepEqual(rows.map((r) => [r.item.clue, r.item.title]), [["term", "FAIL src/login.test.ts"]]);
   assert.deepEqual(listView("clues", world(), ".nothing", { clueData: clueData(paneState, content) }).rows, []);
 });
 
@@ -98,10 +98,10 @@ test("Clues, typed: the selection skips your pane and a clue's reason row, landi
 test("Clues: a pane's folder is no clue, typed or not, and `cwd ` is plain text", () => {
   const paneState = new Map([...worldPaneState(), ["p2", { cwd: `${HOME}/scratch/zebra`, command: "-zsh", ssh: null, shellPid: 20 }], ["p3", { cwd: `${HOME}/code/api`, command: "cwd-tool", ssh: null, shellPid: 30 }]]);
   const rows = (query) => listView("clues", world(), query, { clueData: clueData(paneState) }).rows;
-  assert.deepEqual(rows("").map((r) => r.item.source), ["cmd", "cmd"]);
+  assert.deepEqual(rows("").map((r) => r.item.clue), ["cmd", "cmd"]);
   assert.deepEqual(rows("zebra"), []);
   // beside it: the same text does match a command
-  assert.deepEqual(rows("cwd ").map((r) => [r.item.source, r.item.title]), [["cmd", "cwd-tool"]]);
+  assert.deepEqual(rows("cwd ").map((r) => [r.item.clue, r.item.title]), [["cmd", "cwd-tool"]]);
   assert.equal(listView("clues", world(), "cwd tool", { clueData: clueData(paneState) }).label, null);
 });
 
@@ -113,7 +113,7 @@ test("Clues: `ws `, `tab `, `pane ` are searched as plain text, not as category 
     assert.ok(view.rows.every((r) => r.item.kind === "clue"), q);
   }
   // the one that matches shows it is searched against the clues
-  assert.deepEqual(listView("clues", world(), "ws api", { clueData: clueData(paneState) }).rows.map((r) => [r.item.source, r.item.title]), [["cmd", "ws api-server"]]);
+  assert.deepEqual(listView("clues", world(), "ws api", { clueData: clueData(paneState) }).rows.map((r) => [r.item.clue, r.item.title]), [["cmd", "ws api-server"]]);
   assert.deepEqual(listView("clues", world(), "tab api", { clueData: clueData(paneState) }).rows, []);
 });
 
@@ -171,7 +171,7 @@ test("Clues: a buffer row lights the first term that matched in its line", () =>
 test("Clues, nothing typed: a pane ssh'd into a host lists its ssh clue", () => {
   const paneState = new Map([["p2", { cwd: `${HOME}/code/web`, command: "ssh deploy@box1", ssh: "deploy@box1", shellPid: 20 }]]);
   const view = listView("clues", world(), "", { clueData: clueData(paneState) });
-  assert.deepEqual(view.rows.filter((r) => r.item.id === "p2" && r.item.source === "ssh").map((r) => [r.item.source, r.item.title]), [["ssh", "deploy@box1"]]);
+  assert.deepEqual(view.rows.filter((r) => r.item.id === "p2" && r.item.clue === "ssh").map((r) => [r.item.clue, r.item.title]), [["ssh", "deploy@box1"]]);
 });
 
 test("Clues: a negated lowercase term in a buffer search is smart-case, so the line that really matches is found", () => {
@@ -179,4 +179,22 @@ test("Clues: a negated lowercase term in a buffer search is smart-case, so the l
   const content = new Map([["p2", "build FAILED\nbuild ok\n"]]);
   const rows = listView("clues", world(), ".build !fail", { clueData: clueData(paneState, content) }).rows;
   assert.deepEqual(rows.map((r) => [r.item.id, r.item.title]), [["p2", "build ok"]]);
+});
+
+test("Clues: `!` in a buffer search drops a line by its own text, not by the pane's folder or clue word", () => {
+  const paneState = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
+  const content = new Map([["p2", "build ok\n"]]);
+  const rows = listView("clues", world(), ".build !web", { clueData: clueData(paneState, content) }).rows;
+  assert.deepEqual(rows.map((r) => [r.item.id, r.item.title]), [["p2", "build ok"]]);
+  const dropped = listView("clues", world(), ".build !ok", { clueData: clueData(paneState, content) }).rows;
+  assert.deepEqual(dropped, []);
+});
+
+test("Clues: `.FAIL !term` keeps a terminal-buffer line that has FAIL, and `!flaky` drops one that has flaky", () => {
+  const paneState = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
+  const content = new Map([["p2", "$ npm test\nFAIL src/login.test.ts\n"]]);
+  const rows = listView("clues", world(), ".FAIL !term", { clueData: clueData(paneState, content) }).rows;
+  assert.deepEqual(rows.map((r) => [r.item.clue, r.item.title]), [["term", "FAIL src/login.test.ts"]]);
+  const flaky = new Map([["p2", "FAIL flaky test\n"]]);
+  assert.deepEqual(listView("clues", world(), ".FAIL !flaky", { clueData: clueData(paneState, flaky) }).rows, []);
 });

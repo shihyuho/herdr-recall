@@ -7,7 +7,7 @@
 import { index, tabLabel, tildify } from "./items.js";
 import * as mru from "./mru.js";
 import {
-  SOURCE_ORDER, bufferKind, commandIsShell, contentExcerpt, paneForPid, parseFilter, rankClues, sshHost,
+  CLUE_ORDER, bufferKind, commandIsShell, contentExcerpt, paneForPid, parseFilter, rankClues, sshHost,
 } from "./clue-extract.js";
 
 function firstLine(text) {
@@ -41,12 +41,12 @@ function candidates(snap) {
   return out;
 }
 
-function row(c, source, detail, context, home, extra = {}) {
+function row(c, clue, detail, context, home, extra = {}) {
   const shown = context === "-" ? "-" : tildify(context, home);
   return {
     kind: "clue",
-    source,
-    key: `clue:${source}:${c.pane.pane}${extra.suffix ?? ""}`,
+    clue,
+    key: `clue:${clue}:${c.pane.pane}${extra.suffix ?? ""}`,
     id: c.pane.pane,
     title: detail,
     detail: shown,
@@ -64,7 +64,7 @@ function row(c, source, detail, context, home, extra = {}) {
     rank: c.rank,
     order: c.order,
     fields: [
-      { key: "source", text: source },
+      { key: "clue", text: clue },
       { key: "title", text: detail },
       { key: "detail", text: shown === "-" ? "" : shown },
       { key: "where", text: c.where },
@@ -76,11 +76,11 @@ function row(c, source, detail, context, home, extra = {}) {
   };
 }
 
-function hint(source, detail, reason, context) {
+function hint(clue, detail, reason, context) {
   return {
     kind: "hint",
-    source,
-    key: `hint:${source}:${detail}:${reason}`,
+    clue,
+    key: `hint:${clue}:${detail}:${reason}`,
     id: null,
     title: detail,
     reason,
@@ -93,7 +93,7 @@ function hint(source, detail, reason, context) {
     at: null,
     rank: Infinity,
     fields: [
-      { key: "source", text: source },
+      { key: "clue", text: clue },
       { key: "title", text: detail },
       { key: "reason", text: reason },
       { key: "detail", text: context ?? "" },
@@ -104,12 +104,12 @@ function hint(source, detail, reason, context) {
 
 /**
  * Most recently focused pane first, never-focused panes after in Herdr's
- * order; a pane's rows stay together in source order (ssh, cmd, ...).
+ * order; a pane's rows stay together in clue order (ssh, cmd, ...).
  */
 function byRecency(rows) {
   const r = (x) => (x.rank === undefined || x.rank < 0 ? Infinity : x.rank);
   const o = (x) => x.order ?? Infinity;
-  return [...rows].sort((a, b) => r(a) - r(b) || o(a) - o(b) || (SOURCE_ORDER[a.source] ?? 9) - (SOURCE_ORDER[b.source] ?? 9));
+  return [...rows].sort((a, b) => r(a) - r(b) || o(a) - o(b) || (CLUE_ORDER[a.clue] ?? 9) - (CLUE_ORDER[b.clue] ?? 9));
 }
 
 function stateRows(cs, data, home, only) {

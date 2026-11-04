@@ -31,7 +31,7 @@ const CATEGORY = {
   clues: { label: "Clues", title: "Find by Clue", icon: "search" },
 };
 const SORT_LABEL = { mru: "Recent", priority: "Priority", grouped: "Grouped" };
-const SOURCE_COLOR = { ssh: "ansi6", cmd: "ansi3", file: "ansi5", term: "ansi4", port: "ansi6", pid: "ansi5" };
+const CLUE_COLOR = { ssh: "ansi6", cmd: "ansi3", file: "ansi5", term: "ansi4", port: "ansi6", pid: "ansi5" };
 const CHIP_COLOR = { ".": "accent", port: "ansi6", pid: "ansi5" };
 const KIND_ICON = { space: "spaces", tab: "tabs", pane: "panes", agent: "agents", clue: "panes", hint: "search", "to-clues": "search" };
 const PREFIXES = "cmd ssh file term port pid";
@@ -102,7 +102,7 @@ export function keyLabel(keystroke) {
 
 function filterChip(t, label) {
   return div().px(6).h(18).flex_none().flex().items_center().rounded(4).text_size(11).font_semibold()
-    .bg(t[CHIP_COLOR[label] ?? SOURCE_COLOR[label] ?? "accent"] ?? t.accent).text_color(t.background)
+    .bg(t[CHIP_COLOR[label] ?? CLUE_COLOR[label] ?? "accent"] ?? t.accent).text_color(t.background)
     .child(label === "." ? "content" : label);
 }
 
@@ -200,7 +200,7 @@ function row(t, nav, { item, hits }, on) {
     .when(on, (el) => el.bg(t.selection))
     .child(glyph(t, item.status, 10))
     .child(clue
-      ? div().w(30).flex_none().text_size(11).font_semibold().text_color(item.kind === "hint" ? t.dim : t[SOURCE_COLOR[item.source]] ?? t.dim).child(item.source)
+      ? div().w(30).flex_none().text_size(11).font_semibold().text_color(item.kind === "hint" ? t.dim : t[CLUE_COLOR[item.clue]] ?? t.dim).child(item.clue)
       : h_flex().w(30).flex_none().child(icon(t, item, 14)))
     .child(h_flex().flex_1().min_w(0).gap(8).items_center().overflow_hidden()
       .when(Boolean(item.nested), (el) => el.pl(18))

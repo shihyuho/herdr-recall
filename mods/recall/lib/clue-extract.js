@@ -9,9 +9,8 @@
 
 import { literalGroups, matchFields, matchLiteralGroups, parseQuery } from "./fuzzy.js";
 
-export const SOURCE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, port: 4, pid: 5 };
-const SOURCE_LABELS = ["ssh", "cmd", "term", "file"];
-const OWNER_LABELS = [["port", "port"], ["pid", "pid"]];
+export const CLUE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, port: 4, pid: 5 };
+const CLUE_LABELS = ["ssh", "cmd", "term", "file", "port", "pid"];
 
 const SHELLS = new Set(["zsh", "bash", "sh", "dash", "ksh", "tcsh", "fish", "csh", "ash", "nu", "elvish", "xonsh", "pwsh", "powershell"]);
 const EDITORS = new Set(["nvim", "vim", "vi", "code", "cursor", "neovim", "emacs", "helix", "hx", "nano", "micro", "sublime", "kak", "lvim", "zed"]);
@@ -153,7 +152,7 @@ export function cleanBuffer(text) {
 
 /**
  * The first line of `content` where the query `needle` holds, read
- * literally (see matchLiteral): a line where every term matches its case
+ * literally (see literalGroups): a line where every term matches its case
  * exactly wins, else the first under smart case. Keeps 14 characters before
  * the first matched term and 80 after its end, with `…` where the line was
  * cut. Returns `{ text, hit: [start, end), line }` with `hit` in code points
@@ -187,19 +186,16 @@ function excerpt(line, at, length) {
 
 /**
  * Clues' filter prefix. Returns `{ filter, needle }` where filter is
- * null (plain query), "content" (a leading `.`), a source label (ssh, cmd,
- * term, file), "port" or "pid". A label must be followed by exactly one space; the
+ * null (plain query), "content" (a leading `.`), a clue label (ssh, cmd,
+ * term, file, port or pid). A label must be followed by exactly one space; the
  * needle is the rest, untrimmed. `.file x` is the same as `file x`.
  */
 export function parseFilter(query) {
   let rest = query ?? "";
   let content = false;
   if (rest.startsWith(".")) { rest = rest.slice(1); content = true; }
-  for (const label of SOURCE_LABELS) {
+  for (const label of CLUE_LABELS) {
     if (rest.startsWith(`${label} `)) return { filter: label, label, needle: rest.slice(label.length + 1) };
-  }
-  for (const [label, filter] of OWNER_LABELS) {
-    if (rest.startsWith(`${label} `)) return { filter, label, needle: rest.slice(label.length + 1) };
   }
   return { filter: content ? "content" : null, label: content ? "." : null, needle: rest };
 }
@@ -257,7 +253,9 @@ export function rankClues(rows, query) {
   if (!parseQuery(query).length) return rows.map((item) => ({ item, hits: {} }));
   const out = [];
   rows.forEach((item, order) => {
-    const full = matchFields(item.fields, query);
+    // A buffer row shows only its line, so only the line (and its title) is searched.
+    const searched = item.fields.some((f) => f.key === "line") ? item.fields.filter((f) => f.key === "line" || f.key === "title") : item.fields;
+    const full = matchFields(searched, query);
     if (!full) return;
     const detail = matchFields(item.fields.filter((f) => f.key === "title"), query);
     out.push({ item, hits: full.hits, primary: detail?.score ?? 0, secondary: full.score, order });
