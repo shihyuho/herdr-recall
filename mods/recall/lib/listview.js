@@ -40,8 +40,9 @@
 // selection, re-aiming until the person moves, scrolling). Rules about
 // which rows a list has, their order while typing, the selection and the
 // query syntax belong here, behind this same signature: a new category
-// is a new id, a synthetic row (such as one offering another search) is a
-// row with its own item kind and actions.
+// is a new id, and a synthetic row (such as one offering another search)
+// is a row with its own item kind and no actions, which the navigator
+// opens by that kind.
 
 import { buildItems } from "./items.js";
 import { tiered } from "./fuzzy.js";

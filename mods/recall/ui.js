@@ -194,12 +194,12 @@ function columnHead(t, nav) {
 
 function row(t, nav, { item, hits }, on) {
   const w = nav.widths;
-  const clue = item.kind === "clue" || item.kind === "hint";
+  const isClueRow = item.kind === "clue" || item.kind === "hint";
   const cell = (w, text, color) => div().w(w).flex_none().truncate().text_size(12).text_color(color).child(text || "");
   return h_flex().h(ROW).mx(4).px(8).gap(8).items_center().rounded(6)
     .when(on, (el) => el.bg(t.selection))
     .child(glyph(t, item.status, 10))
-    .child(clue
+    .child(isClueRow
       ? div().w(30).flex_none().text_size(11).font_semibold().text_color(item.kind === "hint" ? t.dim : t[CLUE_COLOR[item.clue]] ?? t.dim).child(item.clue)
       : h_flex().w(30).flex_none().child(icon(t, item, 14)))
     .child(h_flex().flex_1().min_w(0).gap(8).items_center().overflow_hidden()
