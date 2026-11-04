@@ -10,6 +10,9 @@
 //   ({ spaces, panes, agents, terminals, focused, history, home, worktrees }).
 // - query: what the person typed, as typed.
 // - options.agentSort: Agents' order, "mru" | "priority" | "grouped".
+// - options.cluesAvailable: false when Clues is not one of the person's
+//   categories, so All has nowhere to send a query it cannot match
+//   (default true).
 // - options.clueData: the clues read so far for Clues
 //   ({ others, content, procs, listeners }, see clues.js).
 //
@@ -18,6 +21,8 @@
 //   sorts its matches into two tiers (ADR 0002): rows where every term
 //   appears unbroken in some field, then the rest, each tier in the order
 //   the list has with nothing typed. Clues keeps its own order.
+//   When All matches nothing it has one row, kind "to-clues", offering
+//   `Search Clues for "<query>"`; opening it is the navigator's job.
 //   All's items carry `crumb`, the
 //   path drawn before the name (`space › tab › `, `space › `, or "" for a
 //   space); it begins with the `where` field, so `hits.where` lights up
@@ -58,5 +63,9 @@ export function listView(category, snap, query, options = {}) {
   }
   const items = buildItems(category, snap, { agentSort: options.agentSort });
   const rows = tiered(items, query, (i) => i.fields);
+  // All finds nothing: offer the search that looks deeper (Clues keeps the query).
+  if (category === "all" && query.trim() && !rows.length && options.cluesAvailable !== false) {
+    rows.push({ item: { kind: "to-clues", key: "to-clues", title: `Search Clues for "${query.trim()}"`, actions: [] }, hits: {} });
+  }
   return { rows, total: items.length, selected: openingRow(rows), label: null };
 }

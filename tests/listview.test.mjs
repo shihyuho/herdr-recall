@@ -157,14 +157,14 @@ test("All, typed: a bare shell is found by its program's name, highlighted in it
 
 test("All, typed: the list only shrinks, and the total stays the untyped count", () => {
   const untyped = new Set(keys(listView("all", town(), "")));
-  for (const query of ["r", "cart", "storefront", "plan", "zzz"]) {
+  for (const query of ["r", "cart", "storefront", "plan"]) {
     const view = listView("all", town(), query);
     assert.equal(keys(view).every((k) => untyped.has(k)), true, query);
     assert.equal(new Set(keys(view)).size, view.rows.length, query);
     assert.equal(view.total, 15, query);
   }
   assert.deepEqual(keys(listView("all", town(), "plan")), ["agent:t-plan"]);
-  assert.deepEqual(keys(listView("all", town(), "zzz")), []);
+  assert.deepEqual(keys(listView("all", town(), "zzz")), ["to-clues"]);
 });
 
 test("All, typed: `refunds` finds the pane in the tab named refunds, lit inside its path", () => {
@@ -330,5 +330,37 @@ test("Text found only in an agent's last message matches nothing", () => {
   snap.terminals = [{ address: "t-cart", report: { msg: "quokka migration finished" } }];
   assert.equal(itemOf(listView("agents", snap, ""), "agent:t-cart").message, "quokka migration finished");
   assert.deepEqual(keys(listView("agents", snap, "quokka")), []);
-  assert.deepEqual(keys(listView("all", snap, "quokka")), []);
+  assert.deepEqual(keys(listView("all", snap, "quokka")), ["to-clues"]);
 });
+
+test("All, a query nothing matches: one row offering Clues for that query, and it is selected", () => {
+  const view = listView("all", town(), "zzqx");
+  assert.equal(view.rows.length, 1);
+  assert.equal(view.rows[0].item.kind, "to-clues");
+  assert.equal(view.rows[0].item.title, 'Search Clues for "zzqx"');
+  assert.equal(view.selected, 0);
+});
+
+test("All, a query that matches: no Clues row beside the matches", () => {
+  const view = listView("all", town(), "api");
+  assert.ok(view.rows.length > 0);
+  assert.ok(view.rows.every((r) => r.item.kind !== "to-clues"));
+});
+
+test("All, nothing typed: no Clues row", () => {
+  assert.ok(listView("all", town(), "").rows.every((r) => r.item.kind !== "to-clues"));
+});
+
+test("All offers no Clues row when Clues is not a category", () => {
+  assert.equal(listView("all", town(), "zzqx", { cluesAvailable: false }).rows.length, 0);
+});
+
+test("The query is trimmed in the Clues row's title", () => {
+  assert.equal(listView("all", town(), "  zzqx ").rows[0].item.title, 'Search Clues for "zzqx"');
+});
+
+for (const category of ["spaces", "tabs", "panes", "agents"]) {
+  test(`${category}, a query nothing matches: no rows, so "Nothing matches"`, () => {
+    assert.equal(listView(category, town(), "zzqx").rows.length, 0);
+  });
+}

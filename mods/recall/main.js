@@ -254,6 +254,7 @@ export default class Recall extends View {
 
   open(item) {
     if (!item || this.done) return;
+    if (item.kind === "to-clues") return this.switchTo("clues"); // the query stays in the field
     if (!item.actions?.length) return this.dismiss();
     this.dismiss();
     for (const [name, args] of item.actions) run(name, args);
@@ -479,7 +480,7 @@ export default class Recall extends View {
 
   renderNavigator() {
     const t = theme();
-    const view = listView(this.category, this.snapshot(), this.query, { agentSort: this.agentSort, clueData: this.data });
+    const view = listView(this.category, this.snapshot(), this.query, { agentSort: this.agentSort, clueData: this.data, cluesAvailable: this.tabs.includes("clues") });
     this.rows = view.rows;
 
     // Open on the row listView picks (the one before where you are, as
