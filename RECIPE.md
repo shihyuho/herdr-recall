@@ -15,7 +15,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - A 26px column head in 10.5px semibold capitals: NAME, LOCATION (CONTENTS on Spaces, and no such column on All), FOLDER, BRANCH, STATUS. A 1px divider sits left of every head but NAME.
   - Rows 30px high, radius 6. The selected row has the theme's selection background. Left to right:
     - the status glyph;
-    - the program's icon in a 30px column (the tab icon on All's tab rows; on Clues, a colored source label instead: `cmd`, `ssh`, `file`, `term`, `port`, `pid`);
+    - the program's icon in a 30px column (the tab icon on All's tab rows; on Clues, a colored clue label instead: `cmd`, `ssh`, `file`, `term`, `port`, `pid`);
     - the name, with matched letters in the accent color and semibold, and the row you are in now semibold. On All the name is led by its path in dim: `space › tab › ` for a pane or agent, `space › ` for a tab, nothing for a space; matched letters light up in the path too. An agent's last message follows in dim 12px;
     - location ("space › tab") in muted 12px, folder and branch in dim 12px;
     - "needs you" (blocked color) or "finished" (done color) right-aligned in STATUS;

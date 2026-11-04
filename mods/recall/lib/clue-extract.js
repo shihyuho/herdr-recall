@@ -1,14 +1,13 @@
-// The Clues category: find a pane by what it runs, where it is, what it
+// The Clues category: find a pane by what it runs, what it
 // printed, or the port or process it owns. Pure functions; main.js fetches
 // the data (herdr-core, ps, lsof) and hands it in.
 //
-// Rules follow herdr-recent-navigator's tab for the same job, so a query works the same:
-// filter prefixes need one space after the label, `.` searches buffers.
+// Filter prefixes need one space after the label, `.` searches buffers.
 // The text after a prefix uses the query syntax of every list (fuzzy.js):
 // on state rows as anywhere, and on buffers line by line with plain terms
 // read literally.
 
-import { matchFields, matchLiteral, parseQuery } from "./fuzzy.js";
+import { literalGroups, matchFields, matchLiteralGroups, parseQuery } from "./fuzzy.js";
 
 export const SOURCE_ORDER = { ssh: 0, cmd: 1, term: 2, file: 3, port: 4, pid: 5 };
 const SOURCE_LABELS = ["ssh", "cmd", "term", "file"];
@@ -164,8 +163,9 @@ export function contentExcerpt(content, needle) {
   if (!content || parseQuery(needle).length === 0) return null;
   const lines = content.split("\n").filter((l) => l.trim());
   for (const exactCase of [true, false]) {
+    const groups = literalGroups(needle, exactCase);
     for (const line of lines) {
-      const hit = matchLiteral(line, needle, exactCase);
+      const hit = matchLiteralGroups(line, groups);
       if (hit) return excerpt(line, hit[0] ?? 0, hit.length);
     }
   }

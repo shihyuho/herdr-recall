@@ -233,9 +233,11 @@ function list(t, nav, loading) {
     return out;
   })
     .track_scroll(nav.scroll)
-    .on_item_click((key) => {
+    .on_item_click((key, cx) => {
       const r = rows.find((x) => x.item.key === key);
-      if (r) nav.open(r.item);
+      if (!r) return;
+      nav.open(r.item);
+      if (!nav.done) { nav.focusForMode(); cx.notify(); }
     })
     .size_full();
 }

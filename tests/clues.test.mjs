@@ -167,3 +167,16 @@ test("Clues: a buffer row lights the first term that matched in its line", () =>
   const row = listView("clues", world(), ".login FAIL", { clueData: clueData(paneState, content) }).rows[0];
   assert.deepEqual(row.item.excerpt, [9, 14]);
 });
+
+test("Clues, nothing typed: a pane ssh'd into a host lists its ssh clue", () => {
+  const paneState = new Map([["p2", { cwd: `${HOME}/code/web`, command: "ssh deploy@box1", ssh: "deploy@box1", shellPid: 20 }]]);
+  const view = listView("clues", world(), "", { clueData: clueData(paneState) });
+  assert.deepEqual(view.rows.filter((r) => r.item.id === "p2" && r.item.source === "ssh").map((r) => [r.item.source, r.item.title]), [["ssh", "deploy@box1"]]);
+});
+
+test("Clues: a negated lowercase term in a buffer search is smart-case, so the line that really matches is found", () => {
+  const paneState = new Map([["p2", { cwd: `${HOME}/code/web`, command: "-zsh", ssh: null, shellPid: 20 }]]);
+  const content = new Map([["p2", "build FAILED\nbuild ok\n"]]);
+  const rows = listView("clues", world(), ".build !fail", { clueData: clueData(paneState, content) }).rows;
+  assert.deepEqual(rows.map((r) => [r.item.id, r.item.title]), [["p2", "build ok"]]);
+});

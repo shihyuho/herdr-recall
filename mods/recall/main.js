@@ -174,7 +174,10 @@ export default class Recall extends View {
       this.follow = true;
       cx.notify();
     });
-    this.input.on("submit", () => this.open(this.rows?.[this.at]?.item));
+    this.input.on("submit", (_e, cx) => {
+      this.open(this.rows?.[this.at]?.item);
+      cx.notify();
+    });
     this.focusForMode();
     cx.timer.after(250, () => this.focusForMode());
 

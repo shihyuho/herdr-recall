@@ -312,8 +312,8 @@ function placeGroup(fields, group, scoreOnly) {
 }
 
 /**
- * Matches parsed groups against an item's fields: `{ score, hits, unbroken }`,
- * or null when some group fails. `unbroken` holds when every group landed
+ * Matches parsed groups against an item's fields: `{ score, hits, unbroken, first }`
+ * (`first` is the indices of the first matched term, or null), or null when some group fails. `unbroken` holds when every group landed
  * unbroken; negated terms don't count.
  */
 function evaluate(fields, groups, scoreOnly = false) {
@@ -338,14 +338,24 @@ function evaluate(fields, groups, scoreOnly = false) {
  * a pane's buffer: a plain term must appear unbroken, as if quoted, and the
  * other operators work as anywhere else. Returns the code-point indices of
  * the first term that matched ([] when only negated terms held), or null.
- * `exactCase` makes every term match case exactly.
+ * `exactCase` makes every positive term match case exactly; negated terms
+ * keep smart case.
  */
 export function matchLiteral(text, query, exactCase = false) {
-  const literal = parseQuery(query).map((group) => group.map((t) => ({
+  return matchLiteralGroups(text, literalGroups(query, exactCase));
+}
+
+/** A query parsed once for matchLiteralGroups; see matchLiteral for `exactCase`. */
+export function literalGroups(query, exactCase = false) {
+  return parseQuery(query).map((group) => group.map((t) => ({
     ...t,
     kind: t.kind === "fuzzy" ? "exact" : t.kind,
-    sensitive: exactCase || t.sensitive,
+    sensitive: (exactCase && !t.inv) || t.sensitive,
   })));
+}
+
+/** matchLiteral on groups prepared by literalGroups. */
+export function matchLiteralGroups(text, literal) {
   if (literal.length === 0) return null;
   const r = evaluate([{ key: "line", text }], literal, true);
   return r && (r.first ?? []);
