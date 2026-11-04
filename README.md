@@ -24,6 +24,8 @@ The **All** list finds a pane by what it runs, the host it is ssh'd into, the fi
 
 ## See it in action
 
+![Recall's Agents list: a blocked agent reads "needs you", a finished one "finished"](preview.png)
+
 **You press**
 
 > `⌘E` `⏎`

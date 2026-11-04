@@ -24,6 +24,8 @@
 
 ## See it in action
 
+![Recall 的 Agents 清單：等你處理的 agent 顯示「needs you」，完成的顯示「finished」](preview.png)
+
 **你按下**
 
 > `⌘E` `⏎`
