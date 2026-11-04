@@ -23,16 +23,15 @@ import * as mru from "./lib/mru.js";
 import { buildItems } from "./lib/items.js";
 import { buildAll } from "./lib/all.js";
 import { actionFor, isPrintable, normalizeKey, parseConfig } from "./lib/config.js";
-import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/others.js";
+import { cleanBuffer, parseLsof, parsePs, parseSshTarget, stripAnsi } from "./lib/others.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
-import { DEFAULT_WIDTHS, dragWidth, loadWidths, nextSort, sortRows } from "./lib/columns.js";
-import { navigator } from "./ui.js";
+// PROTOTYPE: layout variants; was `import { navigator } from "./ui.js"`.
+import { navigator, cycleLayout, sortRows } from "./prototype-layouts.js";
 
 const MOD = "recall";
 const HISTORY = "recall.history";
 const OPEN = "recall.open";
 const LAST = "recall.last";
-const WIDTHS = "recall.columns";
 const BEAT = 1500;
 const FRESH = 4000;
 const TRACKER = { mod: MOD, kind: "window", key: "recall-tracker", keep: true, frame: "none", width: 1, height: 1, at: { x: 0, y: 0 }, props: { role: "tracker" } };
@@ -47,6 +46,9 @@ const KEY_ACTIONS = {
   dismiss: "recall::dismiss",
   force_quit: "recall::force_quit",
 };
+// PROTOTYPE: ⌥← / ⌥→ flip layouts (prototype-layouts.js).
+const PROTO_PREV = "recall::prototype_previous_layout";
+const PROTO_NEXT = "recall::prototype_next_layout";
 const OTHERS_EVERY = 10000;
 const CONTENT_EVERY = 30000;
 
@@ -165,10 +167,6 @@ export default class Recall extends View {
     this.requested = p.category ?? null;
     this.category = this.startCategory();
     this.agentSort = p.agentSort ?? "mru";
-    this.sort = null;
-    this.keepKey = null;
-    this.widths = loadWidths(shared(WIDTHS));
-    this.resizing = null;
     this.query = "";
     this.at = null;
     this.follow = true;
@@ -212,6 +210,8 @@ export default class Recall extends View {
     });
     cx.timer.every(1000, (cx) => this.refreshAll(cx));
     this.refreshAll(cx);
+    this.preview = new Map();
+    cx.timer.every(500, (cx) => this.updatePreview(cx));
   }
 
   beat() {
@@ -239,6 +239,9 @@ export default class Recall extends View {
         if (isPrintable(keystroke)) continue;
         for (const context of [KEY_CONTEXT, `${KEY_CONTEXT} > Input`]) bindings.push({ keystroke, action: name, context });
       }
+    }
+    for (const context of [KEY_CONTEXT, `${KEY_CONTEXT} > Input`]) { // PROTOTYPE
+      bindings.push({ keystroke: "alt-left", action: PROTO_PREV, context }, { keystroke: "alt-right", action: PROTO_NEXT, context });
     }
     try {
       cx.bind_keys(bindings);
@@ -383,10 +386,7 @@ export default class Recall extends View {
 
   switchTo(category, sort) {
     this.category = category;
-    if (sort && AGENT_SORTS.includes(sort)) {
-      this.agentSort = sort;
-      this.sort = null;
-    }
+    if (sort && AGENT_SORTS.includes(sort)) this.agentSort = sort;
     this.at = null;
     this.follow = true;
   }
@@ -457,42 +457,8 @@ export default class Recall extends View {
 
   cycleSort() {
     this.agentSort = AGENT_SORTS[(AGENT_SORTS.indexOf(this.agentSort) + 1) % AGENT_SORTS.length];
-    this.sort = null;
     this.at = null;
     this.follow = true;
-  }
-
-  /** A click on a column head: the next sort, the selected row staying selected. */
-  sortBy(column) {
-    this.sort = nextSort(this.sort, column);
-    this.keepKey = this.rows?.[this.at]?.item.key ?? null;
-  }
-
-  /** A press on a column's left edge starts resizing it; a double-click puts its width back. */
-  startResize(column, e) {
-    if (e.click_count >= 2) {
-      this.resizing = null;
-      this.widths = { ...this.widths, [column]: DEFAULT_WIDTHS[column] };
-      setShared(WIDTHS, this.widths);
-    } else this.resizing = { column, x: e.position.x, width: this.widths[column] };
-  }
-
-  /** The pointer moved while resizing: true when a width changed. */
-  resizeTo(x) {
-    const r = this.resizing;
-    if (!r) return false;
-    const width = dragWidth(r.width, x - r.x);
-    if (width === this.widths[r.column]) return false;
-    this.widths = { ...this.widths, [r.column]: width };
-    return true;
-  }
-
-  /** Released, or the pointer left the dialog: keep the widths for next time. */
-  endResize() {
-    if (!this.resizing) return false;
-    this.resizing = null;
-    setShared(WIDTHS, this.widths);
-    return true;
   }
 
   // ── Navigator: view ────────────────────────────────────────────────────
@@ -506,16 +472,7 @@ export default class Recall extends View {
   renderNavigator() {
     const t = theme();
     const view = this.rowsFor(this.category, this.snapshot());
-    this.rows = sortRows(view.rows, this.sort);
-    if (this.keepKey) {
-      const i = this.rows.findIndex((r) => r.item.key === this.keepKey);
-      if (i >= 0) {
-        this.at = i;
-        this.auto = false;
-        this.follow = true;
-      }
-      this.keepKey = null;
-    }
+    this.rows = sortRows(this, view.rows); // PROTOTYPE: column sort; was `view.rows`
 
     // Open on the row before where you are, as IntelliJ's Recent Files does.
     // Until the person moves, keep re-aiming: focus can settle after the
@@ -531,6 +488,7 @@ export default class Recall extends View {
       this.scroll.scroll_to_item(this.at, "center");
       this.follow = false;
     }
+    const selected = this.rows[this.at]?.item;
     const loading = this.category === "all" && this.allTargets().length > 0 && !this.data.others.size;
 
     const act = (fn) => (_e, cx) => { fn(); cx.notify(); };
@@ -546,7 +504,28 @@ export default class Recall extends View {
       .on_action(KEY_ACTIONS.previous_category, act(() => this.cycleCategory(-1)))
       .on_action(KEY_ACTIONS.dismiss, act(() => this.backOut()))
       .on_action(KEY_ACTIONS.force_quit, act(() => this.dismiss()))
+      .on_action(PROTO_PREV, act(() => cycleLayout(-1))) // PROTOTYPE
+      .on_action(PROTO_NEXT, act(() => cycleLayout(1))) // PROTOTYPE
       .on_key_down((e, cx) => this.onKey(e, cx))
-      .child(navigator(this, { view, loading }));
+      .child(navigator(this, { view, selected, loading }));
+  }
+
+  /** The selected row's terminal: its last 18 lines, read again every 2.5 s while it stays selected. */
+  updatePreview(cx) {
+    const term = this.rows?.[this.at]?.item?.terminal;
+    if (!term || this.done) return;
+    const cached = this.preview.get(term);
+    if (cached && Date.now() - cached.at < 2500) return;
+    this.preview.set(term, { at: Date.now(), lines: cached?.lines ?? null });
+    cx.spawn(async (cx) => {
+      try {
+        const r = await hc(["read", term]);
+        if (r.code !== 0) return;
+        const lines = stripAnsi(r.stdout).split("\n").map((l) => l.trimEnd());
+        while (lines.length && !lines[lines.length - 1]) lines.pop();
+        this.preview.set(term, { at: Date.now(), lines: lines.slice(-18) });
+        cx.notify();
+      } catch {}
+    });
   }
 }
