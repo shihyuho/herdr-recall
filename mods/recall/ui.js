@@ -213,6 +213,11 @@ function row(t, u, nav, { item, hits }, on) {
   };
   return h_flex().h(u(ROW)).mx(u(LAYOUT.margin)).px(u(LAYOUT.pad)).gap(u(LAYOUT.gap)).items_center().rounded(u(6))
     .when(on, (el) => el.bg(t.selection))
+    // The row under the pointer lights up, except during a column resize,
+    // when the pointer only passes over it. A style, not a handler, so the
+    // list's renderer may declare it.
+    .when(!nav.resizing, (el) => el.cursor_pointer())
+    .when(!on && !nav.resizing, (el) => el.hover((s) => s.bg(t.hover)))
     .child(glyph(t, item.status, u(LAYOUT.glyph)))
     .child(isClueRow
       ? div().w(u(LAYOUT.icon)).flex_none().text_size(u(11)).font_semibold().text_color(item.kind === "hint" ? t.dim : t[CLUE_COLOR[item.clue]] ?? t.dim).child(item.clue)

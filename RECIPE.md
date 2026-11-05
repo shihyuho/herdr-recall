@@ -13,7 +13,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **Rail** on the left, 60px wide with a right border: one 48×46 entry per category (All, Spaces, Tabs, Panes, Agents, Clues), a 16px icon over a 9.5px label. All's icon is four small squares; Clues' is the search glass. The current one has the selected background and an accent icon.
 - **Table** filling the rest:
   - A 26px column head in 10.5px semibold capitals: NAME, LOCATION (CONTENTS on Spaces, and no such column on All), FOLDER, BRANCH, STATUS. A 1px divider sits left of every head but NAME.
-  - Rows 30px high, radius 6. The selected row has the theme's selection background. Left to right:
+  - Rows 30px high, radius 6. The selected row has the theme's selection background; any other row under the pointer has the theme's hover background, as a rail entry does, except while a column is being dragged. Left to right:
     - the status glyph;
     - the program's icon in a 30px column (the tab icon on All's tab rows; on Clues, a colored clue label instead: `cmd`, `ssh`, `file`, `term`, `port`, `pid`);
     - the name, with matched letters in the accent color and semibold, and the row you are in now semibold. On All the name is led by its path in dim: `space › tab › ` for a pane or agent, `space › ` for a tab, nothing for a space; matched letters light up in the path too. An agent's last message follows in dim 12px;
