@@ -106,7 +106,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **One mod**, `mods/recall/`:
   - `mod.json`: `{ "place": "none", "title": "Recall", "overlay": { "kind": "dialog", "width": 0.74, "height": 0.7 } }`;
   - `main.js`: the view and its state;
-  - `ui.js`: the drawing;
+  - `ui.js`: the drawing, tested by the same command against a stand-in for Herdr's runtime (`tests/herdr-runtime.mjs`);
   - `lib/`: pure functions, tested with `node --test 'tests/*.test.mjs'`:
     - `listview.js` for what a category shows: its rows with their highlights, the total and the opening selection;
     - `items.js` for the rows of each category, All's included;
