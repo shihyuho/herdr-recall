@@ -2,7 +2,7 @@
 // tested through. Pure: no gpui, no Herdr runtime, so `node --test` drives
 // it with fixture snapshots.
 //
-//   listView(category, snap, query, options) → { rows, count, total, selected, label }
+//   listView(category, snap, query, options) → { rows, count, total, selected, label, fitTo }
 //
 // - category: a category id: "all" (every space, tab, pane and agent),
 //   "spaces", "tabs", "panes", "agents" or "clues" (the clue search).
@@ -35,6 +35,9 @@
 //   query changes: the first row that isn't where you are now (nor a
 //   clue's reason), typed or not; 0 when there is no such row.
 // - label: the clue-type chip to show beside the query, or null.
+// - fitTo: the items the columns' widths fit: every item the category
+//   lists, whatever is typed, so the columns hold still while typing.
+//   Clues has rows only from its search, so there it is the items found.
 //
 // The navigator renders this and keeps only its own UI state (moving the
 // selection, re-aiming until the person moves, scrolling). Rules about
@@ -62,7 +65,7 @@ const NO_CLUES = { paneState: new Map(), content: new Map(), procs: null, listen
 export function listView(category, snap, query, options = {}) {
   if (category === "clues") {
     const { rows, label } = buildClues(snap, options.clueData ?? NO_CLUES, query);
-    return { rows, count: rows.length, total: null, selected: openingRow(rows), label };
+    return { rows, count: rows.length, total: null, selected: openingRow(rows), label, fitTo: rows.map((r) => r.item) };
   }
   const items = buildItems(category, snap, { agentSort: options.agentSort });
   const rows = tiered(items, query, (i) => i.fields);
@@ -71,5 +74,5 @@ export function listView(category, snap, query, options = {}) {
   if (category === "all" && query.trim() && !rows.length && options.cluesAvailable !== false) {
     rows.push({ item: { kind: "to-clues", key: "to-clues", title: `Search Clues for "${query.trim()}"`, actions: [] }, hits: {} });
   }
-  return { rows, count: matched, total: items.length, selected: openingRow(rows), label: null };
+  return { rows, count: matched, total: items.length, selected: openingRow(rows), label: null, fitTo: items };
 }

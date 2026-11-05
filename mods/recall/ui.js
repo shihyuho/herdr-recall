@@ -2,9 +2,10 @@
 // title and the search box, then an icon rail of the categories beside a
 // table of the rows: name, location, folder, branch and status. On All the
 // name is led by its path (`space › tab › `) and there is no location
-// column. Dragging the edge left of a head resizes that column (a
-// double-click on it puts it back). A one-line footer under them names
-// the keys.
+// column. Each column is as wide as what the category lists needs
+// (nav.widths, from lib/columns.js). Dragging the edge left of a head sets
+// that column's width (a double-click on it lets it fit again). A
+// one-line footer under them names the keys.
 //
 // navigator(nav, ctx) draws the dialog from the navigator's state and
 // changes nothing but through nav's own methods:
@@ -23,7 +24,9 @@ import { div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, Input, v_virtual_list } from "gpui-base";
 import { theme, shared } from "herdr";
 import { segments } from "./lib/fuzzy.js";
-import { location, NAME_MIN_WIDTH } from "./lib/columns.js";
+import {
+  CELL_TEXT, HEAD_TEXT, LAYOUT, NAME_GAP, NESTED_INDENT, STATUS_TEXT, headLabel, location, shownColumns,
+} from "./lib/columns.js";
 import { STATUS_WORD } from "./lib/items.js";
 
 // Each category's rail label, header title and rail icon (icons/<icon>.svg).
@@ -71,7 +74,7 @@ function glyph(t, status, size) {
 
 function statusWord(t, u, status) {
   const word = STATUS_WORD[status];
-  return word ? div().flex_none().text_size(u(11.5)).text_color(t[status]).child(word) : null;
+  return word ? div().flex_none().text_size(u(STATUS_TEXT)).text_color(t[status]).child(word) : null;
 }
 
 function icon(t, item, size) {
@@ -153,26 +156,9 @@ function rail(t, u, nav) {
       .child(svg(`mods/recall/icons/${CATEGORY[c].icon}.svg`).size(u(16)).text_color(on ? t.accent : t.muted))
       .child(div().text_size(u(9.5)).text_color(on ? t.foreground : t.dim).child(CATEGORY[c].label));
   };
-  return v_flex().w(u(60)).h_full().flex_none().py(u(6)).gap(u(2)).items_center().border_r(1).border_color(t.border)
+  return v_flex().w(u(LAYOUT.rail)).h_full().flex_none().py(u(6)).gap(u(2)).items_center().border_r(1).border_color(t.border)
     .children(nav.categories.map(entry));
 }
-
-// The columns, by the key the widths are stored under. Every one but the
-// name has a width of its own (nav.widths); the name takes the rest, and
-// never less than NAME_MIN_WIDTH: on a dialog too narrow for them all,
-// location, folder and branch narrow in proportion, the same in the head
-// and in every row.
-const COLUMNS = [
-  { key: "name", label: () => "NAME" },
-  { key: "location", label: (nav) => (nav.category === "spaces" ? "CONTENTS" : "LOCATION") },
-  { key: "folder", label: () => "FOLDER" },
-  { key: "branch", label: () => "BRANCH" },
-  { key: "status", right: true, label: () => "STATUS" },
-];
-
-/** All leads each name with its path, so it shows no location column. */
-const hasLocation = (nav) => nav.category !== "all";
-const shownColumns = (nav) => COLUMNS.filter((c) => c.key !== "location" || hasLocation(nav));
 
 /** The grip on a column's left edge, over the gap before it. */
 function edge(t, u, nav, column) {
@@ -184,42 +170,55 @@ function edge(t, u, nav, column) {
 }
 
 /**
- * A sized column's box, at its own width. Location, folder and branch give
- * way when the name needs the room; status holds a word or two that must
- * stay whole, so it keeps its width.
+ * A sized column's box, at the width nav.widths gives it, the same in the
+ * head and in every row. Those widths already leave the name its room; the
+ * name takes what they leave, and never less than nav.widths.name. On a
+ * dialog too narrow even for that, location, folder and branch narrow in
+ * proportion; status holds a word or two that must stay whole, so it
+ * keeps its width.
+ *
+ * The head and a row hold the same cells: the status glyph, the icon, the
+ * name, the shown columns and the badge. lib/columns.js counts on that to
+ * know how much of a row the name and the columns have.
  */
 const sized = (el, u, nav, key) => (key === "status"
   ? el.w(u(nav.widths.status)).flex_none()
   : el.w(u(nav.widths[key])).flex_shrink(1).min_w(0));
 
 function columnHead(t, u, nav) {
-  const head = (c) => {
-    const label = h_flex().id(`recall-col-${c.key}`).size_full().min_w(0).items_center()
-      .when(Boolean(c.right), (el) => el.justify_end())
-      .text_color(t.dim)
-      .child(div().truncate().child(c.label(nav)));
-    if (c.key === "name") return h_flex().flex_1().min_w(u(NAME_MIN_WIDTH)).h_full().child(label);
-    return sized(h_flex(), u, nav, c.key).h_full().relative().child(label).child(edge(t, u, nav, c.key));
-  };
-  return h_flex().h(u(26)).flex_none().mx(u(4)).px(u(8)).gap(u(8)).items_center()
-    .text_size(u(10.5)).font_semibold().border_b(1).border_color(t.border)
-    .child(div().w(u(10)).flex_none())
-    .child(div().w(u(30)).flex_none())
-    .children(shownColumns(nav).map(head))
-    .child(div().w(u(16)).flex_none());
+  const label = (key, text) => h_flex().id(`recall-col-${key}`).size_full().min_w(0).items_center()
+    .when(key === "status", (el) => el.justify_end())
+    .text_color(t.dim)
+    .child(div().truncate().child(text));
+  const head = (key) => sized(h_flex(), u, nav, key).h_full().relative()
+    .child(label(key, headLabel(key, nav.category))).child(edge(t, u, nav, key));
+  return h_flex().h(u(26)).flex_none().mx(u(LAYOUT.margin)).px(u(LAYOUT.pad)).gap(u(LAYOUT.gap)).items_center()
+    .text_size(u(HEAD_TEXT)).font_semibold().border_b(1).border_color(t.border)
+    .child(div().w(u(LAYOUT.glyph)).flex_none())
+    .child(div().w(u(LAYOUT.icon)).flex_none())
+    .child(h_flex().flex_1().min_w(u(nav.widths.name)).h_full().child(label("name", "NAME")))
+    .children(shownColumns(nav.category).map(head))
+    .child(div().w(u(LAYOUT.badge)).flex_none());
 }
 
 function row(t, u, nav, { item, hits }, on) {
   const isClueRow = item.kind === "clue" || item.kind === "hint";
-  const cell = (key, text, color) => sized(div(), u, nav, key).truncate().text_size(u(12)).text_color(color).child(text || "");
-  return h_flex().h(u(ROW)).mx(u(4)).px(u(8)).gap(u(8)).items_center().rounded(u(6))
+  const cell = (key, text, color) => sized(div(), u, nav, key).truncate().text_size(u(CELL_TEXT)).text_color(color).child(text || "");
+  const cells = {
+    location: () => cell("location", location(item), t.muted),
+    // A folder too long for its column loses its start: what tells two paths apart is at their end.
+    folder: () => cell("folder", item.path, t.dim).text_ellipsis_start(),
+    branch: () => cell("branch", item.branch, t.dim),
+    status: () => sized(h_flex(), u, nav, "status").justify_end().child(statusWord(t, u, item.status) ?? div()),
+  };
+  return h_flex().h(u(ROW)).mx(u(LAYOUT.margin)).px(u(LAYOUT.pad)).gap(u(LAYOUT.gap)).items_center().rounded(u(6))
     .when(on, (el) => el.bg(t.selection))
-    .child(glyph(t, item.status, u(10)))
+    .child(glyph(t, item.status, u(LAYOUT.glyph)))
     .child(isClueRow
-      ? div().w(u(30)).flex_none().text_size(u(11)).font_semibold().text_color(item.kind === "hint" ? t.dim : t[CLUE_COLOR[item.clue]] ?? t.dim).child(item.clue)
-      : h_flex().w(u(30)).flex_none().child(icon(t, item, u(14))))
-    .child(h_flex().flex_1().min_w(u(NAME_MIN_WIDTH)).gap(u(8)).items_center().overflow_hidden()
-      .when(Boolean(item.nested), (el) => el.pl(u(18)))
+      ? div().w(u(LAYOUT.icon)).flex_none().text_size(u(11)).font_semibold().text_color(item.kind === "hint" ? t.dim : t[CLUE_COLOR[item.clue]] ?? t.dim).child(item.clue)
+      : h_flex().w(u(LAYOUT.icon)).flex_none().child(icon(t, item, u(14))))
+    .child(h_flex().flex_1().min_w(u(nav.widths.name)).gap(u(NAME_GAP)).items_center().overflow_hidden()
+      .when(Boolean(item.nested), (el) => el.pl(u(NESTED_INDENT)))
       .child(h_flex().flex_none().items_center()
         // All's path, dimmed, right before the name; it starts with the
         // `where` field, so that field's hits light up inside it.
@@ -228,11 +227,8 @@ function row(t, u, nav, { item, hits }, on) {
           .when(Boolean(item.current), (d) => d.font_semibold())))
       .when(item.kind === "hint", (el) => el.child(div().flex_none().text_color(t.blocked).child(`(${item.reason})`)))
       .when(Boolean(item.message), (el) => el.child(div().min_w(0).truncate().text_size(u(12)).text_color(t.dim).child(item.message))))
-    .when(hasLocation(nav), (el) => el.child(cell("location", location(item), t.muted)))
-    .child(cell("folder", item.path, t.dim))
-    .child(cell("branch", item.branch, t.dim))
-    .child(sized(h_flex(), u, nav, "status").justify_end().child(statusWord(t, u, item.status) ?? div()))
-    .child(badge(t, item, u(16)));
+    .children(shownColumns(nav.category).map((key) => cells[key]()))
+    .child(badge(t, item, u(LAYOUT.badge)));
 }
 
 function list(t, u, nav, loading) {

@@ -542,3 +542,15 @@ test("Tabs and All, typed: a folder finds the tab that shows it", () => {
   assert.deepEqual(keys(listView("tabs", snap, "code/docs")), ["tab:tb-guides"]);
   assert.ok(keys(listView("all", snap, "code/docs")).includes("tab:tb-guides"));
 });
+
+test("the columns fit every row the category lists, whatever is typed: a query narrows the rows, not what the widths fit", () => {
+  const snap = town();
+  const fits = (view) => view.fitTo.map((i) => i.key).sort();
+  const untyped = listView("panes", snap, "");
+  assert.deepEqual(fits(untyped), keys(untyped).sort());
+  const typed = listView("panes", snap, "nvim");
+  assert.ok(typed.rows.length < untyped.rows.length, "the query narrows the rows");
+  assert.deepEqual(fits(typed), fits(untyped));
+  // All, a query nothing matches: still every row, not the row offering Clues.
+  assert.deepEqual(fits(listView("all", snap, "zzzz")), fits(listView("all", snap, "")));
+});

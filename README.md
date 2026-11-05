@@ -56,7 +56,7 @@ Then bind a key in `~/.config/herdr-app/keys.json`:
 
 **Then, either way,** press that key once. It starts Recall's tracker, which records every focus change from then on and comes back each time Herdr starts.
 
-**To update,** pull the repo (or clone it again) and re-run `./install.sh`. It replaces `mods/recall/` and keeps your history and column widths, which Herdr stores outside that folder. If you installed with your agent, ask it to do those two steps: Herdr tells agents never to overwrite a mod, so asking it to add Recall again gives you a second, renamed copy instead of an update.
+**To update,** pull the repo (or clone it again) and re-run `./install.sh`. It replaces `mods/recall/` and keeps your history and the column widths you dragged, which Herdr stores outside that folder. If you installed with your agent, ask it to do those two steps: Herdr tells agents never to overwrite a mod, so asking it to add Recall again gives you a second, renamed copy instead of an update.
 
 To remove Recall, delete `~/.config/herdr-app/mods/recall` and the keys you bound to it.
 
@@ -93,9 +93,11 @@ Six lists sit on the left, in this order: All, Spaces, Tabs, Panes, Agents and C
 | --- | --- |
 | Click a row | Go to it |
 | Click a category on the left | Switch to it |
-| Drag the line left of a column head | Resize that column; double-click the line to reset it |
+| Drag the line left of a column head | Set that column's width; double-click the line to let it fit its content again |
 
-Pressing the open key again closes the switcher, or switches to the category that key opens. Column widths are kept.
+Pressing the open key again closes the switcher, or switches to the category that key opens.
+
+Each column is as wide as its longest value in the category you are in, so the columns hold still while you type. Clues has rows only from its search, so there they fit the rows found. When they can't all fit, the name comes first, up to half the list. Then the folder narrows, cut at its start so its end still shows, then the location, then the branch. The status column doesn't give way to them. A column you dragged stays at that width, taking the room from the name or giving it back, and the width is kept.
 
 </details>
 
@@ -182,7 +184,7 @@ Every key in `~/.config/herdr-app/recall.json` is optional:
 - `font_size`: the size of a row's name, in px at Herdr's zoom 1. Rows, icons, columns and spacing scale with it. Left out, the switcher follows Herdr's interface text size, 13 today. A size below 6.5 or above 39 is held there, and anything that isn't a positive number is ignored.
 - `font`: a font family on this machine. Left out, or naming a font the machine doesn't have, the switcher uses Herdr's interface font.
 
-Herdr's zoom still scales the switcher along with everything else. The switcher's own size stays a share of the window, so larger text leaves fewer rows. When the window is too small for every column, the name keeps its room, the location, folder and branch columns narrow, and the status column keeps its width.
+Herdr's zoom still scales the switcher along with everything else. The switcher's own size stays a share of the window, so larger text leaves fewer rows and less room for the columns, which then give way as they do on a small window: the folder first, then the location, then the branch.
 
 </details>
 

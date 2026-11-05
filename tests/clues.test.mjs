@@ -207,3 +207,9 @@ test("Clues: `.FAIL !term` keeps a terminal-buffer line that has FAIL, and `!fla
   const flaky = new Map([["p2", "FAIL flaky test\n"]]);
   assert.deepEqual(listView("clues", world(), ".FAIL !flaky", { clueData: clueData(paneState, flaky) }).rows, []);
 });
+
+test("Clues has rows only from its search, so its columns fit the rows found", () => {
+  const view = listView("clues", world(), "cmd nvim", { clueData: clueData(worldPaneState()) });
+  assert.ok(view.rows.length > 0);
+  assert.deepEqual(view.fitTo, view.rows.map((r) => r.item));
+});

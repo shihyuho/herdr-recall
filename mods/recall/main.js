@@ -23,8 +23,9 @@ import { listView } from "./lib/listview.js";
 import { actionFor, isPrintable, normalizeKey, normalizeLook, parseConfig, parseOpenCommand } from "./lib/config.js";
 import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/clue-extract.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
-import { DEFAULT_WIDTHS, dragWidth, loadWidths } from "./lib/columns.js";
+import { LAYOUT, columnNeeds, dragWidth, fitColumns, headWidths, loadKept, shownColumns } from "./lib/columns.js";
 import { DESIGN_TEXT, pickFont, textScale } from "./lib/look.js";
+import { metricsFor } from "./lib/textwidth.js";
 import { isCurrentTracker, trackerWindow } from "./lib/tracker.js";
 import { navigator } from "./ui.js";
 
@@ -32,7 +33,7 @@ const MOD = "recall";
 const HISTORY = "recall.history";
 const OPEN = "recall.open";
 const LAST = "recall.last";
-const WIDTHS = "recall.columns";
+const KEPT = "recall.widths";
 const LOOK = "recall.look";
 const BEAT = 1500;
 const FRESH = 4000;
@@ -168,7 +169,12 @@ export default class Recall extends View {
     this.requested = p.category ?? null;
     this.category = this.startCategory();
     this.agentSort = p.agentSort ?? "mru";
-    this.widths = loadWidths(shared(WIDTHS));
+    // kept: the widths the person dragged. widths and heads: what each
+    // column is drawn at and how wide its head is, worked out on every
+    // frame from what the category lists.
+    this.kept = loadKept(shared(KEPT));
+    this.widths = {};
+    this.heads = {};
     this.resizing = null;
     this.query = "";
     this.at = null;
@@ -483,31 +489,59 @@ export default class Recall extends View {
     this.follow = true;
   }
 
-  /** A press on a column's left edge starts resizing it; a double-click puts its width back. */
+  /**
+   * A press on a column's left edge starts dragging it, from the width it
+   * is drawn at; a double-click lets it fit its content again.
+   */
   startResize(column, e) {
     if (e.click_count >= 2) {
       this.resizing = null;
-      this.widths = { ...this.widths, [column]: DEFAULT_WIDTHS[column] };
-      setShared(WIDTHS, this.widths);
+      const { [column]: _dropped, ...kept } = this.kept;
+      this.kept = kept;
+      this.storeKept();
     } else this.resizing = { column, x: e.position.x, width: this.widths[column] };
   }
 
-  /** The pointer moved while resizing: true when a width changed. */
+  /**
+   * The pointer moved while resizing: true when the column's kept width
+   * changed. A press that hasn't moved sideways is no drag, so it leaves
+   * the column fitting.
+   */
   resizeTo(x) {
     const r = this.resizing;
-    if (!r) return false;
-    const width = dragWidth(r.width, x - r.x, this.scale);
-    if (width === this.widths[r.column]) return false;
-    this.widths = { ...this.widths, [r.column]: width };
+    if (!r || x === r.x) return false;
+    const width = dragWidth(r.width, x - r.x, this.scale, this.heads[r.column]);
+    if (width === this.kept[r.column]) return false;
+    this.kept = { ...this.kept, [r.column]: width };
     return true;
   }
 
-  /** Released, or the pointer left the dialog: keep the widths for next time. */
+  /** Released, or the pointer left the dialog: keep the dragged widths for next time. */
   endResize() {
     if (!this.resizing) return false;
     this.resizing = null;
-    setShared(WIDTHS, this.widths);
+    this.storeKept();
     return true;
+  }
+
+  /** Stores the dragged widths; nothing dragged stores nothing. */
+  storeKept() {
+    setShared(KEPT, Object.keys(this.kept).length ? this.kept : null);
+  }
+
+  /**
+   * The list's width as designed: the dialog's share of the window, less
+   * its 1px border on each side, at the size the dialog is drawn, less the
+   * category rail. Herdr's zoom enlarges what is in the window and not the
+   * window, so a zoomed window holds fewer of the dialog's px. A window
+   * that reports no width puts no limit on the columns.
+   */
+  listWidth() {
+    const zoom = settings()?.zoom;
+    const windowWidth = window.viewport_size()?.width;
+    if (!(windowWidth > 0)) return Infinity;
+    const dialog = (DIALOG.width * windowWidth) / (zoom > 0 ? zoom : 1) - 2;
+    return dialog / this.scale - LAYOUT.rail;
   }
 
   // ── Navigator: view ────────────────────────────────────────────────────
@@ -535,6 +569,16 @@ export default class Recall extends View {
     // typings leave its shape open, so textScale takes a missing one as 13).
     // Read on every frame, not kept: a frame drawn after it changes follows it.
     this.scale = textScale(this.fontSize, settings()?.ui_font_size);
+    // Each column as wide as what the category lists needs, or as dragged.
+    const metrics = metricsFor(this.font ?? settings()?.ui_font_family);
+    this.heads = headWidths(this.category, metrics);
+    this.widths = fitColumns({
+      needs: columnNeeds(view.fitTo, this.heads, metrics),
+      heads: this.heads,
+      kept: this.kept,
+      listWidth: this.listWidth(),
+      shown: shownColumns(this.category),
+    });
 
     const act = (fn) => (_e, cx) => { fn(); cx.notify(); };
     return v_flex()
