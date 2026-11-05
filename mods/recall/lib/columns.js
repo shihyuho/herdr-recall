@@ -1,10 +1,19 @@
 // The navigator's columns past the title: what they say, how wide they
 // are, and what the location column says.
 
-/** Each column's width in px; the name column takes what is left. */
+/**
+ * Each column's width in px on a dialog drawn at its design size (a larger
+ * or smaller one draws them to scale); the name column takes what is left.
+ */
 export const DEFAULT_WIDTHS = { location: 210, folder: 240, branch: 140, status: 70 };
 export const MIN_WIDTH = 48;
 export const MAX_WIDTH = 520;
+/**
+ * The least the name column keeps, in the same px: about what it has on a
+ * 1440px-wide window at the default widths. Location, folder and branch
+ * narrow to leave it.
+ */
+export const NAME_MIN_WIDTH = 200;
 
 function clampWidth(w) {
   return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(w)));
@@ -18,12 +27,13 @@ export function loadWidths(raw) {
 }
 
 /**
- * A column's width once its left edge has been dragged `dx` px (negative:
- * leftwards) from where it was `start` wide. The name column gives or takes
- * the difference, so the edge stays under the pointer.
+ * A column's width once its left edge has been dragged `dx` px on screen
+ * (negative: leftwards) from where it was `start` wide, on a dialog drawn
+ * `scale` times its design size. The name column gives or takes the
+ * difference, so the edge stays under the pointer.
  */
-export function dragWidth(start, dx) {
-  return clampWidth(start - dx);
+export function dragWidth(start, dx, scale = 1) {
+  return clampWidth(start - dx / scale);
 }
 
 /** Where an item sits ("space › tab"); a space sits nowhere, so what it holds. */

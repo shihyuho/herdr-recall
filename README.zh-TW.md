@@ -170,13 +170,19 @@ cd herdr-recall
   "keybindings": {
     "move_up": ["k", "up"],
     "move_down": ["j", "down"]
-  }
+  },
+  "font": "JetBrains Mono",
+  "font_size": 15
 }
 ```
 
 - `categories`：要顯示哪些分類，以及它們的順序。切換器會開在上次用的分類，沒有的話就是第一個。空清單只會顯示 All；不認得的名稱會被忽略，重複的名稱只留第一個。`workspaces`、`workspace`、`ws` 等同 `spaces`，`others` 是 herdr-recent-navigator 的叫法，等同 `clues`。舊的 `tabs` 在沒有 `categories` 時仍會被讀取。
 - `keybindings`：`next_category`、`previous_category`、`move_up`、`move_down`、`select`、`dismiss`、`force_quit`、`backspace`。像上面這樣把移動鍵綁成字母，就會切換成 vim 式輸入：`j` `k` 移動，`h` `l` 切換分類，`/` 開始搜尋。
 - 按鍵可以用 Herdr 的寫法（`ctrl-p`、`shift-tab`），也可以用 herdr-recent-navigator 的寫法（`C-p`、`S-Tab`），所以那邊的設定可以直接搬過來用。
+- `font_size`：每一列名稱的字級，單位是 Herdr zoom 為 1 時的 px。列高、圖示、欄寬與間距都會跟著等比縮放。沒設定時，切換器跟隨 Herdr 的介面字級，目前是 13。小於 6.5 或大於 39 的值會停在邊界，不是正數的值會被忽略。
+- `font`：這台電腦上的字型名稱。沒設定，或這台電腦沒有該字型時，切換器使用 Herdr 的介面字型。
+
+Herdr 的 zoom 仍會連同其他東西一起縮放切換器。切換器本身的大小固定是視窗的一個比例，所以字放大後能顯示的列數會變少。視窗太小、放不下所有欄位時，名稱欄會保有它的空間，位置、資料夾與 branch 欄變窄，狀態欄維持原本的寬度。
 
 </details>
 

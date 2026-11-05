@@ -21,6 +21,14 @@ test("dragging a column's left edge left widens it by as much, right narrows it"
   assert.equal(dragWidth(mid, 3), mid - 3);
 });
 
+test("on a dialog drawn larger than its design, a drag moves the kept width by that much less, so the edge stays under the pointer", () => {
+  const mid = Math.round((MIN_WIDTH + MAX_WIDTH) / 2);
+  assert.equal(dragWidth(mid, -40, 2), mid + 20);
+  assert.equal(dragWidth(mid, 40, 2), mid - 20);
+  assert.equal(dragWidth(mid, -30, 1.5), mid + 20);
+  assert.equal(dragWidth(mid, -10, 0.5), mid + 20);
+});
+
 test("a drag stops at the narrowest and widest a column may be", () => {
   assert.equal(dragWidth(200, 10000), MIN_WIDTH);
   assert.equal(dragWidth(200, -10000), MAX_WIDTH);
