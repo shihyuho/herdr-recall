@@ -107,6 +107,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - `config.js` for `recall.json`;
     - `columns.js` for location text and widths;
     - `look.js` for the text scale and the font;
+    - `tracker.js` for the tracker's window;
     - `worktrees.js` for worktree grouping;
   - `icons/`: `spaces`, `tabs`, `panes`, `agents`, `all` and `search` SVGs (`search` is Clues' icon and the search field's).
 - **Two roles of one mod**, told apart by `props().role`:

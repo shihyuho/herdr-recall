@@ -25,6 +25,7 @@ import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/clue-extr
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
 import { DEFAULT_WIDTHS, dragWidth, loadWidths } from "./lib/columns.js";
 import { DESIGN_TEXT, pickFont, textScale } from "./lib/look.js";
+import { isCurrentTracker, trackerWindow } from "./lib/tracker.js";
 import { navigator } from "./ui.js";
 
 const MOD = "recall";
@@ -35,11 +36,7 @@ const WIDTHS = "recall.columns";
 const LOOK = "recall.look";
 const BEAT = 1500;
 const FRESH = 4000;
-// The tracker's window, 2px a side. Herdr reads a size of 1 or less as a
-// share of its own window, so at 1 × 1 the tracker covered all of it, unseen,
-// and took the clicks and scrolls meant for what lay under it.
-const TRACKER_SIZE = 2;
-const TRACKER = { mod: MOD, kind: "window", key: "recall-tracker", keep: true, frame: "none", width: TRACKER_SIZE, height: TRACKER_SIZE, at: { x: 0, y: 0 }, props: { role: "tracker", size: TRACKER_SIZE } };
+const TRACKER = trackerWindow(MOD);
 const DIALOG = { kind: "dialog", width: 0.74, height: 0.7 };
 
 const AGENT_SORTS = ["mru", "priority", "grouped"];
@@ -83,7 +80,7 @@ export default class Recall extends View {
     this.sig = null;
     // Herdr reopens a kept window as it was last opened. One kept at another
     // size gives way to one at this size, which takes its place.
-    if (p.size !== TRACKER_SIZE) {
+    if (!isCurrentTracker(p)) {
       openOverlay(TRACKER);
       return;
     }
