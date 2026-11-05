@@ -4,7 +4,7 @@
 
 ## 簡短結論
 
-目前的結構不需要改。唯一的硬性規定來自 Herdr：mod 資料夾直接含 `main.js`，資料夾名就是 mod id，而且 mod 只能 import 自己資料夾內的檔案（路徑會先 canonicalize，所以 symlink 出去也不行）。其餘都是建議或慣例，本 repo 都符合：分享格式的檔案放根目錄，mod 程式碼在 `mods/recall/`，測試在 mod 之外的 `tests/`（與 Herdr 自己測 shipped mod 的方式相同，也是社群多數做法，而且不會被官方 agent 流程複製進使用者的 home），`site/` 透過 GitHub Actions 發佈（`site/` 這種資料夾名只有 Actions 能用），`site/lib` 等 symlink 方向是「站點指向 mod」，正好是 Herdr import 規則允許的唯一方向。`backnotprop/pstack` 是另一種東西（Agent Skills／Cursor plugin 的 mirror），它的版面由它自己的宿主規格決定，沒有寫任何版面理由，可借鏡的只有「每個單元一個資料夾、宿主定義的頂層目錄」這個與 Herdr 相同的模式。唯一可選的清理是 `site/.nojekyll`：在現行部署下它沒有作用，但留著也無害。
+目前的結構不需要改。唯一的硬性規定來自 Herdr：mod 資料夾直接含 `main.js`，資料夾名就是 mod id，而且 mod 只能 import 自己資料夾內的檔案（路徑會先 canonicalize，所以 symlink 出去也不行）。其餘都是建議或慣例，本 repo 都符合：分享格式的檔案放根目錄，mod 程式碼在 `mods/recall/`，測試在 mod 之外的 `tests/`（與 Herdr 自己測 shipped mod 的方式相同，也是社群多數做法，而且不會被官方 agent 流程複製進使用者的 home），`site/` 透過 GitHub Actions 發佈（`site/` 這種資料夾名只有 Actions 能用），`site/lib` 等 symlink 方向是「站點指向 mod」，正好是 Herdr import 規則允許的唯一方向。`backnotprop/pstack` 是另一種東西（Agent Skills／Cursor plugin 的 mirror），它的版面由它自己的宿主規格決定，沒有寫任何版面理由，可借鏡的只有「每個單元一個資料夾、宿主定義的頂層目錄」這個與 Herdr 相同的模式。唯一可選的清理是 `site/.nojekyll`：在現行部署下它沒有作用，調查後已刪除。
 
 ## 本 repo 現況（已讀取驗證）
 
@@ -143,7 +143,7 @@ MIRROR.md  README.md  LICENSE
 | 無 `package.json` | 是 | Node 對 package author 建議寫 `"type"`；社群 45/199 有 | 偏離一條非針對本 repo 的建議，影響只在測試啟動效能 |
 | `site/` + Actions 部署 | 是 | GitHub：branch 只能 `/` 或 `/docs`，其他資料夾需 Actions | 符合規定 |
 | `site/*` symlink 指向 mod | 是 | Herdr 規定 2 只允許這個方向；upload-pages-artifact 會解開 symlink | 正確方向 |
-| `site/.nojekyll` | 有 | 只對 branch 發佈的根目錄有效；artifact 預設排除隱藏檔 | 無作用，也無害 |
+| `site/.nojekyll` | 調查時有，之後已刪除 | 只對 branch 發佈的根目錄有效；artifact 預設排除隱藏檔 | 無作用 |
 | `.github/FUNDING.yml`、root `LICENSE`、README | 是 | GitHub 規定／常見做法 | 符合 |
 | `docs/adr`、`docs/agents`、`docs/research` | 是 | 無外部規定（`AGENTS.md` 的專案約定） | 不受外部約束 |
 
@@ -153,7 +153,7 @@ MIRROR.md  README.md  LICENSE
 
 可選項目（都不是必要，列出成本供取捨）：
 
-1. **刪除 `site/.nojekyll`。** 依據：GitHub Pages 文件（`.nojekyll` 只作用在 branch 發佈的根目錄）與 `upload-pages-artifact` 預設排除隱藏檔。成本：一個檔案；不影響 install.sh、symlink、測試 workflow、README 連結。好處只有少一個沒作用的檔案；保留也完全無害。
+1. **刪除 `site/.nojekyll`。** 依據：GitHub Pages 文件（`.nojekyll` 只作用在 branch 發佈的根目錄）與 `upload-pages-artifact` 預設排除隱藏檔。成本：一個檔案；不影響 install.sh、symlink、測試 workflow、README 連結。好處只有少一個沒作用的檔案；保留也完全無害。**已採用**：調查後已刪除。
 2. **（不建議）加 root `package.json`，內容只放 `{"private": true, "type": "module"}`。** 依據：Node `packages.md` 對 package author 的建議；社群如 `dmazlum/herdr-arena` 這樣做。效果：`lib/*.js` 在 Node 下不再是 ambiguous，CI 不必依賴 22.7 以後的 syntax detection（可移除 `test.yml:19-20` 的註解理由）。成本：多一個可能被誤解為「需要 npm install」的檔案（本 repo 目前沒有任何相依或 build）；`install.sh` 只複製 `mods/recall/`，不受影響；Herdr 讀的是 `gpui-shell.json` 而不是 `package.json`，所以 mod 也不受影響。收益很小，因為 CI 已釘 Node 26。
 
 明確**不**建議的變更（以免日後被提出）：
