@@ -25,6 +25,7 @@ import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/clue-extr
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
 import { DEFAULT_WIDTHS, dragWidth, loadWidths } from "./lib/columns.js";
 import { DESIGN_TEXT, pickFont, textScale } from "./lib/look.js";
+import { isCurrentTracker, trackerWindow } from "./lib/tracker.js";
 import { navigator } from "./ui.js";
 
 const MOD = "recall";
@@ -35,7 +36,7 @@ const WIDTHS = "recall.columns";
 const LOOK = "recall.look";
 const BEAT = 1500;
 const FRESH = 4000;
-const TRACKER = { mod: MOD, kind: "window", key: "recall-tracker", keep: true, frame: "none", width: 1, height: 1, at: { x: 0, y: 0 }, props: { role: "tracker" } };
+const TRACKER = trackerWindow(MOD);
 const DIALOG = { kind: "dialog", width: 0.74, height: 0.7 };
 
 const AGENT_SORTS = ["mru", "priority", "grouped"];
@@ -57,7 +58,7 @@ export default class Recall extends View {
   init(_props, cx) {
     const p = props() ?? {};
     this.role = p.role === "tracker" ? "tracker" : "navigator";
-    if (this.role === "tracker") return this.initTracker(cx);
+    if (this.role === "tracker") return this.initTracker(p, cx);
     return this.initNavigator(p, cx);
   }
 
@@ -75,8 +76,14 @@ export default class Recall extends View {
 
   // ── Tracker ────────────────────────────────────────────────────────────
 
-  initTracker(cx) {
+  initTracker(p, cx) {
     this.sig = null;
+    // Herdr reopens a kept window as it was last opened. One kept at another
+    // size gives way to one at this size, which takes its place.
+    if (!isCurrentTracker(p)) {
+      openOverlay(TRACKER);
+      return;
+    }
     cx.spawn(async () => {
       for (;;) this.trackerCommand(await nextCommand());
     });
