@@ -1,6 +1,7 @@
 name: test
 
-# The mod's pure logic (mods/recall/lib) under node:test. The mod itself
+# The mod's pure logic (mods/recall/lib) under node:test, and its drawing
+# (mods/recall/ui.js) against a stand-in for Herdr's runtime. The mod itself
 # needs the Herdr app to load, so `herdr-app check` stays a local step.
 on:
   push:
