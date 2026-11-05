@@ -35,7 +35,11 @@ const WIDTHS = "recall.columns";
 const LOOK = "recall.look";
 const BEAT = 1500;
 const FRESH = 4000;
-const TRACKER = { mod: MOD, kind: "window", key: "recall-tracker", keep: true, frame: "none", width: 1, height: 1, at: { x: 0, y: 0 }, props: { role: "tracker" } };
+// The tracker's window, 2px a side. Herdr reads a size of 1 or less as a
+// share of its own window, so at 1 × 1 the tracker covered all of it, unseen,
+// and took the clicks and scrolls meant for what lay under it.
+const TRACKER_SIZE = 2;
+const TRACKER = { mod: MOD, kind: "window", key: "recall-tracker", keep: true, frame: "none", width: TRACKER_SIZE, height: TRACKER_SIZE, at: { x: 0, y: 0 }, props: { role: "tracker", size: TRACKER_SIZE } };
 const DIALOG = { kind: "dialog", width: 0.74, height: 0.7 };
 
 const AGENT_SORTS = ["mru", "priority", "grouped"];
@@ -57,7 +61,7 @@ export default class Recall extends View {
   init(_props, cx) {
     const p = props() ?? {};
     this.role = p.role === "tracker" ? "tracker" : "navigator";
-    if (this.role === "tracker") return this.initTracker(cx);
+    if (this.role === "tracker") return this.initTracker(p, cx);
     return this.initNavigator(p, cx);
   }
 
@@ -75,8 +79,14 @@ export default class Recall extends View {
 
   // ── Tracker ────────────────────────────────────────────────────────────
 
-  initTracker(cx) {
+  initTracker(p, cx) {
     this.sig = null;
+    // Herdr reopens a kept window as it was last opened. One kept at another
+    // size gives way to one at this size, which takes its place.
+    if (p.size !== TRACKER_SIZE) {
+      openOverlay(TRACKER);
+      return;
+    }
     cx.spawn(async () => {
       for (;;) this.trackerCommand(await nextCommand());
     });

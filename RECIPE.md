@@ -110,7 +110,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - `worktrees.js` for worktree grouping;
   - `icons/`: `spaces`, `tabs`, `panes`, `agents`, `all` and `search` SVGs (`search` is Clues' icon and the search field's).
 - **Two roles of one mod**, told apart by `props().role`:
-  - **The tracker** is a kept, frameless 1×1 window (`key: "recall-tracker"`, `keep: true`). Its render records every focus change, as space, tab, pane and agent, into shared `recall.history`. It answers `recall.open`, `recall.open-<category>`, `recall.open-agents-<sort>` and `recall.previous-*` from `nextCommand()`.
+  - **The tracker** is a kept, frameless window, 2px a side (`key: "recall-tracker"`, `keep: true`). It carries its size in its props; a tracker kept at another size reopens itself at this one. Its render records every focus change, as space, tab, pane and agent, into shared `recall.history`. It answers `recall.open`, `recall.open-<category>`, `recall.open-agents-<sort>` and `recall.previous-*` from `nextCommand()`.
   - **The navigator** is the dialog. Opening it opens the tracker, so one open starts tracking.
 - **A `keys.json` snippet**, merged into the person's keys:
 
@@ -145,6 +145,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **Use `v_virtual_list` with the row's height (30px, to scale) and `track_scroll`, not `uniform_list`.** A `uniform_list` ignores `track_scroll` (`herdr-app check` warns about it), so `scroll_to_item` does nothing and a selection moved past the visible rows goes off screen.
 - **The dialog only hears pointer moves while the pointer is over it.** A column resize ends when the pointer leaves the dialog.
 - **The tracker only records from its first open.** Recency starts empty after installing.
+- **Give the tracker's window a size above 1.** Herdr reads an overlay's width or height of 1 or less as a share of its own window, and a window overlay keeps the scrolls and presses over it. At 1 × 1 the tracker covers the whole window, unseen: clicks on spaces and panes do nothing, the wheel doesn't scroll terminals, and any drag moves the tracker instead.
 - **The dialog's size is fixed by `mod.json`.** Larger text, or a higher zoom, leaves fewer rows and less width. Give the name column its minimum width and let LOCATION, FOLDER and BRANCH shrink, or they squeeze the name out on a small window.
 - **`recall.json` is read after the first frame.** Keep the font and size it asked for in shared `recall.look` and draw the first frame from that, or the dialog opens at Herdr's size and jumps.
 - **Disclose before installing:** the mod runs programs (`exec`, `hc`) and reads terminal buffers. It reads nothing outside the app home besides what those programs report.
@@ -153,6 +154,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
 - `herdr-app check mods/recall` passes, and `node --test 'tests/*.test.mjs'` passes.
 - After the first `⌘E`, going from tab A to tab B and pressing `⌘E` opens with A's row selected, and Enter returns to A. Pressing `⌘E` twice closes the dialog.
+- With the tracker running, a click on a space still switches to it and the wheel still scrolls a terminal; `windows.json` keeps `recall-tracker` at 2 × 2.
 - `recall.previous-tab` jumps back to the previous tab even when it is in another space.
 - On Agents, a blocked agent reads "needs you" and Ctrl+S cycles Recent, Priority and Grouped.
 - Clicking a column head changes nothing: no sort, no ▲ or ▼.
