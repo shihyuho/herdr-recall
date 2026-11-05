@@ -20,7 +20,13 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - location ("space › tab") in muted 12px, folder and branch in dim 12px;
     - "needs you" (blocked color) or "finished" (done color) right-aligned in STATUS;
     - a 16px space badge: the space's first letter, white and bold, on the space's color.
-  - The name takes what the other columns leave, and never less than 200px: on a dialog too narrow for them all, LOCATION, FOLDER and BRANCH narrow in proportion, while STATUS keeps its width so its words stay whole. Defaults are LOCATION 210px, FOLDER 240px, BRANCH 140px, STATUS 70px.
+  - **Column widths.** LOCATION, FOLDER, BRANCH and STATUS are each as wide as their longest value needs, and the name takes the rest.
+    - The longest value is looked for in every row the category lists, whatever is typed, so the columns hold still while typing. Clues has rows only from its search, so there it is the rows found.
+    - A column is never narrower than its own head, nor wider than 520px.
+    - A row's name needs its indent, its path and itself, and a clue's reason. An agent's last message doesn't count: it shows in what room is left.
+    - When they can't all fit, the name comes first: it asks for what it needs, at most half the list's width. Then the folder gives way, down to its head, then the location, then the branch. STATUS never gives way to them, so its words stay whole.
+    - A folder too long for its column is cut at its start (`…/payments-api/feat/webhook-retry`), since what tells two paths apart is at their end. Every other cell is cut at its end.
+    - On a dialog too narrow even for the heads, LOCATION, FOLDER and BRANCH narrow in proportion to leave the name 200px, or what it asked for if that is less.
   - A linked worktree's space sits indented under its main checkout and reads "repo ⎇ branch".
   - Empty states read "Reading panes…", "Nothing matches" or "Nothing here yet". The exception is All with a query nothing matches, when Clues is one of the visible categories: it shows one selected row, a search glass and `Search Clues for "<query>"`; opening it (Enter or click) switches to Clues and leaves the query in the search field. Otherwise All shows "Nothing matches".
 - **Footer**, 28px high on the chrome background with a top border: the keys worth knowing now as small key chips with dim labels (`⏎ open`, `↑↓ move`, `⇥ category`, `⌃S sort` on Agents, `esc close` at the right). A broken `recall.json` shows its error here in the blocked color.
@@ -42,7 +48,10 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   Typing searches. Binding a movement key to a letter in `recall.json` turns on vim-style input: `j` `k` move, `h` `l` switch categories, `/` starts searching, and Escape leaves the search first.
 - **Mouse.**
   - Click a row to go there, or a rail entry to switch category.
-  - Drag the divider left of a head to resize that column, between 48px and 520px; the name column gives or takes the difference, so the divider stays under the pointer. Double-click the divider to restore its default. Widths are kept for next time, as designed-size px, so a kept width scales with the text. While the columns are narrowed to leave the name its room, a dragged divider may not sit exactly under the pointer.
+  - Drag the divider left of a head to set that column's width, between its head's width and 520px. A press that doesn't move sideways changes nothing. Double-click the divider to let the column fit its content again.
+    - The columns are first fitted as if nothing had been dragged; a dragged column is then drawn at its width, and the name gives or takes the difference, so the divider stays under the pointer and the other columns stay as they were.
+    - The name gives down to 200px, or to what it asked for if that is less. Past that, the columns that weren't dragged give way, the folder first, and a dragged column narrows only after them, never past its head. While that happens a dragged divider may not sit under the pointer.
+    - Dragged widths are kept for next time, for the columns dragged only, as designed-size px, so a kept width scales with the text.
 - **Text size and font.** The dialog follows Herdr's interface text size (`settings().ui_font_size`, 13px today) and interface font. In `recall.json`, `font_size` gives it a size of its own (the size of a row's name, in px at zoom 1) and `font` a family of its own. Everything in the dialog is drawn at that size ÷ 13 of its design: text, rows, icons, column widths and spacing. The 1px borders and the dialog's own size stay. The scale is held between 0.5 and 3, the range of Herdr's zoom, which still multiplies on top as it does for every mod. A `font_size` that isn't a positive number, or a `font` the machine doesn't have, is ignored without an error.
 - **All.** One row per destination:
   - every agent, standing for the pane it runs in;
@@ -105,7 +114,8 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - `fuzzy.js` for search;
     - `mru.js` for recency;
     - `config.js` for `recall.json`;
-    - `columns.js` for location text and widths;
+    - `columns.js` for location text, the room each column needs and how wide it is drawn;
+    - `textwidth.js` for how wide a text is drawn;
     - `look.js` for the text scale and the font;
     - `tracker.js` for the tracker's window;
     - `worktrees.js` for worktree grouping;
@@ -125,7 +135,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - `recall.history`: recency;
   - `recall.open`: the open dialog's heartbeat, every 1.5 s;
   - `recall.last`: the last category;
-  - `recall.columns`: column widths;
+  - `recall.widths`: the widths of the columns the person dragged;
   - `recall.look`: the font and size `recall.json` asked for last time;
   - it reads `space.colors`, as Herdr's own mods keep it, so badges match the sidebar.
 - **Programs run** (all local; nothing reaches the network):
@@ -148,6 +158,8 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **The tracker only records from its first open.** Recency starts empty after installing.
 - **Give the tracker's window a size above 1.** Herdr reads an overlay's width or height of 1 or less as a share of its own window, and a window overlay keeps the scrolls and presses over it. At 1 × 1 the tracker covers the whole window, unseen: clicks on spaces and panes do nothing, the wheel doesn't scroll terminals, and any drag moves the tracker instead.
 - **The dialog's size is fixed by `mod.json`.** Larger text, or a higher zoom, leaves fewer rows and less width. Give the name column its minimum width and let LOCATION, FOLDER and BRANCH shrink, or they squeeze the name out on a small window.
+- **Herdr gives a mod no way to measure text.** Work a text's width out from its characters: sum Geist's widths per character, as Herdr lays them out (measure them by drawing each one ten times in a box and reading a screenshot), and add 2% and 1px, since the sums come out up to 1.5% under what is drawn. Semibold is as wide as regular. When the dialog is drawn in another font, count each letter as 0.62 of the text size and a CJK character as the text size.
+- **Nothing tells the dialog its own width either.** The list is the dialog's 74% of `window.viewport_size().width`, divided by Herdr's zoom (the zoom enlarges what is in the window, not the window), less 2px of border, divided by the dialog's scale, less the 60px rail. A row then spends 24px on its ends, 56px on its status glyph, icon and badge, and 8px on each gap.
 - **`recall.json` is read after the first frame.** Keep the font and size it asked for in shared `recall.look` and draw the first frame from that, or the dialog opens at Herdr's size and jumps.
 - **Disclose before installing:** the mod runs programs (`exec`, `hc`) and reads terminal buffers. It reads nothing outside the app home besides what those programs report.
 
@@ -159,9 +171,10 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - `recall.previous-tab` jumps back to the previous tab even when it is in another space.
 - On Agents, a blocked agent reads "needs you" and Ctrl+S cycles Recent, Priority and Grouped.
 - Clicking a column head changes nothing: no sort, no ▲ or ▼.
-- Dragging LOCATION's divider widens it; the width is still there after reopening, and a double-click restores 210px.
+- With nothing dragged, a category whose longest values fit beside the name shows every one of them whole, and typing doesn't move the columns.
+- Dragging LOCATION's divider widens it; the width is still there after reopening, and a double-click lets it fit its content again.
 - With `"font_size": 19.5` in `recall.json`, the dialog draws everything one and a half times as large, from its first frame once it has been opened before; without it, the dialog looks as it does at 13px.
-- On a window too narrow for every column, or at a high zoom, the name still shows, LOCATION, FOLDER and BRANCH are narrower and lined up under their heads, and "needs you" is whole.
+- On a window too narrow for every column, or at a high zoom, the name still shows, the folder is cut at its start before the location or the branch narrow, every column is lined up under its head, and "needs you" is whole.
 - All lists each pane or agent once, led by its `space › tab › ` path, with no LOCATION column; a tab with one pane and a space with one tab have no row of their own.
 - In Clues, `port <n>` for a running dev server lists the pane that started it.
 - Typing puts rows where the term appears unbroken above rows that match by scattered letters, each group in its untyped order, and the selection skips the row you are on unless it is the only match.
