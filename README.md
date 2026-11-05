@@ -170,13 +170,19 @@ Every key in `~/.config/herdr-app/recall.json` is optional:
   "keybindings": {
     "move_up": ["k", "up"],
     "move_down": ["j", "down"]
-  }
+  },
+  "font": "JetBrains Mono",
+  "font_size": 15
 }
 ```
 
 - `categories`: which categories show, in this order. The switcher opens on the one used last, else the first. An empty list shows only All; unknown names are dropped and the first of a duplicate is kept. `workspaces`, `workspace` and `ws` mean `spaces`, and `others`, herdr-recent-navigator's name, means `clues`. `tabs`, the earlier name, is still read when `categories` is absent.
 - `keybindings`: `next_category`, `previous_category`, `move_up`, `move_down`, `select`, `dismiss`, `force_quit`, `backspace`. Binding a movement key to a letter, as above, turns on vim-style input: `j` `k` move, `h` `l` switch categories, `/` starts searching.
 - Keys use Herdr's spelling (`ctrl-p`, `shift-tab`) or herdr-recent-navigator's (`C-p`, `S-Tab`), so a config from there works as it is.
+- `font_size`: the size of a row's name, in px at Herdr's zoom 1. Rows, icons, columns and spacing scale with it. Left out, the switcher follows Herdr's interface text size, 13 today. A size below 6.5 or above 39 is held there, and anything that isn't a positive number is ignored.
+- `font`: a font family on this machine. Left out, or naming a font the machine doesn't have, the switcher uses Herdr's interface font.
+
+Herdr's zoom still scales the switcher along with everything else. The switcher's own size stays a share of the window, so larger text leaves fewer rows. When the window is too small for every column, the name keeps its room, the location, folder and branch columns narrow, and the status column keeps its width.
 
 </details>
 

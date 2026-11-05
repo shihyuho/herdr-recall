@@ -81,6 +81,19 @@ test("categories: order and visibility, aliases, unknown dropped, first of dupli
   assert.deepEqual(cats([]), ["all"]);
 });
 
+test("font and font_size: a name and a size are kept; anything else means none was asked for", () => {
+  const lookOf = (o) => {
+    const { font, fontSize } = parseConfig(JSON.stringify(o)).config;
+    return { font, fontSize };
+  };
+  assert.deepEqual(lookOf({ font: " JetBrains Mono ", font_size: 15 }), { font: "JetBrains Mono", fontSize: 15 });
+  assert.deepEqual(lookOf({ font_size: 12.5 }), { font: null, fontSize: 12.5 });
+  assert.deepEqual(lookOf({}), { font: null, fontSize: null });
+  assert.deepEqual(lookOf({ font: "  ", font_size: 0 }), { font: null, fontSize: null });
+  assert.deepEqual(lookOf({ font: 14, font_size: "15" }), { font: null, fontSize: null });
+  assert.deepEqual(lookOf({ font: ["Geist"], font_size: -3 }), { font: null, fontSize: null });
+});
+
 test("categories wins over tabs; tabs counts only when categories is absent", () => {
   const categoriesOf = (o) => parseConfig(JSON.stringify(o)).config.categories;
   assert.deepEqual(categoriesOf({ categories: ["panes"], tabs: ["agents", "all"] }), ["panes"]);

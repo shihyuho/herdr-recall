@@ -3,11 +3,15 @@
 //
 //   {
 //     "categories": ["all", "spaces", "tabs", "panes", "agents", "clues"],
-//     "keybindings": { "move_up": ["k", "up"], "move_down": ["j", "down"] }
+//     "keybindings": { "move_up": ["k", "up"], "move_down": ["j", "down"] },
+//     "font": "JetBrains Mono",
+//     "font_size": 15
 //   }
 //
 // `categories` is both the order of the categories and which ones show;
 // `tabs`, its earlier name, is read only when `categories` is absent.
+// `font` and `font_size` are the dialog's own, spelled as Herdr's
+// settings.json spells the terminals'; lib/look.js turns them into a look.
 // Keys use Herdr's keys.json spelling ("ctrl-p", "shift-tab", "escape");
 // the herdr-recent-navigator spelling ("C-p", "S-Tab", "Esc") works too, so
 // a config can move over as it is.
@@ -141,11 +145,38 @@ export function actionFor(keys, keystroke) {
   return null;
 }
 
+/** The font family asked for, trimmed; null when none is: Recall then uses Herdr's interface font. */
+function normalizeFont(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** The text size asked for, in px at zoom 1; null when none is: Recall then follows Herdr's. */
+function normalizeFontSize(value) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+const asObject = (raw) => (raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {});
+
+/**
+ * The font and text size a settings object asks for, each null when it
+ * asks for none. The object is recall.json's, or what the dialog kept of
+ * it for its next open, in the same spelling.
+ */
+export function normalizeLook(raw) {
+  const obj = asObject(raw);
+  return { font: normalizeFont(obj.font), fontSize: normalizeFontSize(obj.font_size) };
+}
+
 /** A whole settings object from recall.json's parsed contents (or null). */
 export function normalizeConfig(raw) {
-  const obj = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const obj = asObject(raw);
   const keys = normalizeKeys(obj.keybindings);
-  return { categories: normalizeCategories(obj.categories !== undefined ? obj.categories : obj.tabs), keys, modal: isModal(keys) };
+  return {
+    categories: normalizeCategories(obj.categories !== undefined ? obj.categories : obj.tabs),
+    keys,
+    modal: isModal(keys),
+    ...normalizeLook(obj),
+  };
 }
 
 /** Parses recall.json text; invalid JSON reads as no settings, with the error. */

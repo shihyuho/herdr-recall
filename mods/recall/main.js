@@ -15,15 +15,16 @@
 import { View, div } from "gpui-kit";
 import { v_flex, InputState, VirtualListScrollHandle } from "gpui-base";
 import {
-  spaces, panes, agents, terminals, focused, theme, props, run, shared, setShared,
+  spaces, panes, agents, terminals, focused, theme, settings, fonts, props, run, shared, setShared,
   openOverlay, closeOverlay, nextCommand, home, appHome, readTextFile, exec, hc,
 } from "herdr";
 import * as mru from "./lib/mru.js";
 import { listView } from "./lib/listview.js";
-import { actionFor, isPrintable, normalizeKey, parseConfig, parseOpenCommand } from "./lib/config.js";
+import { actionFor, isPrintable, normalizeKey, normalizeLook, parseConfig, parseOpenCommand } from "./lib/config.js";
 import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/clue-extract.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
 import { DEFAULT_WIDTHS, dragWidth, loadWidths } from "./lib/columns.js";
+import { DESIGN_TEXT, pickFont, textScale } from "./lib/look.js";
 import { navigator } from "./ui.js";
 
 const MOD = "recall";
@@ -31,6 +32,7 @@ const HISTORY = "recall.history";
 const OPEN = "recall.open";
 const LAST = "recall.last";
 const WIDTHS = "recall.columns";
+const LOOK = "recall.look";
 const BEAT = 1500;
 const FRESH = 4000;
 const TRACKER = { mod: MOD, kind: "window", key: "recall-tracker", keep: true, frame: "none", width: 1, height: 1, at: { x: 0, y: 0 }, props: { role: "tracker" } };
@@ -152,6 +154,10 @@ export default class Recall extends View {
 
     const { config } = parseConfig(null);
     this.applyConfig(config, cx);
+    // recall.json is read after the first frame: until then, draw in the
+    // font and size it asked for last time, so the dialog doesn't jump.
+    this.applyLook(normalizeLook(shared(LOOK)));
+    this.scale = 1;
     this.requested = p.category ?? null;
     this.category = this.startCategory();
     this.agentSort = p.agentSort ?? "mru";
@@ -186,6 +192,8 @@ export default class Recall extends View {
       const { config, error } = parseConfig(text);
       this.configError = error;
       this.applyConfig(config, cx);
+      this.applyLook(config);
+      this.keepLook(config);
       this.category = this.startCategory();
       this.at = null;
       this.focusForMode();
@@ -215,6 +223,22 @@ export default class Recall extends View {
     this.modal = config.modal;
     this.mode = this.modal ? "navigation" : "type";
     this.bindKeys(cx);
+  }
+
+  /**
+   * The font and text size recall.json asks for; without them the dialog
+   * follows Herdr's. fonts() lists every family on the machine, so it is
+   * asked only when a font is named.
+   */
+  applyLook({ font, fontSize }) {
+    this.fontSize = fontSize;
+    this.font = font ? pickFont(font, fonts()) : null;
+  }
+
+  /** Keeps what recall.json asks for, in its own spelling, for the next open's first frame. */
+  keepLook({ font, fontSize }) {
+    const look = font || fontSize ? { font, font_size: fontSize } : null;
+    if (JSON.stringify(shared(LOOK) ?? null) !== JSON.stringify(look)) setShared(LOOK, look);
   }
 
   /**
@@ -465,7 +489,7 @@ export default class Recall extends View {
   resizeTo(x) {
     const r = this.resizing;
     if (!r) return false;
-    const width = dragWidth(r.width, x - r.x);
+    const width = dragWidth(r.width, x - r.x, this.scale);
     if (width === this.widths[r.column]) return false;
     this.widths = { ...this.widths, [r.column]: width };
     return true;
@@ -500,6 +524,10 @@ export default class Recall extends View {
       this.follow = false;
     }
     const loading = this.category === "clues" && this.clueTargets().length > 0 && !this.data.paneState.size;
+    // Herdr's interface text size, as settings() reports it (13 today; the
+    // typings leave its shape open, so textScale takes a missing one as 13).
+    // Read on every frame, not kept: a frame drawn after it changes follows it.
+    this.scale = textScale(this.fontSize, settings()?.ui_font_size);
 
     const act = (fn) => (_e, cx) => { fn(); cx.notify(); };
     return v_flex()
@@ -508,7 +536,8 @@ export default class Recall extends View {
       .track_focus(this.handle)
       .size_full()
       .bg(t.popover)
-      .text_size(13)
+      .text_size(DESIGN_TEXT * this.scale)
+      .when(Boolean(this.font), (el) => el.font_family(this.font))
       .text_color(t.foreground)
       .on_action(KEY_ACTIONS.next_category, act(() => this.cycleCategory(1)))
       .on_action(KEY_ACTIONS.previous_category, act(() => this.cycleCategory(-1)))
