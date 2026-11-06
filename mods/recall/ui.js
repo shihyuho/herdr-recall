@@ -234,6 +234,8 @@ function row(t, u, nav, { item, hits }, on) {
         .child(highlighted(item.title, titleHits(item, hits), item.kind === "hint" ? t.dim : t.foreground, t.accent)
           .when(Boolean(item.current), (d) => d.font_semibold())))
       .when(item.kind === "hint", (el) => el.child(div().flex_none().text_color(t.blocked).child(`(${item.reason})`)))
+      // PROTOTYPE: an unnamed tab's panes, dim, lit where the search matched them.
+      .when(Boolean(item.aside), (el) => el.child(h_flex().min_w(0).overflow_hidden().text_size(u(12)).child(highlighted(item.aside, hits.panes, t.dim, t.accent))))
       .when(Boolean(item.message), (el) => el.child(div().min_w(0).truncate().text_size(u(12)).text_color(t.dim).child(item.message))))
     .children(shownColumns(nav.category).map((key) => cells[key]()))
     .child(badge(t, item, u(LAYOUT.badge)));
@@ -286,6 +288,10 @@ function footer(t, u, nav) {
   return h_flex().h(u(28)).flex_none().px(u(14)).gap(u(14)).items_center().border_t(1).border_color(t.border).bg(t.chrome)
     .text_size(u(11)).overflow_hidden()
     .children([
+      // PROTOTYPE: which design is drawn; ⌃B or a click flips it.
+      h_flex().id("recall-proto-toggle").flex_none().gap(u(5)).items_center().px(u(6)).rounded(u(4)).bg(t.accent).text_color(t.popover).font_semibold().cursor_pointer()
+        .on_click((_e, cx) => { nav.toggleProto(); cx.notify(); })
+        .child(`PROTOTYPE ⌃B · ${nav.protoAfter() ? "AFTER (Herdr names)" : "BEFORE (main)"}`),
       nav.configError ? div().flex_none().max_w(u(320)).truncate().text_color(t.blocked).child(nav.configError) : null,
       ...all.map(chip),
       div().flex_1(),

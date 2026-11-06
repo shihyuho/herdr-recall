@@ -15,7 +15,7 @@
 import { View, div } from "gpui-kit";
 import { v_flex, InputState, VirtualListScrollHandle } from "gpui-base";
 import {
-  spaces, panes, agents, terminals, focused, theme, settings, fonts, props, run, shared, setShared,
+  spaces, panes, agents, terminals, focused, theme, settings, fonts, props, run, shared, setShared as _setShared,
   openOverlay, closeOverlay, nextCommand, home, appHome, readTextFile, exec, hc,
 } from "herdr";
 import * as mru from "./lib/mru.js";
@@ -28,8 +28,13 @@ import { DESIGN_TEXT, pickFont, textScale } from "./lib/look.js";
 import { metricsFor } from "./lib/textwidth.js";
 import { isCurrentTracker, trackerWindow } from "./lib/tracker.js";
 import { navigator } from "./ui.js";
+import { proto } from "./lib/items.js";
 
-const MOD = "recall";
+// PROTOTYPE copy: writes no shared state and starts no tracker, so the real
+// Recall is untouched; it reads the real history and data.
+const setShared = () => {};
+
+const MOD = "recall-proto";
 const HISTORY = "recall.history";
 const OPEN = "recall.open";
 const LAST = "recall.last";
@@ -158,7 +163,6 @@ export default class Recall extends View {
     }
     this.beat();
     cx.timer.every(BEAT, () => this.beat());
-    if (p.from !== "tracker") openOverlay(TRACKER);
 
     const { config } = parseConfig(null);
     this.applyConfig(config, cx);
@@ -476,11 +480,22 @@ export default class Recall extends View {
       else if (this.mode === "navigation" && k === "h") this.cycleCategory(-1);
       else if (this.mode === "navigation" && k === "l") this.cycleCategory(1);
       else if (k === "ctrl-s" && this.category === "agents") this.cycleSort();
+      else if (k === "ctrl-b") this.toggleProto();
       else if (this.mode === "navigation" && printable) {} // swallowed: navigation types nothing
       else return;
     }
     cx.stop_propagation();
     cx.notify();
+  }
+
+  toggleProto() {
+    proto.after = !proto.after;
+    this.at = null;
+    this.follow = true;
+  }
+
+  protoAfter() {
+    return proto.after;
   }
 
   cycleSort() {

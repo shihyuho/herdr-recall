@@ -10,6 +10,11 @@
 
 import * as mru from "./mru.js";
 
+// PROTOTYPE (throwaway, branch prototype/herdr-tab-names): `after` is the
+// agreed design (Herdr's tab names, one pane name everywhere, unnamed tabs
+// list their panes in dim); `before` is main as it stands. ⌃B flips it.
+export const proto = { after: true };
+
 const STATUS_RANK = { blocked: 0, done: 1, working: 2, idle: 3 };
 
 /** Sort rank of a status: blocked first, then done, working, idle; no status last. */
@@ -67,7 +72,9 @@ export function describePane(p, snap) {
   return {
     pane: p,
     agent,
-    title: title || (p.terminal ? lastSegment(cwd) || program?.name : p.mod) || p.title || "",
+    title: title || (p.terminal
+      ? (proto.after ? program?.name || lastSegment(cwd) : lastSegment(cwd) || program?.name)
+      : p.mod) || p.title || "",
     program,
     cwd,
     branch: p.branch ?? null,
@@ -90,6 +97,7 @@ function paneLabel(d) {
 
 /** A tab's display name: its own name when named, else what it runs. */
 export function tabLabel(tab, described) {
+  if (proto.after) return tab.name || String(tab.index);
   if (tab.named) return tab.name;
   return paneLabel(leadPane(described)) || `Tab ${tab.index}`;
 }
@@ -177,6 +185,7 @@ function tabRows(snap, ix) {
       const lead = leadPane(ps);
       const title = tabLabel(t, ps);
       const runs = [...new Set(ps.map((d) => d.program?.name).filter(Boolean))].join(" · ");
+      const panesText = proto.after ? ps.map(paneLabel).join(" · ") : ps.map(paneLabel).join(" ");
       items.push({
         kind: "tab",
         key: `tab:${t.id}`,
@@ -196,12 +205,13 @@ function tabRows(snap, ix) {
         current: snap.focused?.tab === t.id,
         at: mru.lastFocused(snap.history, "tab", t.id),
         settled: t.settled,
+        aside: proto.after && !t.named ? panesText : null,
         fields: [
           { key: "title", text: title },
           { key: "detail", text: t.named ? paneLabel(lead) : runs },
           { key: "where", text: spaceLabel(s, snap.worktrees) },
           { key: "path", text: tildify(lead?.cwd, snap.home) },
-          { key: "panes", text: ps.map(paneLabel).join(" ") },
+          { key: "panes", text: panesText },
           { key: "branch", text: lead?.branch ?? "" },
           { key: "status", text: STATUS_WORD[t.status] ?? "" },
         ],
