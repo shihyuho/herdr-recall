@@ -211,7 +211,10 @@ function row(t, u, nav, { item, hits }, on) {
     branch: () => cell("branch", item.branch, t.dim),
     status: () => sized(h_flex(), u, nav, "status").justify_end().child(statusWord(t, u, item.status) ?? div()),
   };
-  return h_flex().h(u(ROW)).mx(u(LAYOUT.margin)).px(u(LAYOUT.pad)).gap(u(LAYOUT.gap)).items_center().rounded(u(6))
+  // The id is what makes the light follow the pointer: Herdr draws a frame
+  // for a hover only on an element it keeps state for, and without one the
+  // light waits for the next frame something else asks for.
+  return h_flex().id(`recall-row-${item.key}`).h(u(ROW)).mx(u(LAYOUT.margin)).px(u(LAYOUT.pad)).gap(u(LAYOUT.gap)).items_center().rounded(u(6))
     .when(on, (el) => el.bg(t.selection))
     // The row under the pointer lights up, except during a column resize,
     // when the pointer only passes over it. A style, not a handler, so the

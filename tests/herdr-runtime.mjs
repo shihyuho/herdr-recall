@@ -8,6 +8,7 @@
 //
 //   drawnRows(dialog) → one record per row of the dialog's list, as Herdr
 //                       asks the list's renderer for them
+//   drawnElements(dialog) → one record per element, those rows included
 //   a record          = { styles: { <call>: its argument, or true with none },
 //                         hover:  the styles declared for under the pointer,
 //                         children }
@@ -71,6 +72,22 @@ function find(el, kind) {
     if (found) return found;
   }
   return null;
+}
+
+/** Every element the dialog draws, as records: its own tree and each row of its list. */
+export function drawnElements(dialog) {
+  const out = [];
+  const walk = (el) => {
+    const record = el?.[RECORD];
+    if (!record) return;
+    out.push(record);
+    record.children.forEach(walk);
+    if (record.kind !== "v_virtual_list") return;
+    const [, count, , , render] = record.args;
+    render({ start: 0, end: count }).forEach(walk);
+  };
+  walk(dialog);
+  return out;
 }
 
 /** The rows of the dialog's list, all of them, as records. */
