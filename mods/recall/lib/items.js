@@ -202,12 +202,14 @@ function tabRows(snap, ix) {
         settled: t.settled,
         // The names of the tab's panes, shown for a tab without a name of its own.
         paneList: t.named ? null : paneNames,
+        // A term found in several fields lights the first, so the ones a
+        // row draws (its name, All's path, the pane list) come first.
         fields: [
           { key: "title", text: title },
-          { key: "detail", text: t.named ? paneName(lead) : runs },
           { key: "where", text: spaceLabel(s, snap.worktrees) },
-          { key: "path", text: tildify(lead?.cwd, snap.home) },
           { key: "panes", text: paneNames },
+          { key: "detail", text: t.named ? paneName(lead) : runs },
+          { key: "path", text: tildify(lead?.cwd, snap.home) },
           { key: "branch", text: lead?.branch ?? "" },
           { key: "status", text: STATUS_WORD[t.status] ?? "" },
         ],

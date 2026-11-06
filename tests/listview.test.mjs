@@ -194,6 +194,14 @@ test("Tabs, typed: a pane's name lights its letters in an unnamed tab's pane lis
   assert.deepEqual(keys(listView("tabs", snap, "README")), ["tab:tb-guides"]);
 });
 
+// The tab is also searched by what it runs, which holds "zsh" too but is not
+// drawn: the letters must light where the row shows them.
+test("Tabs, typed: a bare shell's name lights in an unnamed tab's pane list, though the tab runs a program of that name", () => {
+  const row = listView("tabs", unnamedCheckout(), "zsh").rows.find((r) => r.item.key === "tab:tb-checkout");
+  // "fix cart rounding · review cart totals · zsh": zsh at 41 to 43.
+  assert.deepEqual(row.hits, { panes: [41, 42, 43] });
+});
+
 test("All, typed: an agent's title finds the agent and its unnamed tab, no longer the shell pane beside it", () => {
   assert.deepEqual(keys(listView("all", unnamedCheckout(), "rounding")), ["agent:t-cart", "tab:tb-checkout"]);
 });
@@ -446,7 +454,7 @@ test("`'ng` keeps only rows where ng appears unbroken; plain `ng` also takes sca
   // "fix cart rounding": n-g at 15, 16.
   assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [
     ["agent:t-cart", { title: [15, 16] }],
-    ["tab:tb-checkout", { detail: [15, 16] }],
+    ["tab:tb-checkout", { panes: [15, 16] }],
   ]);
 });
 
@@ -530,7 +538,7 @@ test("`\\ ` is a literal space inside a term", () => {
   // "fix cart rounding": "cart r" at 4 to 9.
   assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [
     ["agent:t-cart", { title: [4, 5, 6, 7, 8, 9] }],
-    ["tab:tb-checkout", { detail: [4, 5, 6, 7, 8, 9] }],
+    ["tab:tb-checkout", { panes: [4, 5, 6, 7, 8, 9] }],
   ]);
 });
 
