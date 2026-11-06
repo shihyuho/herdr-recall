@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { CATEGORY_IDS, DEFAULT_KEYS } from "../mods/recall/lib/config.js";
 import { listView } from "../mods/recall/lib/listview.js";
 import { world } from "./fixtures.mjs";
-import { drawnRows } from "./herdr-runtime.mjs";
+import { drawnElements, drawnRows } from "./herdr-runtime.mjs";
 
 const { navigator } = await import("../mods/recall/ui.js");
 
@@ -28,6 +28,17 @@ test("a row lights up under the pointer in the theme's hover color; the selected
   const rows = drawnRows(dialog());
   assert.deepEqual(rows.map((row) => row.hover.bg), ["hover", undefined, "hover"]);
   assert.deepEqual(rows.map((row) => row.styles.bg), [undefined, "selection", undefined]);
+});
+
+// Herdr draws a frame for a pointer that crosses onto an element only when
+// the element has an id; without one the light waits for the next frame
+// something else asks for, up to half a second later.
+test("whatever lights up under the pointer has an id, and each row its own, so the light follows the pointer at once", () => {
+  const lit = drawnElements(dialog()).filter((el) => Object.keys(el.hover).length);
+  assert.ok(lit.length >= 2, "the dialog draws elements that light up");
+  assert.deepEqual(lit.filter((el) => !el.styles.id).map((el) => el.kind), []);
+  const ids = drawnRows(dialog()).map((row) => row.styles.id);
+  assert.equal(new Set(ids).size, ids.length);
 });
 
 test("the pointer is a hand over every row, and while a column is being dragged it is no hand and no row lights up", () => {
