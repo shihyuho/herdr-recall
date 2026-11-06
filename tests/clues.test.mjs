@@ -3,6 +3,7 @@
 // same list view as every other category.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { location } from "../mods/recall/lib/columns.js";
 import { listView } from "../mods/recall/lib/listview.js";
 import * as mru from "../mods/recall/lib/mru.js";
 import { world, HOME } from "./fixtures.mjs";
@@ -42,6 +43,14 @@ test("Clues lists what every pane runs and where, agents included; a bare shell 
   assert.deepEqual(view.rows.map((r) => [r.item.clue, r.item.id, r.item.title]), [
     ["cmd", "p1", "claude"],
     ["cmd", "p3", "nvim main.go"],
+  ]);
+});
+
+test("Clues rows carry the Location the other categories show: an unnamed tab by its position, a named one by its name", () => {
+  const content = new Map([["p1", "ok\n"], ["p2", "ok\n"], ["p3", "ok\n"]]);
+  const rows = listView("clues", world(), ".ok", { clueData: clueData(new Map(), content) }).rows;
+  assert.deepEqual(rows.map((r) => [r.item.id, location(r.item)]).sort(), [
+    ["p1", "web › 1"], ["p2", "web › server"], ["p3", "api › 1"],
   ]);
 });
 

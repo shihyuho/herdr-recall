@@ -9,9 +9,9 @@ import { world } from "./fixtures.mjs";
 
 const titles = (items) => items.map((i) => i.title);
 
-test("an unnamed tab reads as what it runs, not its number", () => {
+test("a tab reads as Herdr calls it: its position when unnamed, its name when named", () => {
   const items = buildItems("tabs", world());
-  assert.deepEqual(titles(items), ["fix login bug", "server", "nvim"]);
+  assert.deepEqual(titles(items), ["1", "server", "1"]);
   assert.equal(items.find((i) => i.id === "tb2").current, true);
 });
 

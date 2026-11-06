@@ -3,6 +3,7 @@
 // and the row selected when the list opens.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { location } from "../mods/recall/lib/columns.js";
 import { listView } from "../mods/recall/lib/listview.js";
 import * as mru from "../mods/recall/lib/mru.js";
 import { world, town, HOME } from "./fixtures.mjs";
@@ -147,6 +148,54 @@ test("All leads each name with its path; a bare shell goes by its program, a tab
   // A tab row carries no program, so it draws the tab icon; Tabs draws its lead pane's.
   assert.equal(itemOf(view, "tab:tb-checkout").program, null);
   assert.equal(itemOf(listView("tabs", town(), ""), "tab:tb-checkout").program.name, "Claude Code");
+});
+
+/** town() with checkout left unnamed: Herdr then calls it by its position, 1. */
+function unnamedCheckout() {
+  const snap = town();
+  Object.assign(snap.spaces[0].tabs[0], { name: "1", named: false });
+  for (const a of snap.agents) if (a.tab === "tb-checkout") a.tab_name = "1";
+  return snap;
+}
+
+test("a tab goes by Herdr's name in every Location: its position when unnamed, its own name when named", () => {
+  const snap = unnamedCheckout();
+  const all = listView("all", snap, "");
+  assert.equal(itemOf(all, "agent:t-cart").crumb, "storefront › 1 › ");
+  assert.equal(itemOf(all, "pane:p-cartsh").crumb, "storefront › 1 › ");
+  assert.equal(itemOf(all, "pane:p-dev").crumb, "storefront › dev-server › ");
+  const panes = listView("panes", snap, "");
+  assert.equal(location(itemOf(panes, "pane:p-cartsh")), "storefront › 1");
+  assert.equal(location(itemOf(panes, "pane:p-ref")), "payments-api › refunds");
+  const agents = listView("agents", snap, "");
+  assert.equal(location(itemOf(agents, "agent:t-cart")), "storefront › 1");
+  assert.equal(location(itemOf(agents, "agent:t-hooks")), "payments-api › webhooks");
+});
+
+test("a tab row is titled by its Tab name; an unnamed one lists its panes' names in Herdr's order, a named one none", () => {
+  const snap = unnamedCheckout();
+  for (const category of ["tabs", "all"]) {
+    const view = listView(category, snap, "");
+    const checkout = itemOf(view, "tab:tb-checkout");
+    assert.equal(checkout.title, "1", category);
+    assert.equal(checkout.paneList, "fix cart rounding · review cart totals · zsh", category);
+    const guides = itemOf(view, "tab:tb-guides");
+    assert.equal(guides.title, "guides", category);
+    assert.equal(guides.paneList, null, category);
+  }
+});
+
+test("Tabs, typed: a pane's name lights its letters in an unnamed tab's pane list; a named tab is still found by its panes", () => {
+  const snap = unnamedCheckout();
+  const view = listView("tabs", snap, "review");
+  assert.deepEqual(keys(view), ["tab:tb-checkout"]);
+  // "fix cart rounding · review cart totals · zsh": review at 20 to 25.
+  assert.deepEqual(view.rows[0].hits, { panes: [20, 21, 22, 23, 24, 25] });
+  assert.deepEqual(keys(listView("tabs", snap, "README")), ["tab:tb-guides"]);
+});
+
+test("All, typed: an agent's title finds the agent and its unnamed tab, no longer the shell pane beside it", () => {
+  assert.deepEqual(keys(listView("all", unnamedCheckout(), "rounding")), ["agent:t-cart", "tab:tb-checkout"]);
 });
 
 test("a pane goes by one name in every category: its program when it has no title, its folder when Herdr doesn't know the program", () => {
