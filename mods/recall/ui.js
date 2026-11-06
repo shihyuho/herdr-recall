@@ -234,6 +234,10 @@ function row(t, u, nav, { item, hits }, on) {
         .child(highlighted(item.title, titleHits(item, hits), item.kind === "hint" ? t.dim : t.foreground, t.accent)
           .when(Boolean(item.current), (d) => d.font_semibold())))
       .when(item.kind === "hint", (el) => el.child(div().flex_none().text_color(t.blocked).child(`(${item.reason})`)))
+      // An unnamed tab's panes, in what room is left; it is the `panes`
+      // field, so that field's hits light up inside it.
+      .when(Boolean(item.paneList), (el) => el.child(h_flex().min_w(0).overflow_hidden().text_size(u(12))
+        .child(highlighted(item.paneList, hits.panes, t.dim, t.accent))))
       .when(Boolean(item.message), (el) => el.child(div().min_w(0).truncate().text_size(u(12)).text_color(t.dim).child(item.message))))
     .children(shownColumns(nav.category).map((key) => cells[key]()))
     .child(badge(t, item, u(LAYOUT.badge)));

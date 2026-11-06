@@ -6,7 +6,8 @@
 //   { kind, key, id, title, detail, where, path, branch, program, status,
 //     current, at, fields: [{ key, text }], actions: [[command, args]] }
 // `fields` is what search matches; `actions` run in order when the row is
-// opened. All's rows also carry `crumb`, the path drawn before the name.
+// opened. All's rows also carry `crumb`, the path drawn before the name,
+// and an unnamed tab's row `paneList`, its panes' names drawn after it.
 
 import * as mru from "./mru.js";
 
@@ -56,6 +57,8 @@ export function index(snap) {
  * What a pane shows, filled in from what Herdr knows elsewhere. A pane in a
  * tab the window hasn't drawn yet only has its terminal's address as title
  * and its shell as program; the agents list and herdr-core know better.
+ * Its title is its Pane name: agent's title, else the title its program set,
+ * else its program, else its folder, else (a mod's pane) the mod.
  */
 export function describePane(p, snap) {
   const agent = p.terminal ? snap.agents.find((a) => a.address === p.terminal) : null;
@@ -67,7 +70,7 @@ export function describePane(p, snap) {
   return {
     pane: p,
     agent,
-    title: title || (p.terminal ? lastSegment(cwd) || program?.name : p.mod) || p.title || "",
+    title: title || program?.name || (p.terminal ? lastSegment(cwd) : p.mod) || p.title || "",
     program,
     cwd,
     branch: p.branch ?? null,
@@ -77,21 +80,21 @@ export function describePane(p, snap) {
 
 /**
  * What a tab is about: its agent's pane, else its focused pane, else its
- * first. Herdr calls an unnamed tab by its number, which says nothing.
+ * first. It gives a tab row its icon, folder and branch, not its name.
  */
 export function leadPane(described) {
   if (!described?.length) return null;
   return described.find((d) => d.agent || d.program?.agent) ?? described.find((d) => d.pane.focused) ?? described[0];
 }
 
-function paneLabel(d) {
-  return d?.title || d?.program?.name || "";
+/** A pane's Pane name; describePane holds the fallbacks. */
+function paneName(d) {
+  return d?.title ?? "";
 }
 
-/** A tab's display name: its own name when named, else what it runs. */
-export function tabLabel(tab, described) {
-  if (tab.named) return tab.name;
-  return paneLabel(leadPane(described)) || `Tab ${tab.index}`;
+/** A tab's Tab name, as Herdr calls it: the name it was given, else its position in its space. */
+export function tabName(tab) {
+  return tab.name || String(tab.index);
 }
 
 function spaceLabel(space, worktrees) {
@@ -116,7 +119,7 @@ function spaceRows(snap, ix) {
       spaceId: s.id,
       spaceName: title,
       tabName: null,
-      tabs: s.tabs.map((t) => ({ title: tabLabel(t, ix.panesOf.get(t.id)), status: t.status, active: t.active })),
+      tabs: s.tabs.map((t) => ({ title: tabName(t), status: t.status, active: t.active })),
       path,
       branch: s.branch,
       program: null,
@@ -175,20 +178,21 @@ function tabRows(snap, ix) {
     for (const t of s.tabs) {
       const ps = ix.panesOf.get(t.id) ?? [];
       const lead = leadPane(ps);
-      const title = tabLabel(t, ps);
+      const title = tabName(t);
       const runs = [...new Set(ps.map((d) => d.program?.name).filter(Boolean))].join(" · ");
+      const paneNames = ps.map(paneName).join(" · ");
       items.push({
         kind: "tab",
         key: `tab:${t.id}`,
         id: t.id,
         title,
-        detail: t.named ? paneLabel(lead) : runs,
+        detail: t.named ? paneName(lead) : runs,
         where: spaceLabel(s, snap.worktrees),
         spaceId: s.id,
         spaceName: spaceLabel(s, snap.worktrees),
         tabName: null,
         terminal: lead?.pane.terminal ?? null,
-        panes: ps.map((d) => ({ title: paneLabel(d), program: d.program, status: d.status })),
+        panes: ps.map((d) => ({ title: paneName(d), program: d.program, status: d.status })),
         path: tildify(lead?.cwd, snap.home),
         branch: lead?.branch ?? null,
         program: lead?.program ?? null,
@@ -196,12 +200,16 @@ function tabRows(snap, ix) {
         current: snap.focused?.tab === t.id,
         at: mru.lastFocused(snap.history, "tab", t.id),
         settled: t.settled,
+        // The names of the tab's panes, shown for a tab without a name of its own.
+        paneList: t.named ? null : paneNames,
+        // A term found in several fields lights the first, so the ones a
+        // row draws (its name, All's path, the pane list) come first.
         fields: [
           { key: "title", text: title },
-          { key: "detail", text: t.named ? paneLabel(lead) : runs },
           { key: "where", text: spaceLabel(s, snap.worktrees) },
+          { key: "panes", text: paneNames },
+          { key: "detail", text: t.named ? paneName(lead) : runs },
           { key: "path", text: tildify(lead?.cwd, snap.home) },
-          { key: "panes", text: ps.map(paneLabel).join(" ") },
           { key: "branch", text: lead?.branch ?? "" },
           { key: "status", text: STATUS_WORD[t.status] ?? "" },
         ],
@@ -223,10 +231,10 @@ function paneRows(snap, ix) {
     const at = ix.tab.get(p.tab);
     if (!at) continue;
     const d = ix.described.get(p.pane);
-    const tLabel = tabLabel(at.tab, ix.panesOf.get(p.tab));
-    const sLabel = spaceLabel(at.space, snap.worktrees);
-    const title = paneLabel(d);
-    const where = `${sLabel} › ${tLabel}`;
+    const tab = tabName(at.tab);
+    const spaceName = spaceLabel(at.space, snap.worktrees);
+    const title = paneName(d);
+    const where = `${spaceName} › ${tab}`;
     const path = tildify(d.cwd, snap.home);
     items.push({
       kind: "pane",
@@ -236,8 +244,8 @@ function paneRows(snap, ix) {
       detail: d.program?.name && d.program.name !== title ? d.program.name : "",
       where,
       spaceId: at.space.id,
-      spaceName: sLabel,
-      tabName: tLabel,
+      spaceName,
+      tabName: tab,
       path,
       branch: d.branch,
       program: d.program,
@@ -267,10 +275,10 @@ function paneItems(snap, ix) {
 function agentRows(snap, ix) {
   return snap.agents.map((a, i) => {
     const at = ix.tab.get(a.tab);
-    const sLabel = at ? spaceLabel(at.space, snap.worktrees) : a.space_name;
-    const tLabel = at ? tabLabel(at.tab, ix.panesOf.get(a.tab)) : a.tab_name;
+    const spaceName = at ? spaceLabel(at.space, snap.worktrees) : a.space_name;
+    const tab = at ? tabName(at.tab) : a.tab_name;
     const title = a.title || a.program?.name || a.address;
-    const where = `${sLabel} › ${tLabel}`;
+    const where = `${spaceName} › ${tab}`;
     const pane = ix.described.get(a.pane);
     const path = tildify(pane?.cwd, snap.home);
     return {
@@ -281,8 +289,8 @@ function agentRows(snap, ix) {
       detail: a.program?.name && a.program.name !== title ? a.program.name : "",
       where,
       spaceId: a.space,
-      spaceName: sLabel,
-      tabName: tLabel,
+      spaceName,
+      tabName: tab,
       terminal: a.address,
       message: snap.terminals?.find((x) => x.address === a.address)?.report?.msg ?? null,
       path,
@@ -366,7 +374,7 @@ function allItems(snap, ix) {
       const ats = [agent.at, mru.lastFocused(snap.history, "pane", p.pane)].filter((x) => x != null);
       out.push({ ...agent, at: ats.length ? Math.max(...ats) : null });
       agents.delete(p.terminal);
-    } else if (panes.has(p.pane)) out.push(shellNamed(panes.get(p.pane), p));
+    } else if (panes.has(p.pane)) out.push(panes.get(p.pane));
   }
   out.push(...agents.values()); // an agent whose pane Herdr doesn't list
   const tabs = tabRows(snap, ix)
@@ -375,14 +383,6 @@ function allItems(snap, ix) {
   const spaces = snap.spaces.length > 1 ? spaceRows(snap, ix).filter((s) => s.tabs.length > 1) : [];
   const withCrumb = (i) => ({ ...i, crumb: i.kind === "space" ? "" : `${i.where} › ` });
   return restingOrder([...out, ...tabs, ...spaces].map(withCrumb));
-}
-
-/** A pane running a bare shell, with no title of its own, goes by its program's name. */
-function shellNamed(item, raw) {
-  const bare = !raw.title || raw.title === raw.terminal;
-  if (!bare || !item.program?.shell) return item;
-  const title = item.program.name;
-  return { ...item, title, detail: "", fields: item.fields.map((f) => (f.key === "title" ? { ...f, text: title } : f)) };
 }
 
 /** The rows of one category. `options.agentSort`: "mru" | "priority" | "grouped". */

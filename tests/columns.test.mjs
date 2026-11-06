@@ -18,7 +18,7 @@ test("a space's location says what it holds and where it runs; anything else, wh
   const spaces = Object.fromEntries(buildItems("spaces", snap).map((i) => [i.title, location(i)]));
   assert.deepEqual(spaces, { web: "2 tabs · 1 agent", api: "on box · 1 tab" });
   const panes = Object.fromEntries(buildItems("panes", snap).map((i) => [i.id, location(i)]));
-  assert.deepEqual(panes, { p1: "web › fix login bug", p2: "web › server", p3: "api › nvim" });
+  assert.deepEqual(panes, { p1: "web › 1", p2: "web › server", p3: "api › 1" });
   assert.deepEqual(buildItems("tabs", snap).map(location), ["web", "web", "api"]);
 });
 
@@ -46,6 +46,12 @@ test("the name needs its path and itself, not the agent's last message", () => {
   assert.equal(needs.name, textWidth("web › server › fix login bug", 13, GEIST));
   const chatty = { ...row, message: "ran the whole suite twice and both runs came back green, so the fix holds" };
   assert.equal(columnNeeds([chatty], PANE_HEADS, GEIST).name, needs.name);
+});
+
+test("an unnamed tab's name needs its Tab name, not its pane list", () => {
+  const unnamed = buildItems("tabs", world()).find((i) => i.id === "tb1");
+  assert.equal(unnamed.paneList, "fix login bug");
+  assert.equal(columnNeeds([unnamed], PANE_HEADS, GEIST).name, textWidth("1", 13, GEIST));
 });
 
 test("a row nested under its main checkout needs its 18px indent as well; a clue's reason, itself and the 8px before it", () => {

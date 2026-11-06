@@ -16,14 +16,14 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - Rows 30px high, radius 6. The selected row has the theme's selection background; any other row under the pointer has the theme's hover background, as a rail entry does, and the pointer is a hand over every row. Neither applies while a column is being dragged. Left to right:
     - the status glyph;
     - the program's icon in a 30px column (the tab icon on All's tab rows; on Clues, a colored clue label instead: `cmd`, `ssh`, `file`, `term`, `port`, `pid`);
-    - the name, with matched letters in the accent color and semibold, and the row you are in now semibold. On All the name is led by its path in dim: `space › tab › ` for a pane or agent, `space › ` for a tab, nothing for a space; matched letters light up in the path too. An agent's last message follows in dim 12px;
-    - location ("space › tab") in muted 12px, folder and branch in dim 12px;
+    - the name, with matched letters in the accent color and semibold, and the row you are in now semibold. On All the name is led by its path in dim: `space › tab › ` for a pane or agent, `space › ` for a tab, nothing for a space, the tab by its Tab name (`storefront › 1 › zsh`); matched letters light up in the path too. An agent's last message follows in dim 12px. An unnamed tab's row, on Tabs and All, follows its name with its panes' Pane names in Herdr's order, joined by ` · `, in dim 12px (`1  fix cart rounding · zsh`), with matched letters lit as in the name; a named tab's row shows its name alone;
+    - location ("space › tab", the tab by its Tab name) in muted 12px, folder and branch in dim 12px;
     - "needs you" (blocked color) or "finished" (done color) right-aligned in STATUS;
     - a 16px space badge: the space's first letter, white and bold, on the space's color.
   - **Column widths.** LOCATION, FOLDER, BRANCH and STATUS are each as wide as their longest value needs, and the name takes the rest.
     - The longest value is looked for in every row the category lists, whatever is typed, so the columns hold still while typing. Clues has rows only from its search, so there it is the rows found.
     - A column is never narrower than its own head, nor wider than 520px.
-    - A row's name needs its indent, its path and itself, and a clue's reason. An agent's last message doesn't count: it shows in what room is left.
+    - A row's name needs its indent, its path and itself, and a clue's reason. An agent's last message and an unnamed tab's pane list don't count: they show in what room is left.
     - When they can't all fit, the name comes first: it asks for what it needs, at most half the list's width. Then the folder gives way, down to its head, then the location, then the branch. STATUS never gives way to them, so its words stay whole.
     - A folder too long for its column is cut at its start (`…/payments-api/feat/webhook-retry`), since what tells two paths apart is at their end. Every other cell is cut at its end.
     - On a dialog too narrow even for the heads, LOCATION, FOLDER and BRANCH narrow in proportion to leave the name 200px, or what it asked for if that is less.
@@ -34,6 +34,8 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 ## How it behaves
 
 - **Opening.** It opens on the category asked for, else the one used last, else the first. The selection starts on the first row that isn't where you are now, so Enter goes back; Clues' reason rows ("not in any pane", "nothing listening") are skipped too. When every row is where you are, the first is selected. The same rule picks the row again each time the query changes. It keeps aiming there until you move, because focus can settle after the first frame. Pressing the open key again closes it.
+- **Tab name.** A tab goes by what Herdr calls it, in every Location and on its own row: the name someone gave it (by hand or by a mod), else its position in its space (`1`). A one-tab space still shows `1`, and a Tab name equal to a Pane name is shown as is. The pane a tab is about (its agent's, else its focused, else its first) gives a tab row its icon, folder and branch, not its name.
+- **Pane name.** A pane has the same name in every category: its agent's title, else the title its program set (unless that is only the terminal's address), else its program's name (`zsh` for a bare shell), else its folder's last segment (only when Herdr doesn't know its program), else, for a mod's pane, the mod.
 - **Keys.**
 
   | Key | Action |
@@ -55,7 +57,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **Text size and font.** The dialog follows Herdr's interface text size (`settings().ui_font_size`, 13px today) and interface font. In `recall.json`, `font_size` gives it a size of its own (the size of a row's name, in px at zoom 1) and `font` a family of its own. Everything in the dialog is drawn at that size ÷ 13 of its design: text, rows, icons, column widths and spacing. The 1px borders and the dialog's own size stay. The scale is held between 0.5 and 3, the range of Herdr's zoom, which still multiplies on top as it does for every mod. A `font_size` that isn't a positive number, or a `font` the machine doesn't have, is ignored without an error.
 - **All.** One row per destination:
   - every agent, standing for the pane it runs in;
-  - every pane without an agent; a bare shell with no title of its own is named after its program (`zsh`), not its folder;
+  - every pane without an agent;
   - every tab with more than one pane;
   - every space with more than one tab, and no space rows at all when there is only one space.
 
@@ -69,10 +71,10 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   In every category, Recent puts the focused rows first, most recently focused first, then the never-focused ones by status (blocked, done, working, idle, none), ties in Herdr's order; a linked worktree space still nests under its main checkout. Agents sort by Recent (that rule), Priority (blocked, done, working, idle; latest change first within each) or Grouped (Herdr's own space, tab and pane order).
 - **Search.** fzf's extended-search syntax (see Query syntax below), every term matching some field:
   - spaces by name, folder, branch, machine and status word;
-  - tabs by name, what they run, their space, folder, their panes, branch and status word;
+  - tabs by Tab name, what they run, their space, folder, their panes' Pane names (a named tab too, though it doesn't show them), branch and status word;
   - panes and agents by name, "space › tab", folder, program, branch and status word.
 
-  The status word is what the STATUS column shows: "needs you" for blocked, "finished" for done. An agent's last message is not searched. Matching a branch, status word or machine highlights nothing; letters light up only in the name and path.
+  The status word is what the STATUS column shows: "needs you" for blocked, "finished" for done. An agent's last message is not searched. Matching a branch, status word or machine highlights nothing; letters light up only in the name, the path and a tab's pane list.
 
   All searches each row as its own category does. Typing sorts the matches into two tiers (ADR 0002):
   - first the rows where every term appears unbroken (as one run of letters, smart case) in some field, then the rest;
@@ -177,6 +179,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - With `"font_size": 19.5` in `recall.json`, the dialog draws everything one and a half times as large, from its first frame once it has been opened before; without it, the dialog looks as it does at 13px.
 - On a window too narrow for every column, or at a high zoom, the name still shows, the folder is cut at its start before the location or the branch narrow, every column is lined up under its head, and "needs you" is whole.
 - All lists each pane or agent once, led by its `space › tab › ` path, with no LOCATION column; a tab with one pane and a space with one tab have no row of their own.
+- In an unnamed tab, All reads `space › 1 › …` and LOCATION `space › 1`, as Herdr's tab bar numbers it; a named tab reads its name there. On Tabs, an unnamed tab's row reads `1` with its panes' names after it in dim, and typing a pane's name lights those letters; a named tab's row shows its name alone.
 - In Clues, `port <n>` for a running dev server lists the pane that started it.
 - Typing puts rows where the term appears unbroken above rows that match by scattered letters, each group in its untyped order, and the selection skips the row you are on unless it is the only match.
-- On All, `^pay` finds the rows located in a space named `payments-api`, `'api'` doesn't find a pane titled `rapid`, and `!zsh` drops the shell panes.
+- On All, `^pay` finds the rows located in a space named `payments-api`, `'api'` doesn't find a pane titled `rapid`, and `!zsh` drops the shell panes and the tabs holding one.

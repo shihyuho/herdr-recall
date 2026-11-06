@@ -3,6 +3,7 @@
 // and the row selected when the list opens.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { location } from "../mods/recall/lib/columns.js";
 import { listView } from "../mods/recall/lib/listview.js";
 import * as mru from "../mods/recall/lib/mru.js";
 import { world, town, HOME } from "./fixtures.mjs";
@@ -138,10 +139,10 @@ test("All leads each name with its path; a bare shell goes by its program, a tab
   assert.deepEqual(drawn("agent:t-hooks"), ["payments-api › webhooks › ", "retry failed calls"]);
   assert.deepEqual(drawn("tab:tb-checkout"), ["storefront › ", "checkout"]);
   assert.deepEqual(drawn("space:sp-infra"), ["", "infra"]);
-  // A bare shell is named after its program in All; Panes still names it after its folder.
+  // A bare shell is named after its program, on Panes as on All.
   assert.deepEqual(drawn("pane:p-cartsh"), ["storefront › checkout › ", "zsh"]);
   assert.deepEqual(drawn("pane:p-tf"), ["infra › terraform › ", "zsh"]);
-  assert.equal(itemOf(listView("panes", town(), ""), "pane:p-cartsh").title, "storefront");
+  assert.equal(itemOf(listView("panes", town(), ""), "pane:p-cartsh").title, "zsh");
   // A pane with a title of its own keeps it.
   assert.equal(itemOf(view, "pane:p-dev").title, "npm run dev");
   // A tab row carries no program, so it draws the tab icon; Tabs draws its lead pane's.
@@ -149,10 +150,86 @@ test("All leads each name with its path; a bare shell goes by its program, a tab
   assert.equal(itemOf(listView("tabs", town(), ""), "tab:tb-checkout").program.name, "Claude Code");
 });
 
-test("All, typed: a bare shell is found by its program's name, highlighted in its name", () => {
-  const view = listView("all", town(), "zsh");
+/** town() with checkout left unnamed: Herdr then calls it by its position, 1. */
+function unnamedCheckout() {
+  const snap = town();
+  Object.assign(snap.spaces[0].tabs[0], { name: "1", named: false });
+  for (const a of snap.agents) if (a.tab === "tb-checkout") a.tab_name = "1";
+  return snap;
+}
+
+test("a tab goes by Herdr's name in every Location: its position when unnamed, its own name when named", () => {
+  const snap = unnamedCheckout();
+  const all = listView("all", snap, "");
+  assert.equal(itemOf(all, "agent:t-cart").crumb, "storefront › 1 › ");
+  assert.equal(itemOf(all, "pane:p-cartsh").crumb, "storefront › 1 › ");
+  assert.equal(itemOf(all, "pane:p-dev").crumb, "storefront › dev-server › ");
+  const panes = listView("panes", snap, "");
+  assert.equal(location(itemOf(panes, "pane:p-cartsh")), "storefront › 1");
+  assert.equal(location(itemOf(panes, "pane:p-ref")), "payments-api › refunds");
+  const agents = listView("agents", snap, "");
+  assert.equal(location(itemOf(agents, "agent:t-cart")), "storefront › 1");
+  assert.equal(location(itemOf(agents, "agent:t-hooks")), "payments-api › webhooks");
+});
+
+test("a tab row is titled by its Tab name; an unnamed one lists its panes' names in Herdr's order, a named one none", () => {
+  const snap = unnamedCheckout();
+  for (const category of ["tabs", "all"]) {
+    const view = listView(category, snap, "");
+    const checkout = itemOf(view, "tab:tb-checkout");
+    assert.equal(checkout.title, "1", category);
+    assert.equal(checkout.paneList, "fix cart rounding · review cart totals · zsh", category);
+    const guides = itemOf(view, "tab:tb-guides");
+    assert.equal(guides.title, "guides", category);
+    assert.equal(guides.paneList, null, category);
+  }
+});
+
+test("Tabs, typed: a pane's name lights its letters in an unnamed tab's pane list; a named tab is still found by its panes", () => {
+  const snap = unnamedCheckout();
+  const view = listView("tabs", snap, "review");
+  assert.deepEqual(keys(view), ["tab:tb-checkout"]);
+  // "fix cart rounding · review cart totals · zsh": review at 20 to 25.
+  assert.deepEqual(view.rows[0].hits, { panes: [20, 21, 22, 23, 24, 25] });
+  assert.deepEqual(keys(listView("tabs", snap, "README")), ["tab:tb-guides"]);
+});
+
+// The tab is also searched by what it runs, which holds "zsh" too but is not
+// drawn: the letters must light where the row shows them.
+test("Tabs, typed: a bare shell's name lights in an unnamed tab's pane list, though the tab runs a program of that name", () => {
+  const row = listView("tabs", unnamedCheckout(), "zsh").rows.find((r) => r.item.key === "tab:tb-checkout");
+  // "fix cart rounding · review cart totals · zsh": zsh at 41 to 43.
+  assert.deepEqual(row.hits, { panes: [41, 42, 43] });
+});
+
+test("All, typed: an agent's title finds the agent and its unnamed tab, no longer the shell pane beside it", () => {
+  assert.deepEqual(keys(listView("all", unnamedCheckout(), "rounding")), ["agent:t-cart", "tab:tb-checkout"]);
+});
+
+test("a pane goes by one name in every category: its program when it has no title, its folder when Herdr doesn't know the program", () => {
+  const snap = town();
+  const set = (id, patch) => { Object.assign(snap.panes.find((p) => p.pane === id), patch); };
+  set("p-tf", { program: null });
+  set("p-cartsh", { program: { key: "htop", name: "htop", shell: false, agent: false } });
+  const panes = listView("panes", snap, "");
+  assert.equal(itemOf(panes, "pane:p-cartsh").title, "htop");
+  assert.equal(itemOf(panes, "pane:p-tf").title, "infra");
+  assert.equal(itemOf(listView("all", snap, ""), "pane:p-cartsh").title, "htop");
+  assert.equal(itemOf(panes, "pane:p-dev").title, "npm run dev");
+  assert.equal(itemOf(panes, "pane:p-cart").title, "fix cart rounding");
+});
+
+test("Panes, typed: a bare shell is found by its program's name, highlighted in its name", () => {
+  const view = listView("panes", town(), "zsh");
   assert.deepEqual(keys(view), ["pane:p-cartsh", "pane:p-tf"]);
   assert.deepEqual(view.rows.map((r) => r.hits), [{ title: [0, 1, 2] }, { title: [0, 1, 2] }]);
+});
+
+test("All, typed: a bare shell is found by its program's name, highlighted in its name", () => {
+  const view = listView("all", town(), "zsh");
+  // checkout's row is found too: its pane list holds the shell's name.
+  assert.deepEqual(keys(view), ["pane:p-cartsh", "pane:p-tf", "tab:tb-checkout"]);
+  assert.deepEqual(view.rows.slice(0, 2).map((r) => r.hits), [{ title: [0, 1, 2] }, { title: [0, 1, 2] }]);
 });
 
 test("All, typed: the list only shrinks, and the total stays the untyped count", () => {
@@ -377,7 +454,7 @@ test("`'ng` keeps only rows where ng appears unbroken; plain `ng` also takes sca
   // "fix cart rounding": n-g at 15, 16.
   assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [
     ["agent:t-cart", { title: [15, 16] }],
-    ["tab:tb-checkout", { detail: [15, 16] }],
+    ["tab:tb-checkout", { panes: [15, 16] }],
   ]);
 });
 
@@ -405,12 +482,13 @@ const without = (...gone) => ALL_UNTYPED.filter((k) => !gone.includes(k));
 
 test("`!zsh` drops the shell panes and lights nothing; the negated term matches exactly, so `!zh` drops nothing", () => {
   const view = listView("all", town(), "!zsh");
-  assert.deepEqual(keys(view), without("pane:p-cartsh", "pane:p-tf"));
+  // checkout's tab row goes too: its panes include a shell.
+  assert.deepEqual(keys(view), without("pane:p-cartsh", "pane:p-tf", "tab:tb-checkout"));
   assert.equal(view.rows.every((r) => Object.keys(r.hits).length === 0), true);
   assert.equal(view.total, 15);
   assert.deepEqual(keys(listView("all", town(), "!zh")), ALL_UNTYPED);
   // `!'zh` negates a fuzzy term, as in fzf: z-s-h holds z..h.
-  assert.deepEqual(keys(listView("all", town(), "!'zh")), without("pane:p-cartsh", "pane:p-tf"));
+  assert.deepEqual(keys(listView("all", town(), "!'zh")), without("pane:p-cartsh", "pane:p-tf", "tab:tb-checkout"));
 });
 
 test("`!^pay` and `!refunds$` drop rows with a field that starts or ends so, and keep rows that hold it elsewhere", () => {
@@ -431,7 +509,7 @@ test("A negated term drops a row when it appears in any field; only the positive
 });
 
 test("A negated term leaves the tiers as the other terms set them", () => {
-  assert.deepEqual(keys(listView("all", town(), "ng !zsh")), ["agent:t-cart", "tab:tb-checkout", "pane:p-ref", "agent:t-plan"]);
+  assert.deepEqual(keys(listView("all", town(), "ng !zsh")), ["agent:t-cart", "pane:p-ref", "agent:t-plan"]);
 });
 
 test("`a | b` keeps rows that match either; a bar with nothing after it is ignored", () => {
@@ -460,7 +538,7 @@ test("`\\ ` is a literal space inside a term", () => {
   // "fix cart rounding": "cart r" at 4 to 9.
   assert.deepEqual(view.rows.map((r) => [r.item.key, r.hits]), [
     ["agent:t-cart", { title: [4, 5, 6, 7, 8, 9] }],
-    ["tab:tb-checkout", { detail: [4, 5, 6, 7, 8, 9] }],
+    ["tab:tb-checkout", { panes: [4, 5, 6, 7, 8, 9] }],
   ]);
 });
 
