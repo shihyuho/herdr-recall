@@ -138,10 +138,10 @@ test("All leads each name with its path; a bare shell goes by its program, a tab
   assert.deepEqual(drawn("agent:t-hooks"), ["payments-api › webhooks › ", "retry failed calls"]);
   assert.deepEqual(drawn("tab:tb-checkout"), ["storefront › ", "checkout"]);
   assert.deepEqual(drawn("space:sp-infra"), ["", "infra"]);
-  // A bare shell is named after its program in All; Panes still names it after its folder.
+  // A bare shell is named after its program, on Panes as on All.
   assert.deepEqual(drawn("pane:p-cartsh"), ["storefront › checkout › ", "zsh"]);
   assert.deepEqual(drawn("pane:p-tf"), ["infra › terraform › ", "zsh"]);
-  assert.equal(itemOf(listView("panes", town(), ""), "pane:p-cartsh").title, "storefront");
+  assert.equal(itemOf(listView("panes", town(), ""), "pane:p-cartsh").title, "zsh");
   // A pane with a title of its own keeps it.
   assert.equal(itemOf(view, "pane:p-dev").title, "npm run dev");
   // A tab row carries no program, so it draws the tab icon; Tabs draws its lead pane's.
@@ -149,10 +149,30 @@ test("All leads each name with its path; a bare shell goes by its program, a tab
   assert.equal(itemOf(listView("tabs", town(), ""), "tab:tb-checkout").program.name, "Claude Code");
 });
 
-test("All, typed: a bare shell is found by its program's name, highlighted in its name", () => {
-  const view = listView("all", town(), "zsh");
+test("a pane goes by one name in every category: its program when it has no title, its folder when Herdr doesn't know the program", () => {
+  const snap = town();
+  const set = (id, patch) => { Object.assign(snap.panes.find((p) => p.pane === id), patch); };
+  set("p-tf", { program: null });
+  set("p-cartsh", { program: { key: "htop", name: "htop", shell: false, agent: false } });
+  const panes = listView("panes", snap, "");
+  assert.equal(itemOf(panes, "pane:p-cartsh").title, "htop");
+  assert.equal(itemOf(panes, "pane:p-tf").title, "infra");
+  assert.equal(itemOf(listView("all", snap, ""), "pane:p-cartsh").title, "htop");
+  assert.equal(itemOf(panes, "pane:p-dev").title, "npm run dev");
+  assert.equal(itemOf(panes, "pane:p-cart").title, "fix cart rounding");
+});
+
+test("Panes, typed: a bare shell is found by its program's name, highlighted in its name", () => {
+  const view = listView("panes", town(), "zsh");
   assert.deepEqual(keys(view), ["pane:p-cartsh", "pane:p-tf"]);
   assert.deepEqual(view.rows.map((r) => r.hits), [{ title: [0, 1, 2] }, { title: [0, 1, 2] }]);
+});
+
+test("All, typed: a bare shell is found by its program's name, highlighted in its name", () => {
+  const view = listView("all", town(), "zsh");
+  // checkout's row is found too: its pane list holds the shell's name.
+  assert.deepEqual(keys(view), ["pane:p-cartsh", "pane:p-tf", "tab:tb-checkout"]);
+  assert.deepEqual(view.rows.slice(0, 2).map((r) => r.hits), [{ title: [0, 1, 2] }, { title: [0, 1, 2] }]);
 });
 
 test("All, typed: the list only shrinks, and the total stays the untyped count", () => {
@@ -405,12 +425,13 @@ const without = (...gone) => ALL_UNTYPED.filter((k) => !gone.includes(k));
 
 test("`!zsh` drops the shell panes and lights nothing; the negated term matches exactly, so `!zh` drops nothing", () => {
   const view = listView("all", town(), "!zsh");
-  assert.deepEqual(keys(view), without("pane:p-cartsh", "pane:p-tf"));
+  // checkout's tab row goes too: its panes include a shell.
+  assert.deepEqual(keys(view), without("pane:p-cartsh", "pane:p-tf", "tab:tb-checkout"));
   assert.equal(view.rows.every((r) => Object.keys(r.hits).length === 0), true);
   assert.equal(view.total, 15);
   assert.deepEqual(keys(listView("all", town(), "!zh")), ALL_UNTYPED);
   // `!'zh` negates a fuzzy term, as in fzf: z-s-h holds z..h.
-  assert.deepEqual(keys(listView("all", town(), "!'zh")), without("pane:p-cartsh", "pane:p-tf"));
+  assert.deepEqual(keys(listView("all", town(), "!'zh")), without("pane:p-cartsh", "pane:p-tf", "tab:tb-checkout"));
 });
 
 test("`!^pay` and `!refunds$` drop rows with a field that starts or ends so, and keep rows that hold it elsewhere", () => {
@@ -431,7 +452,7 @@ test("A negated term drops a row when it appears in any field; only the positive
 });
 
 test("A negated term leaves the tiers as the other terms set them", () => {
-  assert.deepEqual(keys(listView("all", town(), "ng !zsh")), ["agent:t-cart", "tab:tb-checkout", "pane:p-ref", "agent:t-plan"]);
+  assert.deepEqual(keys(listView("all", town(), "ng !zsh")), ["agent:t-cart", "pane:p-ref", "agent:t-plan"]);
 });
 
 test("`a | b` keeps rows that match either; a bar with nothing after it is ignored", () => {

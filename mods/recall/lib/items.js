@@ -56,6 +56,8 @@ export function index(snap) {
  * What a pane shows, filled in from what Herdr knows elsewhere. A pane in a
  * tab the window hasn't drawn yet only has its terminal's address as title
  * and its shell as program; the agents list and herdr-core know better.
+ * Its title is its Pane name: agent's title, else the title its program set,
+ * else its program, else its folder, else (a mod's pane) the mod.
  */
 export function describePane(p, snap) {
   const agent = p.terminal ? snap.agents.find((a) => a.address === p.terminal) : null;
@@ -67,7 +69,7 @@ export function describePane(p, snap) {
   return {
     pane: p,
     agent,
-    title: title || (p.terminal ? lastSegment(cwd) || program?.name : p.mod) || p.title || "",
+    title: title || program?.name || (p.terminal ? lastSegment(cwd) : p.mod) || p.title || "",
     program,
     cwd,
     branch: p.branch ?? null,
@@ -366,7 +368,7 @@ function allItems(snap, ix) {
       const ats = [agent.at, mru.lastFocused(snap.history, "pane", p.pane)].filter((x) => x != null);
       out.push({ ...agent, at: ats.length ? Math.max(...ats) : null });
       agents.delete(p.terminal);
-    } else if (panes.has(p.pane)) out.push(shellNamed(panes.get(p.pane), p));
+    } else if (panes.has(p.pane)) out.push(panes.get(p.pane));
   }
   out.push(...agents.values()); // an agent whose pane Herdr doesn't list
   const tabs = tabRows(snap, ix)
@@ -375,14 +377,6 @@ function allItems(snap, ix) {
   const spaces = snap.spaces.length > 1 ? spaceRows(snap, ix).filter((s) => s.tabs.length > 1) : [];
   const withCrumb = (i) => ({ ...i, crumb: i.kind === "space" ? "" : `${i.where} › ` });
   return restingOrder([...out, ...tabs, ...spaces].map(withCrumb));
-}
-
-/** A pane running a bare shell, with no title of its own, goes by its program's name. */
-function shellNamed(item, raw) {
-  const bare = !raw.title || raw.title === raw.terminal;
-  if (!bare || !item.program?.shell) return item;
-  const title = item.program.name;
-  return { ...item, title, detail: "", fields: item.fields.map((f) => (f.key === "title" ? { ...f, text: title } : f)) };
 }
 
 /** The rows of one category. `options.agentSort`: "mru" | "priority" | "grouped". */

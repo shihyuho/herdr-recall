@@ -34,6 +34,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 ## How it behaves
 
 - **Opening.** It opens on the category asked for, else the one used last, else the first. The selection starts on the first row that isn't where you are now, so Enter goes back; Clues' reason rows ("not in any pane", "nothing listening") are skipped too. When every row is where you are, the first is selected. The same rule picks the row again each time the query changes. It keeps aiming there until you move, because focus can settle after the first frame. Pressing the open key again closes it.
+- **Pane name.** A pane has the same name in every category: its agent's title, else the title its program set (unless that is only the terminal's address), else its program's name (`zsh` for a bare shell), else its folder's last segment (only when Herdr doesn't know its program), else, for a mod's pane, the mod.
 - **Keys.**
 
   | Key | Action |
@@ -55,7 +56,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **Text size and font.** The dialog follows Herdr's interface text size (`settings().ui_font_size`, 13px today) and interface font. In `recall.json`, `font_size` gives it a size of its own (the size of a row's name, in px at zoom 1) and `font` a family of its own. Everything in the dialog is drawn at that size ÷ 13 of its design: text, rows, icons, column widths and spacing. The 1px borders and the dialog's own size stay. The scale is held between 0.5 and 3, the range of Herdr's zoom, which still multiplies on top as it does for every mod. A `font_size` that isn't a positive number, or a `font` the machine doesn't have, is ignored without an error.
 - **All.** One row per destination:
   - every agent, standing for the pane it runs in;
-  - every pane without an agent; a bare shell with no title of its own is named after its program (`zsh`), not its folder;
+  - every pane without an agent;
   - every tab with more than one pane;
   - every space with more than one tab, and no space rows at all when there is only one space.
 

@@ -23,3 +23,7 @@ _Avoid_: source, other, match
 **Location**:
 Where something sits: a pane or agent in its space and tab, a tab in its space, a space on its machine ("This computer" for this one).
 _Avoid_: place (Herdr's word for a space), where
+
+**Pane name**:
+What Recall calls a pane, the same in every category, since Herdr names none: its agent's title, else the title its program gave it, else its program ("zsh").
+_Avoid_: pane label, pane title
