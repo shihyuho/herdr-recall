@@ -4,7 +4,7 @@
 // Clues covers every terminal pane, agents included, so `.text` finds the
 // agent session that printed it. (herdr-recent-navigator leaves agents out.)
 
-import { index, tabLabel, tildify } from "./items.js";
+import { index, tabName, tildify } from "./items.js";
 import * as mru from "./mru.js";
 import {
   CLUE_ORDER, bufferKind, commandIsShell, contentExcerpt, paneForPid, parseFilter, rankClues, sshHost,
@@ -30,8 +30,8 @@ function candidates(snap) {
       cwd: d.cwd,
       spaceId: at.space.id,
       spaceName: at.space.name,
-      tabName: tabLabel(at.tab),
-      where: `${at.space.name} › ${tabLabel(at.tab)}`,
+      tabName: tabName(at.tab),
+      where: `${at.space.name} › ${tabName(at.tab)}`,
       at: mru.lastFocused(snap.history, "pane", p.pane),
       rank: snap.history.pane.findIndex((e) => e.id === p.pane),
       order: out.length,

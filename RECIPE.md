@@ -182,4 +182,4 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - In an unnamed tab, All reads `space › 1 › …` and LOCATION `space › 1`, as Herdr's tab bar numbers it; a named tab reads its name there. On Tabs, an unnamed tab's row reads `1` with its panes' names after it in dim, and typing a pane's name lights those letters; a named tab's row shows its name alone.
 - In Clues, `port <n>` for a running dev server lists the pane that started it.
 - Typing puts rows where the term appears unbroken above rows that match by scattered letters, each group in its untyped order, and the selection skips the row you are on unless it is the only match.
-- On All, `^pay` finds the rows located in a space named `payments-api`, `'api'` doesn't find a pane titled `rapid`, and `!zsh` drops the shell panes.
+- On All, `^pay` finds the rows located in a space named `payments-api`, `'api'` doesn't find a pane titled `rapid`, and `!zsh` drops the shell panes and the tabs holding one.

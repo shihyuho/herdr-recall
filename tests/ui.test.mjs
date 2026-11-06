@@ -17,7 +17,7 @@ function dialog(state = {}, query = "") {
   const view = listView("tabs", world(), query);
   const nav = {
     category: "tabs", categories: CATEGORY_IDS, rows: view.rows, at: 1,
-    scroll: {}, input: {}, mode: "type", query: "", agentSort: "mru",
+    scroll: {}, input: {}, mode: "type", agentSort: "mru",
     widths: { name: 200, location: 120, folder: 160, branch: 80, status: 60 },
     resizing: null, keys: DEFAULT_KEYS, configError: null, scale: 1, query,
     ...state,
@@ -49,7 +49,6 @@ test("the pointer is a hand over every row, and while a column is being dragged 
   assert.deepEqual(dragged.map((row) => row.styles.cursor_pointer), [undefined, undefined, undefined]);
   assert.deepEqual(dragged.map((row) => row.hover.bg), [undefined, undefined, undefined]);
 });
-
 
 const strings = (record) => record.children.filter((c) => typeof c === "string").join("");
 /** The text an element draws, its children's included. */
