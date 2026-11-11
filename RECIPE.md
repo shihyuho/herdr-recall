@@ -29,7 +29,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - On a dialog too narrow even for the heads, LOCATION, FOLDER and BRANCH narrow in proportion to leave the name 200px, or what it asked for if that is less.
   - A linked worktree's space sits indented under its main checkout and reads "repo ⎇ branch".
   - Empty states read "Reading panes…", "Nothing matches" or "Nothing here yet". The exception is All with a query nothing matches, when Clues is one of the visible categories: it shows one selected row, a search glass and `Search Clues for "<query>"`; opening it (Enter or click) switches to Clues and leaves the query in the search field. Otherwise All shows "Nothing matches".
-- **Footer**, 28px high on the chrome background with a top border: the keys worth knowing now as small key chips with dim labels (`⏎ open`, `↑↓ move`, `⇥ category`, `⌃S sort` on Agents, `esc close` at the right, which can be clicked like the header's "Esc"; the other chips are plain labels). A broken `recall.json` shows its error here in the blocked color.
+- **Footer**, 28px high on the chrome background with a top border: the keys worth knowing now as small key chips with dim labels (`⏎ open`, `↑↓ move`, `⇥ category`, `⌃S sort` on Agents, `esc close` at the right, which can be clicked like the header's "Esc" while it reads close, not while it reads `esc clear`; the other chips are plain labels). A broken `recall.json` shows its error here in the blocked color.
 
 ## How it behaves
 
@@ -50,7 +50,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   Typing searches. Binding a movement key to a letter in `recall.json` turns on vim-style input: `j` `k` move, `h` `l` switch categories, `/` starts searching, and Escape leaves the search first.
 - **Mouse.**
   - Click a row to go there, or a rail entry to switch category.
-  - Click "Esc" in the header, or the `esc close` chip in the footer, to close the dialog the way Ctrl+C does: at once, even with a query typed, and without Escape's clear-the-search-first step. Both look like the Esc hint of Herdr's own picker: a little padding and rounding in dim text, and under the pointer the theme's hover background with foreground text and a hand pointer. Each has its own element `id`. While the search field is being edited the footer's tail chip is Ctrl+C's and takes no click; the header's still does. No other footer chip takes a click.
+  - Click "Esc" in the header, or the `esc close` chip in the footer, to close the dialog the way Ctrl+C does: at once, even with a query typed, and without Escape's clear-the-search-first step. Both look like the Esc hint of Herdr's own picker: a little padding and rounding in dim text, and under the pointer the theme's hover background with foreground text and a hand pointer. Each has its own element `id`. The header's "Esc" always closes. The footer's chip takes a click only while it reads `esc close`: with a query typed it reads `esc clear` and is a plain chip, and while the search field is being edited its tail chip is Ctrl+C's and takes none. No other footer chip takes a click.
   - Drag the divider left of a head to set that column's width, between its head's width and 520px. A press that doesn't move sideways changes nothing. Double-click the divider to let the column fit its content again.
     - The columns are first fitted as if nothing had been dragged; a dragged column is then drawn at its width, and the name gives or takes the difference, so the divider stays under the pointer and the other columns stay as they were.
     - The name gives down to 200px, or to what it asked for if that is less. Past that, the columns that weren't dragged give way, the folder first, and a dragged column narrows only after them, never past its head. While that happens a dragged divider may not sit under the pointer.
@@ -178,7 +178,7 @@ Recall was tested with Herdr 0.1.15. That is a tested version, not a minimum, an
 - `recall.previous-tab` jumps back to the previous tab even when it is in another space.
 - On Agents, a blocked agent reads "needs you" and Ctrl+S cycles Recent, Priority and Grouped.
 - Clicking a column head changes nothing: no sort, no ▲ or ▼.
-- Clicking "Esc" in the header, or `esc close` in the footer, closes the dialog even with a query typed, and the next `⌘E` opens as usual. Both light up under the pointer; the other footer chips do nothing when clicked.
+- Clicking "Esc" in the header, or `esc close` in the footer, closes the dialog (the footer one only while it reads close, so not with a query typed; the header one always), and the next `⌘E` opens as usual. Both light up under the pointer; the other footer chips do nothing when clicked.
 - With nothing dragged, a category whose longest values fit beside the name shows every one of them whole, and typing doesn't move the columns.
 - Dragging LOCATION's divider widens it; the width is still there after reopening, and a double-click lets it fit its content again.
 - With `"font_size": 19.5` in `recall.json`, the dialog draws everything one and a half times as large, from its first frame once it has been opened before; without it, the dialog looks as it does at 13px.

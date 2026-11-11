@@ -305,8 +305,9 @@ function footer(t, u, nav) {
     .child(div().child(label));
   const all = hints(nav);
   const tail = all.pop();
-  // The tail is the Esc hint, except while filtering, where it is Ctrl+C's.
-  const tailChip = nav.mode === "filtering" ? chip(tail) : escChip(tail);
+  // The tail is the Esc hint, and takes a click only while it reads "close":
+  // with a query typed it reads "clear", and while filtering it is Ctrl+C's.
+  const tailChip = nav.mode !== "filtering" && tail[1] === "close" ? escChip(tail) : chip(tail);
   return h_flex().h(u(28)).flex_none().px(u(14)).gap(u(14)).items_center().border_t(1).border_color(t.border).bg(t.chrome)
     .text_size(u(11)).overflow_hidden()
     .children([

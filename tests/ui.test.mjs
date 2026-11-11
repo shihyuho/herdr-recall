@@ -100,12 +100,21 @@ test("the Esc hints in the header and the footer each have an id, light up in th
   }
 });
 
-test("a click on either Esc hint closes the dialog at once, even with a query typed", () => {
+test("a click on the header's Esc closes the dialog at once, even with a query typed; the footer's does too while it reads close", () => {
   let closed = 0;
-  const hints = escHints({ query: "pay", dismiss: () => closed++, backOut: () => assert.fail("Escape's clear-first is not involved") }, "pay");
-  assert.equal(hints.length, 2);
-  hints.forEach(click);
+  const state = { dismiss: () => closed++, backOut: () => assert.fail("Escape's clear-first is not involved") };
+  escHints(state, "").forEach(click);
   assert.equal(closed, 2);
+  closed = 0;
+  const [header] = escHints({ ...state, query: "pay" }, "pay");
+  click(header);
+  assert.equal(closed, 1);
+});
+
+test("the footer's Esc chip reading clear is a plain chip: no id, no hover, no hand, no click", () => {
+  assert.deepEqual(escHints({ query: "pay" }, "pay").map((el) => el.styles.id), ["recall-esc-header"]);
+  const plain = drawnElements(dialog({ query: "pay" }, "pay")).filter((el) => el.styles.on_click && !el.styles.id);
+  assert.deepEqual(plain, []);
 });
 
 test("no other footer chip takes a click, and while filtering only the header's Esc does", () => {
