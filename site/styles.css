@@ -190,6 +190,9 @@ kbd {
 .hero-sub { margin: 0 0 24px; font-size: clamp(1rem, 1.4vw, 1.1rem); color: var(--text-soft); max-width: 34ch; }
 .hero-sub a { color: var(--text); text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
 .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero-meta { margin: 16px 0 0; font-size: 0.86rem; color: var(--text-faint); display: flex; align-items: center; gap: 8px; }
+.hero-meta .pip { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); flex: none; }
+.hero-meta b { color: var(--text-soft); font-weight: 600; }
 
 /* ---------- demo ---------- */
 .demo { scroll-margin-top: 84px; }
