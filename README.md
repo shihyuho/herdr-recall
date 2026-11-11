@@ -93,6 +93,7 @@ Six lists sit on the left, in this order: All, Spaces, Tabs, Panes, Agents and C
 | --- | --- |
 | Click a row | Go to it |
 | Click a category on the left | Switch to it |
+| Click `Esc` (header, or footer while it reads `close`) | Close |
 | Drag the line left of a column head | Set that column's width; double-click the line to let it fit its content again |
 
 Pressing the open key again closes the switcher, or switches to the category that key opens.

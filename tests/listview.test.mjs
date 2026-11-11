@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { location } from "../mods/recall/lib/columns.js";
 import { listView } from "../mods/recall/lib/listview.js";
 import * as mru from "../mods/recall/lib/mru.js";
-import { world, town, HOME } from "./fixtures.mjs";
+import { world, town, HOME, program, ZSH, CLAUDE } from "./fixtures.mjs";
 
 const ids = (view) => view.rows.map((r) => r.item.id);
 
@@ -46,7 +46,7 @@ test("Panes, typed: when the row you are on matches, the next row is selected", 
   assert.deepEqual(ids(view), ["p2", "p1"]);
   assert.equal(view.rows[0].item.current, true);
   assert.equal(view.selected, 1);
-  assert.deepEqual(view.rows.map((r) => r.hits), [{ title: [14, 15, 16] }, { where: [0, 1, 2] }]);
+  assert.deepEqual(view.rows.map((r) => r.hits), [{ where: [0, 1, 2] }, { where: [0, 1, 2] }]);
 });
 
 test("Panes, typed: when the row you are on is the only match, it is selected", () => {
@@ -631,4 +631,139 @@ test("the columns fit every row the category lists, whatever is typed: a query n
   assert.deepEqual(fits(typed), fits(untyped));
   // All, a query nothing matches: still every row, not the row offering Clues.
   assert.deepEqual(fits(listView("all", snap, "zzzz")), fits(listView("all", snap, "")));
+});
+
+// Pane name rule (#28): a title counts without the status mark in front of it,
+// and not at all when it is only a folder, the program's own name, or a
+// shell's user@host prompt.
+
+const SSH = program("ssh", "ssh");
+
+/** town() with the cart agent's title (and the shell pane's title and program) set. */
+function titled({ agent, shell, shellProgram } = {}) {
+  const snap = town();
+  if (agent !== undefined) snap.agents.find((a) => a.address === "t-cart").title = agent;
+  const sh = snap.panes.find((p) => p.pane === "p-cartsh");
+  if (shell !== undefined) sh.title = shell;
+  if (shellProgram !== undefined) sh.program = shellProgram;
+  return snap;
+}
+/** The highlights a row would draw: the fields it shows, not a branch, a raw title or the like. */
+const drawn = (hits) => Object.keys(hits).filter((k) => ["title", "where", "panes", "path", "detail"].includes(k));
+const agentName = (snap) => itemOf(listView("agents", snap, ""), "agent:t-cart").title;
+const shellName = (snap) => itemOf(listView("panes", snap, ""), "pane:p-cartsh").title;
+
+test("a status mark followed by whitespace is dropped, whatever the mark", () => {
+  assert.equal(agentName(titled({ agent: "⠐ Fix cart rounding" })), "Fix cart rounding");
+  assert.equal(agentName(titled({ agent: "✳ Fix cart rounding" })), "Fix cart rounding");
+  assert.equal(agentName(titled({ agent: "🚀 deploy" })), "deploy");
+  assert.equal(agentName(titled({ agent: "⠐   spaced out" })), "spaced out");
+  assert.equal(agentName(titled({ agent: "✳ Claude Code" })), "Claude Code");
+});
+
+test("a title's own punctuation stays: tags, issue numbers, a mark with no space after it", () => {
+  assert.equal(agentName(titled({ agent: "[WIP] fix cart" })), "[WIP] fix cart");
+  assert.equal(agentName(titled({ agent: "#123 fix" })), "#123 fix");
+  assert.equal(agentName(titled({ agent: "⠐Fix" })), "⠐Fix");
+});
+
+test("a title that is only a folder, an address, the program's name or a shell's prompt is not used; the next name in line is", () => {
+  const cases = [
+    ["~/code/payments-api", "Claude Code"],
+    ["/srv/app", "Claude Code"],
+    ["C:\\Users\\me", "Claude Code"],
+    ["⠐ ~/code/payments-api", "Claude Code"],
+    ["", "Claude Code"],
+    ["⠐ ", "Claude Code"],
+    ["t-cart", "Claude Code"],
+    ["claude", "Claude Code"],
+    ["CLAUDE CODE", "Claude Code"],
+    ["✳ claude code", "Claude Code"],
+  ];
+  for (const [title, name] of cases) assert.equal(agentName(titled({ agent: title })), name, JSON.stringify(title));
+  // a Windows-looking name that is not a drive path stays
+  assert.equal(agentName(titled({ agent: "C: build" })), "C: build");
+});
+
+test("a shell titled with its user@host prompt goes by its program; an ssh pane keeps its title", () => {
+  assert.equal(shellName(titled({ shell: "user@host: ~/code/x" })), "zsh");
+  assert.equal(shellName(titled({ shell: "Zsh" })), "zsh");
+  assert.equal(shellName(titled({ shell: "deploy@db1: ~", shellProgram: SSH })), "deploy@db1: ~");
+  // an agent is not a shell: an @ in its title is kept
+  assert.equal(agentName(titled({ agent: "mail ann@example.com" })), "mail ann@example.com");
+});
+
+test("the order is the agent's title, else the title its program set, else its program, else its folder, else the mod", () => {
+  const snap = titled({ agent: "~/code/payments-api" });
+  // the agent's title is unusable, so the pane's own title is next
+  snap.panes.find((p) => p.pane === "p-cart").title = "⠐ fix cart rounding";
+  assert.equal(agentName(snap), "fix cart rounding");
+  // Herdr doesn't know the program: the folder, once the title is unusable
+  const snap2 = titled({ shell: "~/code/storefront", shellProgram: null });
+  assert.equal(shellName(snap2), "storefront");
+  // a mod's pane has no terminal: its mod
+  const snap3 = town();
+  Object.assign(snap3.panes.find((p) => p.pane === "p-cartsh"), { terminal: null, title: "", program: null, mod: "tracker" });
+  assert.equal(shellName(snap3), "tracker");
+});
+
+test("one pane has one name on Panes, Agents, All, and in an unnamed tab's pane list", () => {
+  const snap = unnamedCheckout();
+  snap.agents.find((a) => a.address === "t-cart").title = "⠐ Fix cart rounding";
+  snap.agents.find((a) => a.address === "t-review").title = "~/code/storefront";
+  snap.panes.find((p) => p.pane === "p-cartsh").title = "me@box: ~/code/storefront";
+  for (const category of ["agents", "all"]) {
+    const view = listView(category, snap, "");
+    assert.equal(itemOf(view, "agent:t-cart").title, "Fix cart rounding", category);
+    assert.equal(itemOf(view, "agent:t-review").title, "Claude Code", category);
+  }
+  for (const category of ["panes", "all"]) {
+    assert.equal(itemOf(listView(category, snap, ""), "pane:p-cartsh").title, "zsh", category);
+  }
+  assert.equal(itemOf(listView("panes", snap, ""), "pane:p-cart").title, "Fix cart rounding");
+  const tab = itemOf(listView("tabs", snap, ""), "tab:tb-checkout");
+  assert.equal(tab.paneList, "Fix cart rounding · Claude Code · zsh");
+  assert.deepEqual(tab.panes.map((p) => p.title), ["Fix cart rounding", "Claude Code", "zsh"]);
+});
+
+test("the name column is fitted to the cleaned names", () => {
+  const view = listView("agents", titled({ agent: "⠐ Fix cart rounding" }), "");
+  assert.equal(view.fitTo.some((i) => i.title === "Fix cart rounding"), true);
+  assert.equal(view.fitTo.some((i) => i.title.startsWith("⠐")), false);
+});
+
+test("a title that is not the name stays searchable and lights nothing", () => {
+  const snap = titled({ agent: "~/code/zephyr-api", shell: "user@host: ~", shellProgram: ZSH });
+  const agents = listView("agents", snap, "zephyr");
+  assert.deepEqual(keys(agents), ["agent:t-cart"]);
+  assert.deepEqual(drawn(agents.rows[0].hits), []);
+  assert.equal(agents.rows[0].item.title, "Claude Code");
+  const panes = listView("panes", snap, "host");
+  assert.deepEqual(keys(panes), ["pane:p-cartsh"]);
+  assert.deepEqual(drawn(panes.rows[0].hits), []);
+  assert.deepEqual(keys(listView("all", snap, "zephyr")).includes("agent:t-cart"), true);
+  assert.deepEqual(keys(listView("agents", snap, "nomatchterm")), []);
+});
+
+test("a status mark is searchable too, and lights nothing", () => {
+  const view = listView("agents", titled({ agent: "⠐ Fix cart rounding" }), "⠐");
+  assert.deepEqual(keys(view), ["agent:t-cart"]);
+  assert.deepEqual(drawn(view.rows[0].hits), []);
+});
+
+test("a term in both the name and the raw title lights the name", () => {
+  const view = listView("agents", titled({ agent: "⠐ Fix cart rounding" }), "fix");
+  assert.deepEqual(view.rows[0].hits, { title: [0, 1, 2] });
+});
+
+test("a hidden title holding the term unbroken puts its row in the unbroken tier", () => {
+  const snap = town();
+  snap.agents.find((a) => a.address === "t-hooks").title = "zoo e brass"; // z, e, b, r, a: scattered
+  snap.agents.find((a) => a.address === "t-review").title = "~/code/zebra-feed"; // shown as "Claude Code"
+  const view = listView("agents", snap, "zebra");
+  // blocked t-hooks would lead the never-focused rows; the unbroken match goes first
+  assert.deepEqual(keys(view), ["agent:t-review", "agent:t-hooks"]);
+  // control: with the term unbroken in neither, the order is the untyped one
+  snap.agents.find((a) => a.address === "t-review").title = "~/code/zeb-ra-feed";
+  assert.deepEqual(keys(listView("agents", snap, "zebra")), ["agent:t-hooks", "agent:t-review"]);
 });

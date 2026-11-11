@@ -29,5 +29,5 @@ What Herdr calls a tab, and so what Recall calls it: the name someone gave it, e
 _Avoid_: tab label, tab title, tab number
 
 **Pane name**:
-What Recall calls a pane, the same in every category, since Herdr names none: its agent's title, else the title its program gave it, else its program ("zsh").
+What Recall calls a pane, the same in every category, since Herdr names none: its agent's title, else the title its program gave it, else its program ("zsh"). A title counts without the status mark in front of it, and not at all when it is only a folder, the program's own name, or a shell's user@host prompt.
 _Avoid_: pane label, pane title
