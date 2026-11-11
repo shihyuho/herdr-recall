@@ -47,7 +47,7 @@ export function world() {
   const panes = [
     pane("p1", "tb1", { terminal: "t1", title: "t1", cwd: `${HOME}/code/web` }),
     pane("p2", "tb2", { terminal: "t2", title: "me@mac:~/code/web", cwd: `${HOME}/code/web`, focused: true }),
-    pane("p3", "tb3", { terminal: "t3", title: "nvim", cwd: `${HOME}/code/api`, prog: NVIM }),
+    pane("p3", "tb3", { terminal: "t3", title: "nvim main.go", cwd: `${HOME}/code/api`, prog: NVIM }),
   ];
   const agents = [agent("t1", "p1", web, t1, { title: "fix login bug", status: "working", seq: 5 })];
   return {

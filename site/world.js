@@ -13,6 +13,9 @@
 //                 prod          p-prod    ssh deploy@prod-db-1
 //   docs          api-reference p-docs    agent "Document the refunds API", done
 //
+// Three agents' titles lead with a status mark, as Herdr's agents do; Recall
+// shows them without it.
+//
 // Focus history, oldest first: docs' agent, webhooks' agent, the Redis plan,
 // then the cart agent (where you are). "Add partial refunds" was never
 // focused, so it follows the visited rows, first among the rest as blocked.
@@ -93,10 +96,10 @@ export function createWorld() {
   ];
 
   const agents = [
-    agent("t-cart", "p-cart", store, checkout, "Fix cart rounding", "working", 9),
+    agent("t-cart", "p-cart", store, checkout, "⠐ Fix cart rounding", "working", 9),
     agent("t-refund", "p-refund", pay, refunds, "Add partial refunds", "blocked", 8),
-    agent("t-hooks", "p-hooks", pay, hooks, "Retry failed webhooks", "working", 7, CODEX),
-    agent("t-plan", "p-plan", infra, tf, "Plan the Redis upgrade", "idle", 4),
+    agent("t-hooks", "p-hooks", pay, hooks, "⠐ Retry failed webhooks", "working", 7, CODEX),
+    agent("t-plan", "p-plan", infra, tf, "✳ Plan the Redis upgrade", "idle", 4),
     agent("t-docs", "p-docs", docs, api, "Document the refunds API", "done", 6),
   ];
   agents[0].focused = true;

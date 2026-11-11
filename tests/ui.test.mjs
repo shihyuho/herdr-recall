@@ -72,7 +72,7 @@ test("an unnamed tab's row draws its pane list after its name, at 12px in the di
   // world(), Tabs: web's unnamed tab 1 (an agent), the named server, api's unnamed tab 1 (nvim).
   assert.deepEqual(drawn.map((parts) => JSON.stringify(parts)).sort(), [
     [["1", null], ["fix login bug", 12]],
-    [["1", null], ["nvim", 12]],
+    [["1", null], ["nvim main.go", 12]],
     [["server", null]],
   ].map((parts) => JSON.stringify(parts)).sort());
   const web = drawnRows(dialog()).map(nameParts).find((parts) => parts[1]?.text === "fix login bug");
