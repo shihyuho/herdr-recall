@@ -9,6 +9,7 @@
 // opened. All's rows also carry `crumb`, the path drawn before the name,
 // and an unnamed tab's row `paneList`, its panes' names drawn after it.
 
+import { isShellPromptTitle } from "./clue-extract.js";
 import * as mru from "./mru.js";
 
 const STATUS_RANK = { blocked: 0, done: 1, working: 2, idle: 3 };
@@ -69,7 +70,9 @@ function usableTitle(title, program, terminal) {
   if (/^[~/]/.test(title) || /^[A-Za-z]:\\/.test(title)) return false; // a folder
   const lower = title.toLowerCase();
   if (lower === program?.name?.toLowerCase() || lower === program?.key?.toLowerCase()) return false;
-  if (program?.shell && title.includes("@")) return false; // a shell's user@host prompt
+  // A prompt left in the title of a shell, or of an agent's pane once the agent
+  // has exited, says nothing; ssh's `deploy@db1: ~` does, so other programs keep it.
+  if ((program?.shell || program?.agent) && isShellPromptTitle(title)) return false;
   return true;
 }
 
@@ -257,6 +260,8 @@ function tabRows(snap, ix) {
           { key: "path", text: tildify(lead?.cwd, snap.home) },
           { key: "branch", text: lead?.branch ?? "" },
           { key: "status", text: STATUS_WORD[t.status] ?? "" },
+          // The titles its panes hide: found, never lit.
+          ...ps.flatMap((d) => d.raw).map((text) => ({ key: "raw", text })),
         ],
         actions: [["tab.select", { id: t.id }]],
       });
@@ -324,11 +329,14 @@ function agentRows(snap, ix) {
     const spaceName = at ? spaceLabel(at.space, snap.worktrees) : a.space_name;
     const tab = at ? tabName(at.tab) : a.tab_name;
     const pane = ix.described.get(a.pane);
-    const title = paneNameOf({
+    // An agent whose pane is listed goes by that pane's name; only one whose
+    // pane Herdr doesn't list works its own out.
+    const known = pane?.agent === a;
+    const title = known ? pane.title : paneNameOf({
       agentTitle: a.title, paneTitle: pane?.pane.title, terminal: a.address, program: a.program,
       cwd: pane?.cwd, mod: null, last: a.address,
     });
-    const raw = otherTitles(title, a.address, a.title, pane?.pane.title);
+    const raw = known ? pane.raw : otherTitles(title, a.address, a.title, pane?.pane.title);
     const where = `${spaceName} › ${tab}`;
     const path = tildify(pane?.cwd, snap.home);
     return {

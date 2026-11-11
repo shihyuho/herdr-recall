@@ -767,3 +767,48 @@ test("a hidden title holding the term unbroken puts its row in the unbroken tier
   snap.agents.find((a) => a.address === "t-review").title = "~/code/zeb-ra-feed";
   assert.deepEqual(keys(listView("agents", snap, "zebra")), ["agent:t-hooks", "agent:t-review"]);
 });
+
+test("a shell keeps a title that only has an @ in it; one shaped like a prompt reads as the program", () => {
+  assert.equal(shellName(titled({ shell: 'git commit -m "fix a@b"' })), 'git commit -m "fix a@b"');
+  assert.equal(shellName(titled({ shell: "user@host: ~/code/x" })), "zsh");
+  assert.equal(shellName(titled({ shell: "me@mac:~/code/x" })), "zsh");
+  assert.equal(shellName(titled({ shell: "deploy@db1: ~", shellProgram: SSH })), "deploy@db1: ~");
+});
+
+test("an agent's pane left titled with a shell prompt reads as the agent's program", () => {
+  const snap = titled({ agent: "~/code/storefront" });
+  snap.panes.find((p) => p.pane === "p-cart").title = "me@mac: ~/code/storefront";
+  assert.equal(agentName(snap), "Claude Code");
+  assert.equal(itemOf(listView("panes", snap, ""), "pane:p-cart").title, "Claude Code");
+  // an agent's own title shaped like a prompt is not used either
+  assert.equal(agentName(titled({ agent: "me@mac: ~/code/storefront" })), "Claude Code");
+  // control: an agent's title with an @ that is no prompt stays
+  assert.equal(agentName(titled({ agent: "mail ann@example.com" })), "mail ann@example.com");
+});
+
+test("an agent whose own program is unknown goes by its pane's program, so Agents and Panes agree", () => {
+  const snap = titled({ agent: "~/code/storefront" });
+  snap.agents.find((a) => a.address === "t-cart").program = null;
+  assert.equal(agentName(snap), "Claude Code");
+  assert.equal(itemOf(listView("panes", snap, ""), "pane:p-cart").title, "Claude Code");
+  assert.equal(itemOf(listView("all", snap, ""), "agent:t-cart").title, "Claude Code");
+});
+
+test("Tabs: a pane's hidden title finds its tab and lights nothing", () => {
+  const snap = titled({ agent: "~/code/zephyr-api" });
+  const view = listView("tabs", snap, "zephyr");
+  assert.deepEqual(keys(view), ["tab:tb-checkout"]);
+  assert.deepEqual(drawn(view.rows[0].hits), []);
+  assert.deepEqual(keys(listView("tabs", snap, "nomatchterm")), []);
+});
+
+test("Tabs: a hidden title holding the term unbroken puts its tab in the unbroken tier", () => {
+  const snap = town();
+  snap.panes.find((p) => p.pane === "p-ref").title = "zoo e brass"; // refunds: z, e, b, r, a scattered, and shown
+  snap.agents.find((a) => a.address === "t-hooks").title = "~/code/zebra-feed"; // webhooks: hidden
+  // refunds was focused, webhooks never: the unbroken match still goes first
+  assert.deepEqual(keys(listView("tabs", snap, "zebra")), ["tab:tb-hooks", "tab:tb-refunds"]);
+  // control: with the term unbroken in neither, recency decides
+  snap.agents.find((a) => a.address === "t-hooks").title = "~/code/zeb-ra-feed";
+  assert.deepEqual(keys(listView("tabs", snap, "zebra")), ["tab:tb-refunds", "tab:tb-hooks"]);
+});

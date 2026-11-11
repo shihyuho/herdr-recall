@@ -54,6 +54,14 @@ test("Clues rows carry the Location the other categories show: an unnamed tab by
   ]);
 });
 
+test("Clues: a Neovim pane titled exactly `nvim` is read as a file, though its Pane name is Neovim", () => {
+  const snap = world();
+  snap.panes.find((p) => p.pane === "p3").title = "nvim";
+  const content = new Map([["p3", "ok\n"]]);
+  const rows = listView("clues", snap, ".ok", { clueData: clueData(new Map(), content) }).rows;
+  assert.deepEqual(rows.map((r) => [r.item.id, r.item.clue]), [["p3", "file"]]);
+});
+
 test("Clues: `.text` finds the agent session that printed it", () => {
   const content = new Map([
     ["p1", "> 登入失敗的原因是 token 過期\n"],
