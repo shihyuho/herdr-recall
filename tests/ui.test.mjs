@@ -2,7 +2,8 @@
 // the selected row keeps its own background, and while a column is being
 // dragged the rows show neither the light nor the hand, since the pointer
 // then only passes over them. And what an unnamed tab's row draws after
-// its name: its pane list, dim, lit where a search matched it.
+// its name: its pane list, dim, lit where a search matched it. And which
+// part of the dialog tells the navigator how wide the list was laid out.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CATEGORY_IDS, DEFAULT_KEYS } from "../mods/recall/lib/config.js";
@@ -82,6 +83,33 @@ test("an unnamed tab's row draws its pane list after its name, at 12px in the di
 test("a search's matched letters in a pane list take the accent color, semibold; the rest stays dim", () => {
   const [row] = drawnRows(dialog({}, "login"));
   assert.deepEqual(nameParts(row)[1].runs, [["fix ", "dim", false], ["login", "accent", true], [" bug", "dim", false]]);
+});
+
+// Herdr tells an element how wide it was laid out only when the element
+// asks, after the frame it was drawn in. The columns are fitted to the
+// list's own width: the table beside the category rail, not the dialog.
+const railIds = (els) => els.map((el) => el.styles.id).filter((id) => /^recall-cat-/.test(id ?? ""));
+
+test("the table beside the category rail reports its width to the navigator, and only a changed width draws the dialog again", () => {
+  const reported = [];
+  let changed = true;
+  const drawn = drawnElements(dialog({ listMeasured: (width) => { reported.push(width); return changed; } }));
+  const measuring = drawn.filter((el) => el.styles.on_size_change);
+  assert.equal(measuring.length, 1, "one element reports its width");
+  const [table] = measuring;
+  const inside = table.children.flatMap((child) => drawnElements(child));
+  assert.ok(inside.some((el) => el.kind === "v_virtual_list"), "it holds the list");
+  assert.ok(railIds(drawn).length > 0, "the dialog draws the rail");
+  assert.deepEqual(railIds(inside), [], "it holds none of the rail");
+  assert.ok(table.styles.id, "it has the stable id Herdr asks of an element that reports its size");
+
+  let notified = 0;
+  const cx = { notify: () => { notified += 1; } };
+  table.styles.on_size_change({ width: 1353, height: 649 }, cx);
+  changed = false;
+  table.styles.on_size_change({ width: 1353, height: 649 }, cx);
+  assert.deepEqual(reported, [1353, 1353]);
+  assert.equal(notified, 1);
 });
 
 // Clicking "Esc" closes Herdr's own dialogs since 0.1.15. Recall's two hints

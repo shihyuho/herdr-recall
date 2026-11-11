@@ -1,10 +1,11 @@
 // Contract: what the table's location column says, the room each column
-// needs for what it holds, and how wide the columns are drawn: fitted to
-// their content with the name first, or at the width a person dragged.
+// needs for what it holds, how wide the list is, and how wide the columns
+// are drawn: fitted to their content with the name first, or at the width
+// a person dragged.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  MAX_WIDTH, columnNeeds, dragWidth, fitColumns, headWidths, loadKept, location, shownColumns,
+  MAX_WIDTH, columnNeeds, dragWidth, drawnListWidth, fitColumns, headWidths, loadKept, location, newMeasure, shownColumns,
 } from "../mods/recall/lib/columns.js";
 import { buildItems } from "../mods/recall/lib/items.js";
 import { metricsFor, textWidth } from "../mods/recall/lib/textwidth.js";
@@ -83,6 +84,61 @@ test("All has no location column; every other category has all four", () => {
   for (const category of ["spaces", "tabs", "panes", "agents", "clues"]) {
     assert.deepEqual(shownColumns(category), ["location", "folder", "branch", "status"]);
   }
+});
+
+// ── how wide the list is ─────────────────────────────────────────────────
+
+// Measured in Herdr 0.1.15 on a 1920px window at zoom 1.1 (which settings()
+// reports as 1.100000023841858): the list column beside the rail drew
+// 1353px wide at Herdr's text size and 1320px at one and a half times it.
+const ZOOM = 1.100000023841858;
+const AT = { windowWidth: 1920, zoom: ZOOM, scale: 1 };
+/** Herdr's first report of the list, `width` px wide, laid out at AT unless `at` says otherwise. */
+const measured = (width, at = {}) => newMeasure(null, width, { ...AT, ...at });
+const list = ({ measure = null, ...now } = {}) => drawnListWidth({ measure, ...AT, ...now, share: 0.74 });
+const near = (actual, expected, within) =>
+  assert.ok(Math.abs(actual - expected) <= within, `${actual} is not within ${within}px of ${expected}`);
+
+test("once Herdr has measured the list, the columns fit what it measured, in the dialog's own px: over the zoom and the text scale", () => {
+  near(list({ measure: measured(1353) }), 1230, 0.01);
+  near(list({ measure: measured(1320, { scale: 1.5 }), scale: 1.5 }), 800, 0.01);
+  // The measure wins over the window's width, whatever the window says.
+  near(list({ measure: measured(1000) }), 909.09, 0.01);
+  near(list({ measure: measured(1000, { windowWidth: null }), windowWidth: null }), 909.09, 0.01);
+  // A zoom settings() leaves out is no zoom.
+  near(list({ measure: measured(1353, { zoom: null }), zoom: null }), 1353, 0.01);
+});
+
+test("until Herdr measures the list, it is worked out from the window's width, and comes within 1px of what Herdr then measures", () => {
+  near(list(), 1230, 1);
+  near(list({ scale: 1.5 }), 800, 1);
+  near(list({ measure: measured(0) }), 1230, 1);
+});
+
+test("a measure holds for the window width, zoom and scale it was taken at: after one changes, the list is worked out from the window again", () => {
+  const before = measured(1353);
+  // Herdr measured 1320px at scale 1.5, 800 in the design; the old measure would make it 820.
+  near(list({ measure: before, scale: 1.5 }), 800, 1);
+  // 74% × 1600 ÷ 1.1 − 2 − 60, where the old measure would make it 1230.
+  near(list({ measure: before, windowWidth: 1600 }), 1014.36, 0.01);
+  // 74% × 1920 − 2 − 60, where the old measure would make it 1353.
+  near(list({ measure: before, zoom: 1 }), 1358.8, 0.01);
+});
+
+test("a report draws the dialog again only when it changes the measure: another width, or the same width at another window width, zoom or scale", () => {
+  const kept = measured(1353);
+  assert.notEqual(kept, null);
+  assert.equal(newMeasure(kept, 1353, AT), null);
+  assert.equal(newMeasure(kept, 0, AT), null);
+  assert.notEqual(newMeasure(kept, 1352, AT), null);
+  const rezoomed = newMeasure(kept, 1353, { ...AT, zoom: 1 });
+  assert.notEqual(rezoomed, null);
+  near(list({ measure: rezoomed, zoom: 1 }), 1353, 0.01);
+});
+
+test("with nothing measured and no width from the window, the list puts no limit on the columns", () => {
+  assert.equal(list({ windowWidth: null }), Infinity);
+  assert.equal(list({ windowWidth: 0 }), Infinity);
 });
 
 // ── how wide the columns are drawn ───────────────────────────────────────

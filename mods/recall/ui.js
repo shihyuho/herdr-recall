@@ -12,7 +12,7 @@
 //   reads  nav.{category, categories, rows, at, scroll, input, mode, query,
 //               agentSort, widths, resizing, keys, configError, scale}
 //   calls  nav.{switchTo, focusForMode, open,
-//               startResize, resizeTo, endResize}
+//               startResize, resizeTo, endResize, listMeasured}
 //   ctx  = { view, loading }  (view: what lib/listview.js's listView returned)
 //
 // Every length here is written as designed, for 13px text, and scaled by
@@ -332,7 +332,9 @@ export function navigator(nav, { view, loading }) {
     .child(header(t, u, nav, view))
     .child(h_flex().flex_1().min_h(0).items_start()
       .child(rail(t, u, nav))
-      .child(v_flex().flex_1().min_w(0).h_full().py(u(4))
+      // The list's width, as Herdr laid it out: the columns are fitted to it.
+      .child(v_flex().id("recall-list").flex_1().min_w(0).h_full().py(u(4))
+        .on_size_change((size, cx) => { if (nav.listMeasured(size.width)) cx.notify(); })
         .child(columnHead(t, u, nav))
         .child(div().flex_1().min_h(0).pt(u(2)).child(list(t, u, nav, loading)))))
     .child(footer(t, u, nav));
