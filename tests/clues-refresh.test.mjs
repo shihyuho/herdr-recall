@@ -164,27 +164,27 @@ test("ps and lsof (and its fallback) are each given 5 000 ms; hc is not run thro
 });
 
 for (const how of ["reject", "fail"]) {
-  test(`a failed ps (${how}) keeps the last process table; lsof's good result still lands`, async () => {
-    const { mode, exec } = switchable();
-    const { refresh } = rig({ exec });
-    await refresh.run(1000);
-    mode.ps = how;
-    mode.lsof = "second";
-    await refresh.run(11000);
-    assert.equal(GOOD_PROCS(refresh), "node server.js");
-    assert.deepEqual(refresh.data.listeners, [{ pid: 400, port: 5173, addr: "*:5173" }]);
-  });
+  for (const [broken, other] of [["ps", "lsof"], ["lsof", "ps"]]) {
+    test(`a failed ${broken} (${how}) keeps the last process table and listeners as a pair, though ${other} answered`, async () => {
+      const { mode, exec } = switchable();
+      const { refresh } = rig({ exec });
+      await refresh.run(1000);
+      mode[broken] = how;
+      mode[other] = "second";
+      await refresh.run(11000);
+      assert.equal(GOOD_PROCS(refresh), "node server.js");
+      assert.deepEqual(refresh.data.listeners, [{ pid: 300, port: 3000, addr: "*:3000" }]);
+    });
 
-  test(`a failed lsof (${how}) keeps the last listeners; ps's good result still lands`, async () => {
-    const { mode, exec } = switchable();
-    const { refresh } = rig({ exec });
-    await refresh.run(1000);
-    mode.lsof = how;
-    mode.ps = "second";
-    await refresh.run(11000);
-    assert.deepEqual(refresh.data.listeners, [{ pid: 300, port: 3000, addr: "*:3000" }]);
-    assert.equal(refresh.data.procs.get(400).command, "vite");
-  });
+    test(`a first round where only ${other} answers leaves both empty, not half filled (${broken} ${how})`, async () => {
+      const { mode, exec } = switchable();
+      const { refresh } = rig({ exec });
+      mode[broken] = how;
+      await refresh.run(1000);
+      assert.equal(refresh.data.procs.size, 0);
+      assert.deepEqual(refresh.data.listeners, []);
+    });
+  }
 }
 
 test("a round after a failed one works again and replaces what was kept", async () => {
@@ -253,7 +253,11 @@ test("a hung pane-state round does not hold up the buffer round", async () => {
   await new Promise((r) => setImmediate(r));
   const reads = () => calls.hc.filter((a) => a[0] === "read").length;
   assert.equal(reads(), 2);
-  await refresh.run(31000); // buffer round due; pane-state round skipped but still hung
+  refresh.run(30999); // the buffer round is not due yet; the hung pane-state round is still guarded
+  await new Promise((r) => setImmediate(r));
+  assert.equal(reads(), 2);
+  refresh.run(31000); // the buffer round is due (the hung round, 30 s old, starts over and hangs again)
+  await new Promise((r) => setImmediate(r));
   assert.equal(reads(), 3);
 });
 
@@ -272,10 +276,12 @@ test("a buffer round that is still running is not started again, and does not ho
   refresh.run(1000);
   await new Promise((r) => setImmediate(r));
   assert.equal(calls.read, 2);
-  refresh.run(31000);
+  refresh.run(11000);
+  await new Promise((r) => setImmediate(r));
+  refresh.run(21000);
   await new Promise((r) => setImmediate(r));
   assert.equal(calls.read, 2); // skipped while the first buffer round hangs
-  assert.equal(calls.get, 4); // pane state kept going at 11 s-spaced rounds (1 s and 31 s)
+  assert.equal(calls.get, 6); // pane state kept going, a round every 10 s
   hang = false;
 });
 
@@ -287,4 +293,173 @@ test("a round that rejects or fails does not stay marked as running", async () =
   await refresh.run(1000);
   await refresh.run(11000);
   assert.equal(calls.exec.filter((c) => c[0] === "ps").length, 2);
+});
+
+// ── Review fixes: a hung round, lsof's choice, due ──────────────────────
+
+const tick = () => new Promise((r) => setImmediate(r));
+
+test("a round running longer than 30 s no longer blocks the next, and its late results are dropped", async () => {
+  let round = 1;
+  const late = { get: [], ps: [], lsof: [] };
+  const hold = (list) => new Promise((res) => list.push(res));
+  const gets = [];
+  const refresh = createCluesRefresh({
+    exec: async (cmd) => {
+      if (round === 1) return hold(cmd === "ps" ? late.ps : late.lsof);
+      return { code: 0, stdout: cmd === "ps" ? PS : LSOF };
+    },
+    hc: async (args) => {
+      if (args[0] === "read") return { code: 1, stdout: "" };
+      gets.push(args[1]);
+      if (round === 1) return hold(late.get);
+      return { code: 0, stdout: JSON.stringify({ pid: 1 }) };
+    },
+    terminalPanes: () => PANES,
+  });
+  refresh.run(1000);
+  await tick();
+  assert.equal(gets.length, 2);
+  refresh.run(30999); // the round has run 29.999 s: still guarded
+  await tick();
+  assert.equal(gets.length, 2);
+  round = 2;
+  await refresh.run(31000); // 30 s: the next due tick starts a new round
+  assert.equal(gets.length, 4);
+  assert.equal(refresh.data.paneState.get("p1").shellPid, 1);
+  assert.equal(refresh.data.procs.get(300).command, "node server.js");
+  // the first round's calls settle now, with other answers
+  late.get.forEach((res) => res({ code: 0, stdout: JSON.stringify({ pid: 99 }) }));
+  late.ps.forEach((res) => res({ code: 0, stdout: PS2 }));
+  late.lsof.forEach((res) => res({ code: 0, stdout: LSOF2 }));
+  await tick();
+  assert.equal(refresh.data.paneState.get("p1").shellPid, 1);
+  assert.equal(refresh.data.procs.get(300).command, "node server.js");
+  assert.equal(refresh.data.procs.has(400), false);
+  assert.deepEqual(refresh.data.listeners, [{ pid: 300, port: 3000, addr: "*:3000" }]);
+});
+
+test("a stale round settling does not unguard the newer round that is running", async () => {
+  let round = 1;
+  const late = [];
+  const gets = [];
+  const refresh = createCluesRefresh({
+    exec: async (cmd) => ({ code: 0, stdout: cmd === "ps" ? PS : LSOF }),
+    hc: async (args) => {
+      if (args[0] === "read") return { code: 1, stdout: "" };
+      gets.push(round);
+      return new Promise((res) => late.push(res)); // every get hangs until released
+    },
+    terminalPanes: () => PANES,
+  });
+  refresh.run(1000);
+  await tick();
+  round = 2;
+  refresh.run(31000); // supersedes round 1
+  await tick();
+  assert.deepEqual(gets, [1, 1, 2, 2]);
+  late.slice(0, 2).forEach((res) => res({ code: 0, stdout: "{}" })); // round 1 settles
+  await tick();
+  refresh.run(41000); // round 2 has run 10 s: still guarded
+  await tick();
+  assert.equal(gets.length, 4);
+});
+
+test("a buffer read that hangs past 30 s no longer blocks the next buffer round, and its late text is dropped", async () => {
+  let round = 1;
+  const late = [];
+  const refresh = createCluesRefresh({
+    exec: async (cmd) => ({ code: 0, stdout: cmd === "ps" ? PS : LSOF }),
+    hc: async (args) => {
+      if (args[0] === "get") return { code: 1, stdout: "" };
+      if (round === 1 && args[1] === "t1") return new Promise((res) => late.push(res));
+      return { code: 0, stdout: round === 1 ? "other\n" : "fresh\n" };
+    },
+    terminalPanes: () => PANES,
+  });
+  refresh.run(1000);
+  await tick();
+  round = 2;
+  await refresh.run(31000);
+  assert.equal(refresh.data.content.get("p1"), "fresh\n");
+  late[0]({ code: 0, stdout: "stale\n" });
+  await tick();
+  assert.equal(refresh.data.content.get("p1"), "fresh\n");
+});
+
+/** An exec that records each lsof asked for and answers by table. */
+function lsofRig(answers) {
+  const asked = [];
+  const exec = async (cmd) => {
+    if (cmd === "ps") return { code: 0, stdout: PS };
+    asked.push(cmd);
+    const a = answers[cmd];
+    if (a instanceof Error) throw a;
+    return a ?? { code: 0, stdout: LSOF };
+  };
+  return { asked, exec };
+}
+
+test("once an lsof has started, a later timeout does not try /usr/sbin/lsof", async () => {
+  const answers = { lsof: { code: 0, stdout: LSOF } };
+  const { asked, exec } = lsofRig(answers);
+  const { refresh } = rig({ exec });
+  await refresh.run(1000);
+  answers.lsof = new Error("timed out");
+  await refresh.run(11000);
+  assert.deepEqual(asked, ["lsof", "lsof"]);
+});
+
+test("an lsof that started and exited 2 is still the one used afterwards", async () => {
+  const answers = { lsof: { code: 2, stdout: "" } };
+  const { asked, exec } = lsofRig(answers);
+  const { refresh } = rig({ exec });
+  await refresh.run(1000);
+  answers.lsof = new Error("timed out");
+  await refresh.run(11000);
+  assert.deepEqual(asked, ["lsof", "lsof"]);
+});
+
+test("while lsof on PATH keeps rejecting, /usr/sbin/lsof is tried each round, and once it starts it is the one used", async () => {
+  const answers = { lsof: new Error("not found"), "/usr/sbin/lsof": new Error("not found") };
+  const { asked, exec } = lsofRig(answers);
+  const { refresh } = rig({ exec });
+  await refresh.run(1000);
+  await refresh.run(11000);
+  assert.deepEqual(asked, ["lsof", "/usr/sbin/lsof", "lsof", "/usr/sbin/lsof"]);
+  answers["/usr/sbin/lsof"] = { code: 0, stdout: LSOF };
+  await refresh.run(21000);
+  answers["/usr/sbin/lsof"] = new Error("timed out");
+  await refresh.run(31000);
+  assert.deepEqual(asked.slice(4), ["lsof", "/usr/sbin/lsof", "/usr/sbin/lsof"]);
+});
+
+test("due tells whether a tick would start a round, so a quiet tick can skip spawning", async () => {
+  const { refresh } = rig();
+  assert.equal(refresh.due(1000), true);
+  await refresh.run(1000);
+  assert.equal(refresh.due(1000), false);
+  assert.equal(refresh.due(10999), false);
+  assert.equal(refresh.due(11000), true); // pane state
+  await refresh.run(11000);
+  assert.equal(refresh.due(20999), false);
+  assert.equal(refresh.due(21000), true);
+  await refresh.run(21000);
+  assert.equal(refresh.due(30999), false);
+  assert.equal(refresh.due(31000), true); // buffers, and pane state again
+});
+
+test("due stays false while a round runs, until it has run 30 s", async () => {
+  const hung = new Promise(() => {});
+  const refresh = createCluesRefresh({
+    exec: async () => hung,
+    hc: async (args) => (args[0] === "read" ? { code: 1, stdout: "" } : hung),
+    terminalPanes: () => PANES,
+  });
+  refresh.run(1000);
+  await tick();
+  // buffers settle but are not due again until 31 s; pane state is hung
+  assert.equal(refresh.due(11000), false);
+  assert.equal(refresh.due(30999), false);
+  assert.equal(refresh.due(31000), true);
 });

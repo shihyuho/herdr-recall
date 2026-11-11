@@ -23,7 +23,7 @@ import {
 import * as mru from "./lib/mru.js";
 import { listView } from "./lib/listview.js";
 import { actionFor, isPrintable, normalizeKey, normalizeLook, parseConfig, parseOpenCommand } from "./lib/config.js";
-import { createCluesRefresh } from "./lib/clues-refresh.js";
+import { createCluesRefresh, PROGRAM_TIMEOUT } from "./lib/clues-refresh.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
 import { LAYOUT, columnNeeds, dragWidth, fitColumns, headWidths, loadKept, shownColumns } from "./lib/columns.js";
 import { DESIGN_TEXT, pickFont, textScale } from "./lib/look.js";
@@ -316,7 +316,7 @@ export default class Recall extends View {
     const local = spaces().filter((s) => !s.machine && s.folder);
     const probes = await Promise.all(local.map(async (s) => {
       try {
-        const r = await exec("git", ["-C", s.folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"], { timeout: 5000 });
+        const r = await exec("git", ["-C", s.folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"], { timeout: PROGRAM_TIMEOUT });
         const parsed = r.code === 0 ? parseRevParse(r.stdout) : null;
         return parsed ? { id: s.id, name: s.name, branch: s.branch, ...parsed } : null;
       } catch {
@@ -329,6 +329,7 @@ export default class Recall extends View {
   /** While Clues shows: ask the refresh to run whatever round is due. */
   refreshClues(cx) {
     if (this.role !== "navigator" || this.category !== "clues" || this.done) return;
+    if (!this.refresh.due(Date.now())) return;
     cx.spawn(async (cx) => {
       await this.refresh.run(Date.now(), () => cx.notify());
     });
