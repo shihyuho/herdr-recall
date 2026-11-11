@@ -23,7 +23,7 @@ import { listView } from "./lib/listview.js";
 import { actionFor, isPrintable, normalizeKey, normalizeLook, parseConfig, parseOpenCommand } from "./lib/config.js";
 import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/clue-extract.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
-import { LAYOUT, columnNeeds, dragWidth, fitColumns, headWidths, loadKept, shownColumns } from "./lib/columns.js";
+import { columnNeeds, dragWidth, drawnListWidth, fitColumns, headWidths, loadKept, newMeasure, shownColumns } from "./lib/columns.js";
 import { DESIGN_TEXT, pickFont, textScale } from "./lib/look.js";
 import { metricsFor } from "./lib/textwidth.js";
 import { isCurrentTracker, trackerWindow } from "./lib/tracker.js";
@@ -176,6 +176,9 @@ export default class Recall extends View {
     this.widths = {};
     this.heads = {};
     this.resizing = null;
+    // How wide Herdr laid the list out, in the window's px, and at what
+    // window width, zoom and scale; null until it has, after the first frame.
+    this.measure = null;
     this.query = "";
     this.at = null;
     this.follow = true;
@@ -529,19 +532,26 @@ export default class Recall extends View {
     setShared(KEPT, Object.keys(this.kept).length ? this.kept : null);
   }
 
+  /** What the list is laid out at now, besides its own width. */
+  layoutNow() {
+    return { windowWidth: window.viewport_size()?.width, zoom: settings()?.zoom, scale: this.scale };
+  }
+
+  /** Herdr laid the list out `width` px wide, in the window's px: true when the dialog should draw again. */
+  listMeasured(width) {
+    const measure = newMeasure(this.measure, width, this.layoutNow());
+    if (!measure) return false;
+    this.measure = measure;
+    return true;
+  }
+
   /**
-   * The list's width as designed: the dialog's share of the window, less
-   * its 1px border on each side, at the size the dialog is drawn, less the
-   * category rail. Herdr's zoom enlarges what is in the window and not the
-   * window, so a zoomed window holds fewer of the dialog's px. A window
-   * that reports no width puts no limit on the columns.
+   * The list's width as designed: as Herdr last measured it, or, in the
+   * first frame or right after the window, the zoom or the scale changed,
+   * worked out from the window's width.
    */
   listWidth() {
-    const zoom = settings()?.zoom;
-    const windowWidth = window.viewport_size()?.width;
-    if (!(windowWidth > 0)) return Infinity;
-    const dialog = (DIALOG.width * windowWidth) / (zoom > 0 ? zoom : 1) - 2;
-    return dialog / this.scale - LAYOUT.rail;
+    return drawnListWidth({ measure: this.measure, ...this.layoutNow(), share: DIALOG.width });
   }
 
   // ── Navigator: view ────────────────────────────────────────────────────

@@ -116,7 +116,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - `fuzzy.js` for search;
     - `mru.js` for recency;
     - `config.js` for `recall.json`;
-    - `columns.js` for location text, the room each column needs and how wide it is drawn;
+    - `columns.js` for location text, the room each column needs, how wide the list is and how wide each column is drawn;
     - `textwidth.js` for how wide a text is drawn;
     - `look.js` for the text scale and the font;
     - `tracker.js` for the tracker's window;
@@ -162,7 +162,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **Give the tracker's window a size above 1.** Herdr reads an overlay's width or height of 1 or less as a share of its own window, and a window overlay keeps the scrolls and presses over it. At 1 × 1 the tracker covers the whole window, unseen: clicks on spaces and panes do nothing, the wheel doesn't scroll terminals, and any drag moves the tracker instead.
 - **The dialog's size is fixed by `mod.json`.** Larger text, or a higher zoom, leaves fewer rows and less width. Give the name column its minimum width and let LOCATION, FOLDER and BRANCH shrink, or they squeeze the name out on a small window.
 - **Herdr gives a mod no way to measure text.** Work a text's width out from its characters: sum Geist's widths per character, as Herdr lays them out (measure them by drawing each one ten times in a box and reading a screenshot), and add 2% and 1px, since the sums come out up to 1.5% under what is drawn. Semibold is as wide as regular. When the dialog is drawn in another font, count each letter as 0.62 of the text size and a CJK character as the text size.
-- **Nothing tells the dialog its own width either.** The list is the dialog's 74% of `window.viewport_size().width`, divided by Herdr's zoom (the zoom enlarges what is in the window, not the window), less 2px of border, divided by the dialog's scale, less the 60px rail. A row then spends 24px on its ends, 56px on its status glyph, icon and badge, and 8px on each gap.
+- **Fit the columns to the list's width as Herdr measures it.** Give the table beside the rail an id and `on_size_change`, and draw again only when what it reports changes. It reports the window's px: divide by Herdr's zoom (the zoom enlarges what is in the window, not the window) and by the dialog's scale. The report comes after the frame it was laid out in, so draw the first frame from `window.viewport_size().width`: the dialog's 74% of it, divided by the zoom, less 2px of border, divided by the dialog's scale, less the 60px rail. Do the same in a frame whose window width, zoom or scale differs from the last report's, or that frame is drawn at the old width. On Herdr 0.1.15 the two agree within 1px. A row then spends 24px on its ends, 56px on its status glyph, icon and badge, and 8px on each gap.
 - **`recall.json` is read after the first frame.** Keep the font and size it asked for in shared `recall.look` and draw the first frame from that, or the dialog opens at Herdr's size and jumps.
 - **Disclose before installing:** the mod runs programs (`exec`, `hc`) and reads terminal buffers. It reads nothing outside the app home besides what those programs report.
 
