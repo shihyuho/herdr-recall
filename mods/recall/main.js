@@ -316,7 +316,7 @@ export default class Recall extends View {
     const local = spaces().filter((s) => !s.machine && s.folder);
     const probes = await Promise.all(local.map(async (s) => {
       try {
-        const r = await exec("git", ["-C", s.folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"]);
+        const r = await exec("git", ["-C", s.folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"], { timeout: 5000 });
         const parsed = r.code === 0 ? parseRevParse(r.stdout) : null;
         return parsed ? { id: s.id, name: s.name, branch: s.branch, ...parsed } : null;
       } catch {
