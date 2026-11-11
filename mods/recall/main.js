@@ -8,9 +8,11 @@
 // Opening the navigator (re)opens the tracker, so one open starts tracking;
 // `keep` brings the tracker back on every start.
 //
-// Copies of a mod share no memory, so the open navigator announces itself
-// in shared "recall.open" with a heartbeat: a second open within a beat is
-// a toggle, and a crash leaves nothing stuck.
+// The top of a mod's file runs once and is shared by its copies; each copy
+// has its own instance. The dialog and the tracker are separate instances,
+// and a crash loses module state, so the open navigator still announces
+// itself in shared "recall.open" with a heartbeat: a second open within a
+// beat is a toggle, and a crash leaves nothing stuck.
 
 import { View, div } from "gpui-kit";
 import { v_flex, InputState, VirtualListScrollHandle } from "gpui-base";
