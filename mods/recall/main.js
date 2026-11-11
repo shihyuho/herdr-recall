@@ -23,7 +23,7 @@ import {
 import * as mru from "./lib/mru.js";
 import { listView } from "./lib/listview.js";
 import { actionFor, isPrintable, normalizeKey, normalizeLook, parseConfig, parseOpenCommand } from "./lib/config.js";
-import { createCluesRefresh, PROGRAM_TIMEOUT } from "./lib/clues-refresh.js";
+import { createCluesRefresh } from "./lib/clues-refresh.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
 import { LAYOUT, columnNeeds, dragWidth, fitColumns, headWidths, loadKept, shownColumns } from "./lib/columns.js";
 import { DESIGN_TEXT, pickFont, textScale } from "./lib/look.js";
@@ -39,6 +39,8 @@ const KEPT = "recall.widths";
 const LOOK = "recall.look";
 const BEAT = 1500;
 const FRESH = 4000;
+// The git probe that groups worktrees is given this long (Herdr's default is 30 s), a budget of its own.
+const WORKTREE_PROBE_TIMEOUT = 5000;
 const TRACKER = trackerWindow(MOD);
 const DIALOG = { kind: "dialog", width: 0.74, height: 0.7 };
 
@@ -316,7 +318,7 @@ export default class Recall extends View {
     const local = spaces().filter((s) => !s.machine && s.folder);
     const probes = await Promise.all(local.map(async (s) => {
       try {
-        const r = await exec("git", ["-C", s.folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"], { timeout: PROGRAM_TIMEOUT });
+        const r = await exec("git", ["-C", s.folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"], { timeout: WORKTREE_PROBE_TIMEOUT });
         const parsed = r.code === 0 ? parseRevParse(r.stdout) : null;
         return parsed ? { id: s.id, name: s.name, branch: s.branch, ...parsed } : null;
       } catch {

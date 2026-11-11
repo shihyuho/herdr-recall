@@ -295,11 +295,12 @@ function hints(nav) {
 }
 
 function footer(t, u, nav) {
+  const keyCap = (keys) => div().px(u(5)).rounded(u(4)).bg(t.raised).text_color(t.muted).child(keys);
   const chip = ([keys, label]) => h_flex().flex_none().gap(u(5)).items_center()
-    .child(div().px(u(5)).rounded(u(4)).bg(t.raised).text_color(t.muted).child(keys))
+    .child(keyCap(keys))
     .child(div().text_color(t.dim).child(label));
   const escChip = ([keys, label]) => escHint(t, u, nav, "recall-esc-footer", [
-    div().px(u(5)).rounded(u(4)).bg(t.raised).text_color(t.muted).child(keys),
+    keyCap(keys),
     div().child(label),
   ]);
   const all = hints(nav);

@@ -71,7 +71,7 @@ Six lists sit on the left, in this order: All, Spaces, Tabs, Panes, Agents and C
 
 **The selection** starts on the first row that isn't where you are now, typed or not, so `⏎` takes you somewhere else; when the row you are on is the only match, it is selected.
 
-**All** has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each in the order above. When nothing in All matches and Clues is one of your categories, it offers one row, `Search Clues for "<query>"`; opening it switches to Clues with the same query. Without Clues, and in the other lists, it just says "Nothing matches".
+**All** has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim ledger.go`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each in the order above. When nothing in All matches and Clues is one of your categories, it offers one row, `Search Clues for "<query>"`; opening it switches to Clues with the same query. Without Clues, and in the other lists, it just says "Nothing matches".
 
 **Clues** puts the most recently focused pane first, and typing there doesn't use the tiers; see **Searching Clues** below.
 
