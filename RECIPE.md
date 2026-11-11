@@ -9,7 +9,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 ## What you see
 
 - A dialog in the middle of the window, 74% of its width and 70% of its height, on the theme's popover background. Text is 13px in the theme's foreground. Every size below is as designed for that text; the dialog draws them all to scale when its text size differs (see Text size and font).
-- **Header**, 48px high with a bottom border: the category's title on the left (150px, 14px semibold: "Find Anywhere", "Recent Spaces", "Recent Tabs", "Recent Panes", "Agents", "Find by Clue"), then a search field filling the rest (30px high, radius 8, a search icon, the row count on the right as `7` or `3/7` while searching; its border is the accent color while you type). On Agents, a segmented control follows: Recent, Priority, Grouped. "Esc" sits at the far right.
+- **Header**, 48px high with a bottom border: the category's title on the left (150px, 14px semibold: "Find Anywhere", "Recent Spaces", "Recent Tabs", "Recent Panes", "Agents", "Find by Clue"), then a search field filling the rest (30px high, radius 8, a search icon, the row count on the right as `7` or `3/7` while searching; its border is the accent color while you type). On Agents, a segmented control follows: Recent, Priority, Grouped. "Esc" sits at the far right, drawn as a hint you can click (see Mouse).
 - **Rail** on the left, 60px wide with a right border: one 48×46 entry per category (All, Spaces, Tabs, Panes, Agents, Clues), a 16px icon over a 9.5px label. All's icon is four small squares; Clues' is the search glass. The current one has the selected background and an accent icon.
 - **Table** filling the rest:
   - A 26px column head in 10.5px semibold capitals: NAME, LOCATION (CONTENTS on Spaces, and no such column on All), FOLDER, BRANCH, STATUS. A 1px divider sits left of every head but NAME.
@@ -29,13 +29,17 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - On a dialog too narrow even for the heads, LOCATION, FOLDER and BRANCH narrow in proportion to leave the name 200px, or what it asked for if that is less.
   - A linked worktree's space sits indented under its main checkout and reads "repo ⎇ branch".
   - Empty states read "Reading panes…", "Nothing matches" or "Nothing here yet". The exception is All with a query nothing matches, when Clues is one of the visible categories: it shows one selected row, a search glass and `Search Clues for "<query>"`; opening it (Enter or click) switches to Clues and leaves the query in the search field. Otherwise All shows "Nothing matches".
-- **Footer**, 28px high on the chrome background with a top border: the keys worth knowing now as small key chips with dim labels (`⏎ open`, `↑↓ move`, `⇥ category`, `⌃S sort` on Agents, `esc close` at the right). A broken `recall.json` shows its error here in the blocked color.
+- **Footer**, 28px high on the chrome background with a top border: the keys worth knowing now as small key chips with dim labels (`⏎ open`, `↑↓ move`, `⇥ category`, `⌃S sort` on Agents, `esc close` at the right, which can be clicked like the header's "Esc" while it reads close, not while it reads `esc clear`; the other chips are plain labels). A broken `recall.json` shows its error here in the blocked color.
 
 ## How it behaves
 
 - **Opening.** It opens on the category asked for, else the one used last, else the first. The selection starts on the first row that isn't where you are now, so Enter goes back; Clues' reason rows ("not in any pane", "nothing listening") are skipped too. When every row is where you are, the first is selected. The same rule picks the row again each time the query changes. It keeps aiming there until you move, because focus can settle after the first frame. Pressing the open key again closes it.
 - **Tab name.** A tab goes by what Herdr calls it, in every Location and on its own row: the name someone gave it (by hand or by a mod), else its position in its space (`1`). A one-tab space still shows `1`, and a Tab name equal to a Pane name is shown as is. The pane a tab is about (its agent's, else its focused, else its first) gives a tab row its icon, folder and branch, not its name.
-- **Pane name.** A pane has the same name in every category: its agent's title, else the title its program set (unless that is only the terminal's address), else its program's name (`zsh` for a bare shell), else its folder's last segment (only when Herdr doesn't know its program), else, for a mod's pane, the mod.
+- **Pane name.** A pane has the same name in every category, agent rows included: its agent's title, else the title its program set, else its program's name (`zsh` for a bare shell), else its folder's last segment (only when Herdr doesn't know its program), else, for a mod's pane, the mod.
+  - A title counts without the status mark in front of it: a leading run of characters that are neither letters, digits nor whitespace goes, along with the whitespace after it, but only when whitespace does follow. `⠐ Fix cart rounding` reads `Fix cart rounding` and `🚀 deploy` reads `deploy`; `[WIP] fix cart`, `#123 fix`, `⠐Fix` and `~/code` stay as they are.
+  - A cleaned title is not used, and the next name in line is, when it is empty, only the terminal's address, path-like (starting with `~` or `/`, or a drive letter followed by `:\`), equal to the program's name or key in any letter case, or, when the program is a shell or an agent, shaped like a shell prompt (`user@host:` and then a path starting with `~`, `/` or `.`, the shape Clues reads as a shell back at its prompt). So an agent titled `~/code/payments-api` reads `Claude Code`, a zsh titled `user@host: ~/code/x` reads `zsh`, an agent whose pane was left titled `me@mac: ~/code/x` reads `Claude Code`, a zsh titled `git commit -m "fix a@b"` keeps its title, and an ssh pane titled `deploy@db1: ~` keeps its title too, since ssh is neither a shell nor an agent and the host tells two ssh panes apart. This follows Herdr's own agents list, except that Herdr drops every leading non-letter (`[WIP] fix` becomes `WIP] fix`) and rejects `@` in any title (every ssh pane becomes `ssh`).
+  - An agent's row uses its pane's Pane name and hidden titles when its pane is listed, so one pane never reads two ways; it works its own out only when Herdr doesn't list the pane.
+  - Clues tells an editor from a terminal by the title Herdr reports, not by the Pane name (a pane titled `nvim` is named `Neovim` and still reads as a file).
 - **Keys.**
 
   | Key | Action |
@@ -50,6 +54,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   Typing searches. Binding a movement key to a letter in `recall.json` turns on vim-style input: `j` `k` move, `h` `l` switch categories, `/` starts searching, and Escape leaves the search first.
 - **Mouse.**
   - Click a row to go there, or a rail entry to switch category.
+  - Click "Esc" in the header, or the `esc close` chip in the footer, to close the dialog the way Ctrl+C does: at once, even with a query typed, and without Escape's clear-the-search-first step. Both look like the Esc hint of Herdr's own picker: a little padding and rounding in dim text, and under the pointer the theme's hover background with foreground text and a hand pointer. Each has its own element `id`. The header's "Esc" always closes. The footer's chip takes a click only while it reads `esc close`: with a query typed it reads `esc clear` and is a plain chip, and while the search field is being edited its tail chip is Ctrl+C's and takes none. No other footer chip takes a click.
   - Drag the divider left of a head to set that column's width, between its head's width and 520px. A press that doesn't move sideways changes nothing. Double-click the divider to let the column fit its content again.
     - The columns are first fitted as if nothing had been dragged; a dragged column is then drawn at its width, and the name gives or takes the difference, so the divider stays under the pointer and the other columns stay as they were.
     - The name gives down to 200px, or to what it asked for if that is less. Past that, the columns that weren't dragged give way, the folder first, and a dragged column narrows only after them, never past its head. While that happens a dragged divider may not sit under the pointer.
@@ -71,10 +76,10 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   In every category, Recent puts the focused rows first, most recently focused first, then the never-focused ones by status (blocked, done, working, idle, none), ties in Herdr's order; a linked worktree space still nests under its main checkout. Agents sort by Recent (that rule), Priority (blocked, done, working, idle; latest change first within each) or Grouped (Herdr's own space, tab and pane order).
 - **Search.** fzf's extended-search syntax (see Query syntax below), every term matching some field:
   - spaces by name, folder, branch, machine and status word;
-  - tabs by Tab name, what they run, their space, folder, their panes' Pane names (a named tab too, though it doesn't show them), branch and status word;
-  - panes and agents by name, "space › tab", folder, program, branch and status word.
+  - tabs by Tab name, what they run, their space, folder, their panes' Pane names (a named tab too, though it doesn't show them), branch and status word, and by the titles Herdr reported for their panes when those aren't the names shown (as for panes, next), after the fields the row draws;
+  - panes and agents by name, "space › tab", folder, program, branch and status word, and by the title Herdr reported when that isn't the name shown (`~/code/payments-api`, `user@host: ~`, `⠐ Fix cart rounding`), so a cleaner name costs no search results. The field comes after the ones a row draws, so a term found in both lights the name.
 
-  The status word is what the STATUS column shows: "needs you" for blocked, "finished" for done. An agent's last message is not searched. Matching a branch, status word or machine highlights nothing; letters light up only in the name, the path and a tab's pane list.
+  The status word is what the STATUS column shows: "needs you" for blocked, "finished" for done. An agent's last message is not searched. Matching a branch, status word, machine or a title that isn't the name highlights nothing; letters light up only in the name, the path and a tab's pane list.
 
   All searches each row as its own category does. Typing sorts the matches into two tiers (ADR 0002):
   - first the rows where every term appears unbroken (as one run of letters, smart case) in some field, then the rest;
@@ -100,10 +105,12 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - `ws`, `tab` and `pane` are plain text, not list switches, and a pane's folder is no clue (All and Panes search it);
   - with nothing typed it lists each pane's command and ssh clues.
 
-  Clues re-reads what panes run every 10 s and the buffers of new panes every 30 s while it shows.
+  Clues re-reads what panes run every 10 s and the buffers of new panes every 30 s while it shows. A round still running is not started again, the two kept apart, but only until it has run 30 s: `hc` has no timeout, so a call that never settles must not freeze Clues, and the next due tick then starts a new round. What a round it replaced brings back late is dropped, never written over the newer round's data. A round that fails (a program hangs past its 5 s, can't start, or exits with an error) keeps what the last good round found. The process table and the listener list are kept apart: `ps` answering replaces the table and `lsof` answering replaces the listeners, and each keeps its last good value when its own program fails, or stays empty when there is none. A tick with no round due starts nothing.
 - **Jumping back without the dialog.** `recall.previous-tab`, `-pane`, `-agent` and `-space` go to the most recently focused one that still exists and isn't where you are, across spaces.
 
 ## Built from
+
+Recall was tested with Herdr 0.1.15. That is a tested version, not a minimum, and the install script checks no version.
 
 - **One mod**, `mods/recall/`:
   - `mod.json`: `{ "place": "none", "title": "Recall", "overlay": { "kind": "dialog", "width": 0.74, "height": 0.7 } }`;
@@ -113,6 +120,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
     - `listview.js` for what a category shows: its rows with their highlights, the total and the opening selection;
     - `items.js` for the rows of each category, All's included;
     - `clues.js` and `clue-extract.js` for Clues;
+    - `clues-refresh.js` for Clues' data refresh (the pane-state and buffer rounds), run with Herdr's `exec` and `hc` handed in;
     - `fuzzy.js` for search;
     - `mru.js` for recency;
     - `config.js` for `recall.json`;
@@ -131,7 +139,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   { "global": { "cmd-e": "mod.open:recall" } }
   ```
 
-- **`herdr` functions:** `spaces`, `panes`, `agents`, `terminals`, `focused`, `theme`, `settings`, `fonts`, `props`, `run`, `shared`, `setShared`, `openOverlay`, `closeOverlay`, `nextCommand`, `home`, `appHome`, `readTextFile`, `exec`, `hc`.
+- **`herdr` functions:** `spaces`, `panes`, `agents`, `terminals`, `focused`, `theme`, `settings`, `fonts`, `props`, `run`, `shared`, `setShared`, `openOverlay`, `closeOverlay`, `nextCommand`, `home`, `appHome`, `readTextFile`, `exec` (with a `timeout`), `hc`.
 - **Commands run:** `space.select`, `tab.select`, `pane.focus`, `agent.focus`.
 - **Shared state:**
   - `recall.history`: recency;
@@ -141,8 +149,8 @@ This file is the brief: enough to build Recall from an empty folder. The files n
   - `recall.look`: the font and size `recall.json` asked for last time;
   - it reads `space.colors`, as Herdr's own mods keep it, so badges match the sidebar.
 - **Programs run** (all local; nothing reaches the network):
-  - `git -C <folder> rev-parse --path-format=absolute --show-toplevel --git-common-dir` for each local space, to find worktrees;
-  - for Clues: `hc get <t> --json` and `hc read <t> --lines 3000` for each terminal, `ps -eo pid=,ppid=,command=`, and `lsof -nP -iTCP -sTCP:LISTEN -F pn` (else `/usr/sbin/lsof`).
+  - `git -C <folder> rev-parse --path-format=absolute --show-toplevel --git-common-dir` for each local space, to find worktrees, given 5 000 ms (a space whose probe fails is left ungrouped);
+  - for Clues: `hc get <t> --json` and `hc read <t> --lines 3000` for each terminal (`hc` has no timeout option), `ps -eo pid=,ppid=,command=`, and `lsof -nP -iTCP -sTCP:LISTEN -F pn` (else `/usr/sbin/lsof`: both are tried until an lsof has answered in this dialog, whatever its exit code, and then only that one is; Herdr's error doesn't tell a timeout from a program that can't start, so an lsof that only ever times out is still followed by the other each round), each of `ps` and `lsof` given 5 000 ms.
 - **Settings:** `~/.config/herdr-app/recall.json`, optional:
   - `categories`: which categories show, in order: `all`, `spaces`, `tabs`, `panes`, `agents`, `clues` by default, with `workspaces`, `workspace` and `ws` read as `spaces`, `others` read as `clues` (as are `recall.open-others` and `recall.open-clues`), unknown names dropped, the first of a duplicate kept and an empty list showing only All; `tabs`, the earlier name, is read only when `categories` is absent;
   - `keybindings`: `next_category`, `previous_category`, `move_up`, `move_down`, `select`, `dismiss`, `force_quit` and `backspace`, each a list of keys in Herdr's spelling or `C-p` / `S-Tab` style;
@@ -151,8 +159,8 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
 ## Watch out
 
-- **Install by copying the folder, not symlinking it.** Herdr loads a mod's icons only from inside its home folder, so a symlinked copy runs without icons.
-- **Copies of a mod share no memory.** The dialog announces itself in shared `recall.open` with a heartbeat. A second open within 4 s is a toggle, and a crash leaves nothing stuck.
+- **Install by copying the folder, not symlinking it.** Herdr before 0.1.15 loads no icons from a linked mod folder. Whether Herdr reloads a linked folder when a file is saved is unverified. The agent install route copies anyway.
+- **Copies of a mod share the top of the file, not their instances.** The top of a mod's file runs once and is shared by its copies, and each copy has its own instance. The dialog and the tracker are separate instances, and a crash loses module state, so the dialog still announces itself in shared `recall.open` with a heartbeat. A second open within 4 s is a toggle, and a crash leaves nothing stuck.
 - **The search field takes keys before `on_key_down` does,** and so does Tab focus traversal. Bind the category and close keys with `cx.bind_keys` in both `RecallNavigator` and `RecallNavigator > Input`, and handle them with `on_action`. Printable keys stay with `on_key_down`, since whether they type or move depends on the mode.
 - **Focus the search field again 250 ms after opening.** The first focus can be lost.
 - **Use `v_virtual_list` with the row's height (30px, to scale) and `track_scroll`, not `uniform_list`.** A `uniform_list` ignores `track_scroll` (`herdr-app check` warns about it), so `scroll_to_item` does nothing and a selection moved past the visible rows goes off screen.
@@ -169,17 +177,20 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 ## Done when
 
 - `herdr-app check mods/recall` passes, and `node --test 'tests/*.test.mjs'` passes.
+- The Herdr version named as tested (here and in both READMEs) is the one `herdr-app check` ran on.
 - After the first `⌘E`, going from tab A to tab B and pressing `⌘E` opens with A's row selected, and Enter returns to A. Pressing `⌘E` twice closes the dialog.
 - With the tracker running, a click on a space still switches to it and the wheel still scrolls a terminal; `windows.json` keeps `recall-tracker` at 2 × 2.
 - `recall.previous-tab` jumps back to the previous tab even when it is in another space.
 - On Agents, a blocked agent reads "needs you" and Ctrl+S cycles Recent, Priority and Grouped.
 - Clicking a column head changes nothing: no sort, no ▲ or ▼.
+- Clicking "Esc" in the header, or `esc close` in the footer, closes the dialog (the footer one only while it reads close, so not with a query typed; the header one always), and the next `⌘E` opens as usual. Both light up under the pointer; the other footer chips do nothing when clicked.
 - With nothing dragged, a category whose longest values fit beside the name shows every one of them whole, and typing doesn't move the columns.
 - Dragging LOCATION's divider widens it; the width is still there after reopening, and a double-click lets it fit its content again.
 - With `"font_size": 19.5` in `recall.json`, the dialog draws everything one and a half times as large, from its first frame once it has been opened before; without it, the dialog looks as it does at 13px.
 - On a window too narrow for every column, or at a high zoom, the name still shows, the folder is cut at its start before the location or the branch narrow, every column is lined up under its head, and "needs you" is whole.
 - All lists each pane or agent once, led by its `space › tab › ` path, with no LOCATION column; a tab with one pane and a space with one tab have no row of their own.
 - In an unnamed tab, All reads `space › 1 › …` and LOCATION `space › 1`, as Herdr's tab bar numbers it; a named tab reads its name there. On Tabs, an unnamed tab's row reads `1` with its panes' names after it in dim, and typing a pane's name lights those letters; a named tab's row shows its name alone.
+- An agent titled `⠐ Fix cart rounding` reads `Fix cart rounding` on Panes, Agents and All, and in its tab's pane list; one titled `~/code/payments-api` reads `Claude Code`, a zsh titled `user@host: ~/code/x` reads `zsh`, an ssh pane titled `deploy@db1: ~` keeps its title, and `[WIP] fix cart` is kept whole. Typing `payments` still finds the agent titled `~/code/payments-api` and lights nothing, and on Tabs it finds the tab holding that pane and lights nothing. A zsh titled `git commit -m "fix a@b"` keeps its title, and an agent whose pane was left titled `me@mac: ~/code/x` reads `Claude Code`.
 - In Clues, `port <n>` for a running dev server lists the pane that started it.
 - Typing puts rows where the term appears unbroken above rows that match by scattered letters, each group in its untyped order, and the selection skips the row you are on unless it is the only match.
 - On All, `^pay` finds the rows located in a space named `payments-api`, `'api'` doesn't find a pane titled `rapid`, and `!zsh` drops the shell panes and the tabs holding one.

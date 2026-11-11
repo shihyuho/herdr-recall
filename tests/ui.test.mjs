@@ -73,7 +73,7 @@ test("an unnamed tab's row draws its pane list after its name, at 12px in the di
   // world(), Tabs: web's unnamed tab 1 (an agent), the named server, api's unnamed tab 1 (nvim).
   assert.deepEqual(drawn.map((parts) => JSON.stringify(parts)).sort(), [
     [["1", null], ["fix login bug", 12]],
-    [["1", null], ["nvim", 12]],
+    [["1", null], ["nvim main.go", 12]],
     [["server", null]],
   ].map((parts) => JSON.stringify(parts)).sort());
   const web = drawnRows(dialog()).map(nameParts).find((parts) => parts[1]?.text === "fix login bug");
@@ -110,4 +110,43 @@ test("the table beside the category rail reports its width to the navigator, and
   table.styles.on_size_change({ width: 1353, height: 649 }, cx);
   assert.deepEqual(reported, [1353, 1353]);
   assert.equal(notified, 1);
+});
+
+// Clicking "Esc" closes Herdr's own dialogs since 0.1.15. Recall's two hints
+// look like the picker's and close the dialog the way Ctrl+C does, at once.
+const escHints = (state, query) => drawnElements(dialog(state, query)).filter((el) => /^recall-esc-/.test(el.styles.id));
+const click = (el) => { let notified = 0; el.styles.on_click({}, { notify: () => notified++ }); return notified; };
+
+test("the Esc hints in the header and the footer each have an id, light up in the hover color with foreground text, and show a hand", () => {
+  const hints = escHints();
+  assert.deepEqual(hints.map((el) => el.styles.id).sort(), ["recall-esc-footer", "recall-esc-header"]);
+  for (const el of hints) {
+    assert.equal(el.styles.text_color, "dim");
+    assert.deepEqual(el.hover, { bg: "hover", text_color: "foreground" });
+    assert.equal(el.styles.cursor_pointer, true);
+    assert.ok(el.styles.px && el.styles.py && el.styles.rounded, "a little padding and rounding");
+  }
+});
+
+test("a click on the header's Esc closes the dialog at once, even with a query typed; the footer's does too while it reads close", () => {
+  let closed = 0;
+  const state = { dismiss: () => closed++, backOut: () => assert.fail("Escape's clear-first is not involved") };
+  escHints(state, "").forEach(click);
+  assert.equal(closed, 2);
+  closed = 0;
+  const [header] = escHints({ ...state, query: "pay" }, "pay");
+  click(header);
+  assert.equal(closed, 1);
+});
+
+test("the footer's Esc chip reading clear is a plain chip: no id, no hover, no hand, no click", () => {
+  assert.deepEqual(escHints({ query: "pay" }, "pay").map((el) => el.styles.id), ["recall-esc-header"]);
+  const plain = drawnElements(dialog({ query: "pay" }, "pay")).filter((el) => el.styles.on_click && !el.styles.id);
+  assert.deepEqual(plain, []);
+});
+
+test("no other footer chip takes a click, and while filtering only the header's Esc does", () => {
+  const footerClicks = (state) => drawnElements(dialog(state)).filter((el) => el.styles.on_click && !el.styles.id);
+  assert.deepEqual(footerClicks(), []);
+  assert.deepEqual(escHints({ mode: "filtering" }).map((el) => el.styles.id), ["recall-esc-header"]);
 });

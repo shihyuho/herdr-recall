@@ -30,7 +30,7 @@
 
 ## Install
 
-Recall 需要 Herdr app，而且 `herdr-app` 要在 `PATH` 上。
+Recall 需要 Herdr app，而且 `herdr-app` 要在 `PATH` 上。它是用 Herdr 0.1.15 測試的；這是試過的版本，不是最低版本，安裝腳本也不會檢查版本。
 
 **請 agent 安裝。** 請 Herdr 裡的 agent 加入 `github.com/shihyuho/herdr-recall` 這個 mod。它會把 `mods/recall/` 複製到位、把 [`keys.json`](keys.json) 裡的 `⌘E` 加進你的按鍵設定（如果你已經在用這個鍵，會先問你），並執行 `herdr-app check`。
 
@@ -71,7 +71,7 @@ cd herdr-recall
 
 **選取** 不論有沒有打字，都停在第一個不是你目前所在位置的列，讓 `⏎` 帶你去別的地方；如果你所在的那列是唯一的結果，就選它。
 
-**All** 把所有 space、tab、pane 與 agent 放在一起，不必先知道要找的是哪一種。每個名稱前面都帶著它的路徑（`payments-api › refunds › nvim`），每個目的地也只出現一次：agent 代表它所在的 pane，tab 要有好幾個 pane 才會有自己的一列，space 要有好幾個 tab 才會有。agent 與 pane 排最前面，接著是 tab，最後是 space，各自依上面的順序排列。如果 All 裡沒有任何符合的項目，而且 Clues 是你顯示的分類之一，它會給一列 `Search Clues for "<query>"`；開啟後會切到 Clues，並保留同一個查詢。其他情況與其他清單則顯示「Nothing matches」。
+**All** 把所有 space、tab、pane 與 agent 放在一起，不必先知道要找的是哪一種。每個名稱前面都帶著它的路徑（`payments-api › refunds › nvim ledger.go`），每個目的地也只出現一次：agent 代表它所在的 pane，tab 要有好幾個 pane 才會有自己的一列，space 要有好幾個 tab 才會有。agent 與 pane 排最前面，接著是 tab，最後是 space，各自依上面的順序排列。如果 All 裡沒有任何符合的項目，而且 Clues 是你顯示的分類之一，它會給一列 `Search Clues for "<query>"`；開啟後會切到 Clues，並保留同一個查詢。其他情況與其他清單則顯示「Nothing matches」。
 
 **Clues** 把最近 focus 過的 pane 排最前面，打字時不分兩層；用法見下方的 **在 Clues 裡搜尋**。
 
@@ -93,6 +93,7 @@ cd herdr-recall
 | --- | --- |
 | 點一列 | 前往那裡 |
 | 點左側的分類 | 切換過去 |
+| 點 `Esc`（標題列，或頁尾顯示 `close` 時） | 關閉 |
 | 拖曳欄位標題左邊的分隔線 | 設定那一欄的寬度；在分隔線上雙擊，讓它回到依內容決定寬度 |
 
 再按一次開啟的按鍵會關閉切換器；如果那個按鍵開的是別的分類，就切換過去。

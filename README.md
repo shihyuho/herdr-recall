@@ -30,7 +30,7 @@ A recent + fuzzy switcher for the [Herdr](https://herdr.dev/) app, in the spirit
 
 ## Install
 
-Recall needs the Herdr app, with `herdr-app` on your `PATH`.
+Recall needs the Herdr app, with `herdr-app` on your `PATH`. It was tested with Herdr 0.1.15; that is the version it was tried on, not a minimum, and the install script checks no version.
 
 **With your agent.** Ask your agent in Herdr to add the mod at `github.com/shihyuho/herdr-recall`. It copies `mods/recall/` into place, adds the `⌘E` key from [`keys.json`](keys.json) to yours (asking first if you already use it), and runs `herdr-app check`.
 
@@ -71,7 +71,7 @@ Six lists sit on the left, in this order: All, Spaces, Tabs, Panes, Agents and C
 
 **The selection** starts on the first row that isn't where you are now, typed or not, so `⏎` takes you somewhere else; when the row you are on is the only match, it is selected.
 
-**All** has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each in the order above. When nothing in All matches and Clues is one of your categories, it offers one row, `Search Clues for "<query>"`; opening it switches to Clues with the same query. Without Clues, and in the other lists, it just says "Nothing matches".
+**All** has every space, tab, pane and agent in one place, so you can find something without knowing what kind it is. Each name is led by its path (`payments-api › refunds › nvim ledger.go`), and each destination appears once: an agent stands for its pane, a tab gets its own row only when it has several panes, and a space only when it has several tabs. Agents and panes come first, then tabs, then spaces, each in the order above. When nothing in All matches and Clues is one of your categories, it offers one row, `Search Clues for "<query>"`; opening it switches to Clues with the same query. Without Clues, and in the other lists, it just says "Nothing matches".
 
 **Clues** puts the most recently focused pane first, and typing there doesn't use the tiers; see **Searching Clues** below.
 
@@ -93,6 +93,7 @@ Six lists sit on the left, in this order: All, Spaces, Tabs, Panes, Agents and C
 | --- | --- |
 | Click a row | Go to it |
 | Click a category on the left | Switch to it |
+| Click `Esc` (header, or footer while it reads `close`) | Close |
 | Drag the line left of a column head | Set that column's width; double-click the line to let it fit its content again |
 
 Pressing the open key again closes the switcher, or switches to the category that key opens.
