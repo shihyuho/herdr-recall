@@ -128,11 +128,12 @@ function sortToggle(t, u, nav) {
  * under the pointer the hover background with foreground text and a hand.
  * A click closes the dialog the way Ctrl+C does, with or without a query.
  */
-function escHint(t, u, nav, id, text) {
-  return div().id(id).flex_none().px(u(6)).py(u(2)).rounded(u(5)).text_size(u(11)).text_color(t.dim).cursor_pointer()
+function escHint(t, u, nav, id, content) {
+  return h_flex().id(id).flex_none().gap(u(5)).items_center().px(u(6)).py(u(2)).rounded(u(5)).text_size(u(11))
+    .text_color(t.dim).cursor_pointer()
     .hover((s) => s.bg(t.hover).text_color(t.foreground))
     .on_click((_e, cx) => { nav.dismiss(); cx.notify(); })
-    .child(text);
+    .children(content);
 }
 
 function header(t, u, nav, view) {
@@ -152,7 +153,7 @@ function header(t, u, nav, view) {
       div().w(u(150)).flex_none().text_size(u(14)).font_semibold().truncate().child(CATEGORY[nav.category].title),
       search,
       nav.category === "agents" ? sortToggle(t, u, nav) : null,
-      escHint(t, u, nav, "recall-esc-header", "Esc"),
+      escHint(t, u, nav, "recall-esc-header", ["Esc"]),
     ].filter(Boolean));
 }
 
@@ -297,12 +298,10 @@ function footer(t, u, nav) {
   const chip = ([keys, label]) => h_flex().flex_none().gap(u(5)).items_center()
     .child(div().px(u(5)).rounded(u(4)).bg(t.raised).text_color(t.muted).child(keys))
     .child(div().text_color(t.dim).child(label));
-  const escChip = ([keys, label]) => h_flex().id("recall-esc-footer").flex_none().gap(u(5)).items_center()
-    .px(u(6)).py(u(2)).rounded(u(5)).text_color(t.dim).cursor_pointer()
-    .hover((s) => s.bg(t.hover).text_color(t.foreground))
-    .on_click((_e, cx) => { nav.dismiss(); cx.notify(); })
-    .child(div().px(u(5)).rounded(u(4)).bg(t.raised).text_color(t.muted).child(keys))
-    .child(div().child(label));
+  const escChip = ([keys, label]) => escHint(t, u, nav, "recall-esc-footer", [
+    div().px(u(5)).rounded(u(4)).bg(t.raised).text_color(t.muted).child(keys),
+    div().child(label),
+  ]);
   const all = hints(nav);
   const tail = all.pop();
   // The tail is the Esc hint, and takes a click only while it reads "close":
