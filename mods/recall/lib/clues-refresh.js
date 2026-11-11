@@ -29,7 +29,7 @@ export function createCluesRefresh({ exec, hc, terminalPanes }) {
     paneState: { token: 0, startedAt: 0, running: false, every: PANE_STATE_EVERY },
     content: { token: 0, startedAt: 0, running: false, every: CONTENT_EVERY },
   };
-  // The lsof that has started (exited, whatever its code), once one has.
+  // The lsof that has answered (exited, whatever its code), once one has.
   let lsofBin = null;
 
   function due(kind, now) {
@@ -56,20 +56,15 @@ export function createCluesRefresh({ exec, hc, terminalPanes }) {
     }));
   }
 
-  // The process table and the listener list are a pair: a listener's pid is
-  // looked up in the table. Only a round where both answer replaces them; any
-  // failure (a rejection, or an exit code that is not an answer) keeps the last
-  // good pair, and with none yet both are empty.
+  // The process table is replaced whenever `ps` answers, the listener list
+  // whenever `lsof` answers, each apart from the other. A failure (a rejection,
+  // or an exit code that is not an answer) keeps that one's last good value, and
+  // with none yet it is empty.
   async function fetchLocator(live) {
     const [ps, lsof] = await Promise.all([askPs(), askLsof()]);
     if (!live()) return;
-    if (ps && lsof) {
-      data.procs = ps;
-      data.listeners = lsof;
-    } else {
-      data.procs ??= new Map();
-      data.listeners ??= [];
-    }
+    data.procs = ps ?? data.procs ?? new Map();
+    data.listeners = lsof ?? data.listeners ?? [];
   }
 
   async function askPs() {
@@ -81,9 +76,10 @@ export function createCluesRefresh({ exec, hc, terminalPanes }) {
     }
   }
 
-  // `/usr/sbin/lsof` is for a machine where `lsof` isn't on the PATH, so it is
-  // tried only while no lsof has started. Once one has, a timeout or an error
-  // doesn't fall through to what is usually the same program.
+  // `/usr/sbin/lsof` is for a machine where `lsof` isn't on the PATH. Both are
+  // tried until an lsof has answered in this dialog, then only that one. Herdr's
+  // error doesn't tell a timeout from a program that can't start, so an lsof
+  // that only ever times out is still followed by the other each round.
   async function askLsof() {
     for (const bin of lsofBin ? [lsofBin] : ["lsof", "/usr/sbin/lsof"]) {
       try {

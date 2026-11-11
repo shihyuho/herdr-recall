@@ -4,6 +4,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createCluesRefresh } from "../mods/recall/lib/clues-refresh.js";
+import { listView } from "../mods/recall/lib/listview.js";
+import { world } from "./fixtures.mjs";
 
 const PANES = [
   { pane: "p1", terminal: "t1", cwd: "/home/u/web" },
@@ -164,28 +166,67 @@ test("ps and lsof (and its fallback) are each given 5 000 ms; hc is not run thro
 });
 
 for (const how of ["reject", "fail"]) {
-  for (const [broken, other] of [["ps", "lsof"], ["lsof", "ps"]]) {
-    test(`a failed ${broken} (${how}) keeps the last process table and listeners as a pair, though ${other} answered`, async () => {
-      const { mode, exec } = switchable();
-      const { refresh } = rig({ exec });
-      await refresh.run(1000);
-      mode[broken] = how;
-      mode[other] = "second";
-      await refresh.run(11000);
-      assert.equal(GOOD_PROCS(refresh), "node server.js");
-      assert.deepEqual(refresh.data.listeners, [{ pid: 300, port: 3000, addr: "*:3000" }]);
-    });
+  test(`ps failing (${how}) keeps the old process table while fresh listeners land`, async () => {
+    const { mode, exec } = switchable();
+    const { refresh } = rig({ exec });
+    await refresh.run(1000);
+    mode.ps = how;
+    mode.lsof = "second";
+    await refresh.run(11000);
+    assert.equal(GOOD_PROCS(refresh), "node server.js");
+    assert.equal(refresh.data.procs.has(400), false);
+    assert.deepEqual(refresh.data.listeners, [{ pid: 400, port: 5173, addr: "*:5173" }]);
+  });
 
-    test(`a first round where only ${other} answers leaves both empty, not half filled (${broken} ${how})`, async () => {
+  test(`lsof failing (${how}) keeps the old listeners while a fresh process table lands`, async () => {
+    const { mode, exec } = switchable();
+    const { refresh } = rig({ exec });
+    await refresh.run(1000);
+    mode.lsof = how;
+    mode.ps = "second";
+    await refresh.run(11000);
+    assert.equal(refresh.data.procs.get(400).command, "vite");
+    assert.deepEqual(refresh.data.listeners, [{ pid: 300, port: 3000, addr: "*:3000" }]);
+  });
+
+  for (const [broken, other] of [["ps", "lsof"], ["lsof", "ps"]]) {
+    test(`a first round where ${broken} fails (${how}) leaves only its own data empty; ${other}'s lands`, async () => {
       const { mode, exec } = switchable();
       const { refresh } = rig({ exec });
       mode[broken] = how;
       await refresh.run(1000);
-      assert.equal(refresh.data.procs.size, 0);
-      assert.deepEqual(refresh.data.listeners, []);
+      if (broken === "ps") {
+        assert.equal(refresh.data.procs.size, 0);
+        assert.deepEqual(refresh.data.listeners, [{ pid: 300, port: 3000, addr: "*:3000" }]);
+      } else {
+        assert.equal(refresh.data.procs.get(300).command, "node server.js");
+        assert.deepEqual(refresh.data.listeners, []);
+      }
     });
   }
 }
+
+test("lsof never answering does not stop pid lookups: ps alone fills the process table", async () => {
+  const { mode, exec } = switchable();
+  mode.lsof = "reject";
+  const { refresh } = rig({ exec, hcGet: { t1: getJson({ pid: 200 }), t2: getJson({ pid: 20 }) } });
+  await refresh.run(1000);
+  await refresh.run(11000);
+  const view = listView("clues", world(), "pid 300", { clueData: refresh.data });
+  assert.deepEqual(view.rows.map((r) => [r.item.kind, r.item.id, r.item.title]), [["clue", "p1", "node server.js"]]);
+});
+
+test("a failed round keeps what the last good round found, and Clues still shows its port and pid rows", async () => {
+  const { mode, exec } = switchable();
+  const { refresh } = rig({ exec, hcGet: { t1: getJson({ pid: 200 }), t2: getJson({ pid: 20 }) } });
+  await refresh.run(1000);
+  mode.ps = "reject";
+  mode.lsof = "reject";
+  await refresh.run(11000);
+  const rows = (query) => listView("clues", world(), query, { clueData: refresh.data }).rows.map((r) => [r.item.kind, r.item.clue, r.item.id]);
+  assert.deepEqual(rows("port 3000"), [["clue", "port", "p1"]]);
+  assert.deepEqual(rows("pid 300"), [["clue", "pid", "p1"]]);
+});
 
 test("a round after a failed one works again and replaces what was kept", async () => {
   const { mode, exec } = switchable();
