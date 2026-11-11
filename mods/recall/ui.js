@@ -123,6 +123,18 @@ function sortToggle(t, u, nav) {
       .child(SORT_LABEL[s])));
 }
 
+/**
+ * The Esc hint as Herdr's picker draws it: padding, rounding, dim text, and
+ * under the pointer the hover background with foreground text and a hand.
+ * A click closes the dialog the way Ctrl+C does, with or without a query.
+ */
+function escHint(t, u, nav, id, text) {
+  return div().id(id).flex_none().px(u(6)).py(u(2)).rounded(u(5)).text_size(u(11)).text_color(t.dim).cursor_pointer()
+    .hover((s) => s.bg(t.hover).text_color(t.foreground))
+    .on_click((_e, cx) => { nav.dismiss(); cx.notify(); })
+    .child(text);
+}
+
 function header(t, u, nav, view) {
   const label = view.label;
   const count = nav.query.trim() && view.total !== null ? `${view.count}/${view.total}` : String(view.count);
@@ -140,7 +152,7 @@ function header(t, u, nav, view) {
       div().w(u(150)).flex_none().text_size(u(14)).font_semibold().truncate().child(CATEGORY[nav.category].title),
       search,
       nav.category === "agents" ? sortToggle(t, u, nav) : null,
-      div().flex_none().text_size(u(11)).text_color(t.dim).child("Esc"),
+      escHint(t, u, nav, "recall-esc-header", "Esc"),
     ].filter(Boolean));
 }
 
@@ -285,15 +297,23 @@ function footer(t, u, nav) {
   const chip = ([keys, label]) => h_flex().flex_none().gap(u(5)).items_center()
     .child(div().px(u(5)).rounded(u(4)).bg(t.raised).text_color(t.muted).child(keys))
     .child(div().text_color(t.dim).child(label));
+  const escChip = ([keys, label]) => h_flex().id("recall-esc-footer").flex_none().gap(u(5)).items_center()
+    .px(u(6)).py(u(2)).rounded(u(5)).text_color(t.dim).cursor_pointer()
+    .hover((s) => s.bg(t.hover).text_color(t.foreground))
+    .on_click((_e, cx) => { nav.dismiss(); cx.notify(); })
+    .child(div().px(u(5)).rounded(u(4)).bg(t.raised).text_color(t.muted).child(keys))
+    .child(div().child(label));
   const all = hints(nav);
   const tail = all.pop();
+  // The tail is the Esc hint, except while filtering, where it is Ctrl+C's.
+  const tailChip = nav.mode === "filtering" ? chip(tail) : escChip(tail);
   return h_flex().h(u(28)).flex_none().px(u(14)).gap(u(14)).items_center().border_t(1).border_color(t.border).bg(t.chrome)
     .text_size(u(11)).overflow_hidden()
     .children([
       nav.configError ? div().flex_none().max_w(u(320)).truncate().text_color(t.blocked).child(nav.configError) : null,
       ...all.map(chip),
       div().flex_1(),
-      chip(tail),
+      tailChip,
     ].filter(Boolean));
 }
 
