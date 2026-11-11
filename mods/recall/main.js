@@ -21,7 +21,7 @@ import {
 import * as mru from "./lib/mru.js";
 import { listView } from "./lib/listview.js";
 import { actionFor, isPrintable, normalizeKey, normalizeLook, parseConfig, parseOpenCommand } from "./lib/config.js";
-import { cleanBuffer, parseLsof, parsePs, parseSshTarget } from "./lib/clue-extract.js";
+import { createCluesRefresh } from "./lib/clues-refresh.js";
 import { parseRevParse, resolveWorktrees } from "./lib/worktrees.js";
 import { LAYOUT, columnNeeds, dragWidth, fitColumns, headWidths, loadKept, shownColumns } from "./lib/columns.js";
 import { DESIGN_TEXT, pickFont, textScale } from "./lib/look.js";
@@ -48,8 +48,6 @@ const KEY_ACTIONS = {
   dismiss: "recall::dismiss",
   force_quit: "recall::force_quit",
 };
-const PANE_STATE_EVERY = 10000;
-const CONTENT_EVERY = 30000;
 
 function fresh(open) {
   return open && typeof open.at === "number" && Date.now() - open.at < FRESH;
@@ -181,7 +179,8 @@ export default class Recall extends View {
     this.follow = true;
     this.done = false;
     this.worktrees = null;
-    this.data = { paneState: new Map(), content: new Map(), procs: null, listeners: null };
+    this.refresh = createCluesRefresh({ exec, hc, terminalPanes: () => this.clueTargets() });
+    this.data = this.refresh.data;
     this.handle = cx.focus_handle();
     this.scroll = VirtualListScrollHandle.new();
     this.input = InputState.new({ placeholder: "Type to search" });
@@ -325,74 +324,16 @@ export default class Recall extends View {
     return resolveWorktrees(probes.filter(Boolean));
   }
 
-  /** While Clues shows: what panes run every 10 s, their buffers every 30 s (new panes only). */
+  /** While Clues shows: ask the refresh to run whatever round is due. */
   refreshClues(cx) {
     if (this.role !== "navigator" || this.category !== "clues" || this.done) return;
-    const now = Date.now();
-    if (!this.paneStateAt || now - this.paneStateAt >= PANE_STATE_EVERY) {
-      this.paneStateAt = now;
-      cx.spawn(async (cx) => {
-        await Promise.all([this.fetchPaneState(), this.fetchLocator()]);
-        cx.notify();
-      });
-    }
-    if (!this.contentAt || now - this.contentAt >= CONTENT_EVERY) {
-      this.contentAt = now;
-      cx.spawn(async (cx) => {
-        await this.fetchContent();
-        cx.notify();
-      });
-    }
+    cx.spawn(async (cx) => {
+      await this.refresh.run(Date.now(), () => cx.notify());
+    });
   }
 
   clueTargets() {
     return panes().filter((p) => p.terminal);
-  }
-
-  async fetchPaneState() {
-    await Promise.all(this.clueTargets().map(async (p) => {
-      try {
-        const r = await hc(["get", p.terminal, "--json"]);
-        if (r.code !== 0) return;
-        const j = JSON.parse(r.stdout);
-        const fg = j.foreground;
-        const command = fg?.argv?.length ? fg.argv.join(" ") : fg?.name ?? null;
-        this.data.paneState.set(p.pane, {
-          cwd: fg?.cwd ?? j.cwd ?? p.cwd ?? null,
-          command: command && command.trim() ? command : null,
-          ssh: command ? parseSshTarget(command) : null,
-          shellPid: j.pid ?? null,
-        });
-      } catch {}
-    }));
-  }
-
-  async fetchContent() {
-    const missing = this.clueTargets().filter((p) => !this.data.content.has(p.pane));
-    await Promise.all(missing.map(async (p) => {
-      try {
-        const r = await hc(["read", p.terminal, "--lines", "3000"]);
-        const text = r.code === 0 ? cleanBuffer(r.stdout) : null;
-        if (text) this.data.content.set(p.pane, text);
-      } catch {}
-    }));
-  }
-
-  async fetchLocator() {
-    try {
-      const ps = await exec("ps", ["-eo", "pid=,ppid=,command="]);
-      this.data.procs = ps.code === 0 ? parsePs(ps.stdout) : new Map();
-    } catch {
-      this.data.procs = new Map();
-    }
-    let lsof = null;
-    for (const bin of ["lsof", "/usr/sbin/lsof"]) {
-      try {
-        lsof = await exec(bin, ["-nP", "-iTCP", "-sTCP:LISTEN", "-F", "pn"]);
-        break;
-      } catch {}
-    }
-    this.data.listeners = lsof && (lsof.code === 0 || lsof.code === 1) ? parseLsof(lsof.stdout) : [];
   }
 
   snapshot() {
