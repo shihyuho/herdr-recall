@@ -30,7 +30,7 @@
 
 ## Install
 
-Recall 需要 Herdr app，而且 `herdr-app` 要在 `PATH` 上。
+Recall 需要 Herdr app，而且 `herdr-app` 要在 `PATH` 上。它是用 Herdr 0.1.15 測試的；這是試過的版本，不是最低版本，安裝腳本也不會檢查版本。
 
 **請 agent 安裝。** 請 Herdr 裡的 agent 加入 `github.com/shihyuho/herdr-recall` 這個 mod。它會把 `mods/recall/` 複製到位、把 [`keys.json`](keys.json) 裡的 `⌘E` 加進你的按鍵設定（如果你已經在用這個鍵，會先問你），並執行 `herdr-app check`。
 

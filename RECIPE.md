@@ -106,6 +106,8 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
 ## Built from
 
+Recall was tested with Herdr 0.1.15. That is a tested version, not a minimum, and the install script checks no version.
+
 - **One mod**, `mods/recall/`:
   - `mod.json`: `{ "place": "none", "title": "Recall", "overlay": { "kind": "dialog", "width": 0.74, "height": 0.7 } }`;
   - `main.js`: the view and its state;
@@ -152,8 +154,8 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
 ## Watch out
 
-- **Install by copying the folder, not symlinking it.** Herdr loads a mod's icons only from inside its home folder, so a symlinked copy runs without icons.
-- **Copies of a mod share no memory.** The dialog announces itself in shared `recall.open` with a heartbeat. A second open within 4 s is a toggle, and a crash leaves nothing stuck.
+- **Install by copying the folder, not symlinking it.** Herdr before 0.1.15 loads no icons from a linked mod folder. Whether Herdr reloads a linked folder when a file is saved is unverified. The agent install route copies anyway.
+- **Copies of a mod share the top of the file, not their instances.** The top of a mod's file runs once and is shared by its copies, and each copy has its own instance. The dialog and the tracker are separate instances, and a crash loses module state, so the dialog still announces itself in shared `recall.open` with a heartbeat. A second open within 4 s is a toggle, and a crash leaves nothing stuck.
 - **The search field takes keys before `on_key_down` does,** and so does Tab focus traversal. Bind the category and close keys with `cx.bind_keys` in both `RecallNavigator` and `RecallNavigator > Input`, and handle them with `on_action`. Printable keys stay with `on_key_down`, since whether they type or move depends on the mode.
 - **Focus the search field again 250 ms after opening.** The first focus can be lost.
 - **Use `v_virtual_list` with the row's height (30px, to scale) and `track_scroll`, not `uniform_list`.** A `uniform_list` ignores `track_scroll` (`herdr-app check` warns about it), so `scroll_to_item` does nothing and a selection moved past the visible rows goes off screen.
@@ -170,6 +172,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 ## Done when
 
 - `herdr-app check mods/recall` passes, and `node --test 'tests/*.test.mjs'` passes.
+- The Herdr version named as tested (here and in both READMEs) is the one `herdr-app check` ran on.
 - After the first `⌘E`, going from tab A to tab B and pressing `⌘E` opens with A's row selected, and Enter returns to A. Pressing `⌘E` twice closes the dialog.
 - With the tracker running, a click on a space still switches to it and the wheel still scrolls a terminal; `windows.json` keeps `recall-tracker` at 2 × 2.
 - `recall.previous-tab` jumps back to the previous tab even when it is in another space.
