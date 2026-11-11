@@ -35,7 +35,9 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
 - **Opening.** It opens on the category asked for, else the one used last, else the first. The selection starts on the first row that isn't where you are now, so Enter goes back; Clues' reason rows ("not in any pane", "nothing listening") are skipped too. When every row is where you are, the first is selected. The same rule picks the row again each time the query changes. It keeps aiming there until you move, because focus can settle after the first frame. Pressing the open key again closes it.
 - **Tab name.** A tab goes by what Herdr calls it, in every Location and on its own row: the name someone gave it (by hand or by a mod), else its position in its space (`1`). A one-tab space still shows `1`, and a Tab name equal to a Pane name is shown as is. The pane a tab is about (its agent's, else its focused, else its first) gives a tab row its icon, folder and branch, not its name.
-- **Pane name.** A pane has the same name in every category: its agent's title, else the title its program set (unless that is only the terminal's address), else its program's name (`zsh` for a bare shell), else its folder's last segment (only when Herdr doesn't know its program), else, for a mod's pane, the mod.
+- **Pane name.** A pane has the same name in every category, agent rows included: its agent's title, else the title its program set, else its program's name (`zsh` for a bare shell), else its folder's last segment (only when Herdr doesn't know its program), else, for a mod's pane, the mod.
+  - A title counts without the status mark in front of it: a leading run of characters that are neither letters, digits nor whitespace goes, along with the whitespace after it, but only when whitespace does follow. `⠐ Fix cart rounding` reads `Fix cart rounding` and `🚀 deploy` reads `deploy`; `[WIP] fix cart`, `#123 fix`, `⠐Fix` and `~/code` stay as they are.
+  - A cleaned title is not used, and the next name in line is, when it is empty, only the terminal's address, path-like (starting with `~` or `/`, or a drive letter followed by `:\`), equal to the program's name or key in any letter case, or containing `@` while the program is a shell. So an agent titled `~/code/payments-api` reads `Claude Code`, a zsh titled `user@host: ~/code/x` reads `zsh`, and an ssh pane titled `deploy@db1: ~` keeps its title, since ssh is not a shell and the host tells two ssh panes apart. This follows Herdr's own agents list, except that Herdr drops every leading non-letter (`[WIP] fix` becomes `WIP] fix`) and rejects `@` in any title (every ssh pane becomes `ssh`).
 - **Keys.**
 
   | Key | Action |
@@ -72,9 +74,9 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - **Search.** fzf's extended-search syntax (see Query syntax below), every term matching some field:
   - spaces by name, folder, branch, machine and status word;
   - tabs by Tab name, what they run, their space, folder, their panes' Pane names (a named tab too, though it doesn't show them), branch and status word;
-  - panes and agents by name, "space › tab", folder, program, branch and status word.
+  - panes and agents by name, "space › tab", folder, program, branch and status word, and by the title Herdr reported when that isn't the name shown (`~/code/payments-api`, `user@host: ~`, `⠐ Fix cart rounding`), so a cleaner name costs no search results. The field comes after the ones a row draws, so a term found in both lights the name.
 
-  The status word is what the STATUS column shows: "needs you" for blocked, "finished" for done. An agent's last message is not searched. Matching a branch, status word or machine highlights nothing; letters light up only in the name, the path and a tab's pane list.
+  The status word is what the STATUS column shows: "needs you" for blocked, "finished" for done. An agent's last message is not searched. Matching a branch, status word, machine or a title that isn't the name highlights nothing; letters light up only in the name, the path and a tab's pane list.
 
   All searches each row as its own category does. Typing sorts the matches into two tiers (ADR 0002):
   - first the rows where every term appears unbroken (as one run of letters, smart case) in some field, then the rest;
@@ -180,6 +182,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 - On a window too narrow for every column, or at a high zoom, the name still shows, the folder is cut at its start before the location or the branch narrow, every column is lined up under its head, and "needs you" is whole.
 - All lists each pane or agent once, led by its `space › tab › ` path, with no LOCATION column; a tab with one pane and a space with one tab have no row of their own.
 - In an unnamed tab, All reads `space › 1 › …` and LOCATION `space › 1`, as Herdr's tab bar numbers it; a named tab reads its name there. On Tabs, an unnamed tab's row reads `1` with its panes' names after it in dim, and typing a pane's name lights those letters; a named tab's row shows its name alone.
+- An agent titled `⠐ Fix cart rounding` reads `Fix cart rounding` on Panes, Agents and All, and in its tab's pane list; one titled `~/code/payments-api` reads `Claude Code`, a zsh titled `user@host: ~/code/x` reads `zsh`, an ssh pane titled `deploy@db1: ~` keeps its title, and `[WIP] fix cart` is kept whole. Typing `payments` still finds the agent titled `~/code/payments-api` and lights nothing.
 - In Clues, `port <n>` for a running dev server lists the pane that started it.
 - Typing puts rows where the term appears unbroken above rows that match by scattered letters, each group in its untyped order, and the selection skips the row you are on unless it is the only match.
 - On All, `^pay` finds the rows located in a space named `payments-api`, `'api'` doesn't find a pane titled `rapid`, and `!zsh` drops the shell panes and the tabs holding one.
