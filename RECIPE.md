@@ -115,6 +115,7 @@ Recall was tested with Herdr 0.1.15. That is a tested version, not a minimum, an
     - `listview.js` for what a category shows: its rows with their highlights, the total and the opening selection;
     - `items.js` for the rows of each category, All's included;
     - `clues.js` and `clue-extract.js` for Clues;
+    - `clues-refresh.js` for Clues' data refresh (the pane-state and buffer rounds), run with Herdr's `exec` and `hc` handed in;
     - `fuzzy.js` for search;
     - `mru.js` for recency;
     - `config.js` for `recall.json`;
