@@ -6,7 +6,7 @@
 // one people use, or runs past the cap.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { badge, pickVersions, report } from "../site/herdr-versions.js";
+import { BY_HAND, badge, describe, pickVersions, report } from "../site/herdr-versions.js";
 
 // What `git ls-remote --tags` prints: "<sha>\t<ref>", annotated tags twice.
 const lsRemote = (...refs) => refs.map((ref, i) => `${String(i).padStart(40, "0")}\t${ref}`);
@@ -113,4 +113,79 @@ test("badge: a failure outranks an unchecked version, and both are named", () =>
 
 test("badge: no version checked reads not checked, in grey", () => {
   assert.deepEqual(badge(doc()), { schemaVersion: 1, label: "Herdr mod", message: "not checked", color: "lightgrey" });
+});
+
+// Contract: describe() is the site's text about Herdr versions: the hero
+// line, the "Herdr versions" tier's header note, its rows and its by-hand
+// line. A visitor reads it to learn whether their Herdr is covered. Each
+// piece is a list of parts: plain strings, and { b }, { code } or
+// { a, href } for bold, code and links. text() reads a piece as a visitor
+// would, without the markup.
+const text = (parts) => parts.map((p) => (typeof p === "string" ? p : p.b ?? p.code ?? p.a)).join("");
+const links = (parts) => parts.filter((p) => p.href).map((p) => [p.a, p.href]);
+
+test("describe: the hero line names the range checked and links to the list", () => {
+  const { hero } = describe(doc(["0.1.16", "pass"], ["0.1.12", "pass"], ["0.1.14", "fail"]));
+  assert.equal(text(hero), "Checked on Herdr 0.1.12 – 0.1.16 · which");
+  assert.deepEqual(hero.filter((p) => p.b), [{ b: "0.1.12 – 0.1.16" }]);
+  assert.deepEqual(links(hero), [["which", "#herdr-versions"]]);
+});
+
+test("describe: one row per version, newest first by number, marked by its result", () => {
+  // herdr.json as written by hand or by an older publish, out of order.
+  const results = {
+    range: "0.1.9 – 0.1.12", by_hand: "0.1.15", run: meta.run, checked_at: meta.at,
+    versions: [
+      { version: "0.1.9", check: "pass", seconds: 2 },
+      { version: "0.1.12", check: "fail", seconds: 3 },
+      { version: "0.1.10", check: "unknown", seconds: null },
+      { version: "0.1.11", check: "pass", seconds: 1 },
+    ],
+  };
+  assert.deepEqual(describe(results).rows.map((r) => [r.version, r.check, r.mark, text(r.says)]), [
+    ["0.1.12", "fail", "✗", "fails in herdr-app check"],
+    ["0.1.11", "pass", "✓", "loads and draws in herdr-app check"],
+    ["0.1.10", "unknown", "–", "not checked this run"],
+    ["0.1.9", "pass", "✓", "loads and draws in herdr-app check"],
+  ]);
+});
+
+test("describe: the header note says what CI runs and links to the run behind the list", () => {
+  const { note } = describe(doc(["0.1.16", "pass"]));
+  assert.equal(text(note), "CI runs herdr-app check on the five latest releases · latest run");
+  assert.deepEqual(links(note), [["latest run", "https://github.com/shihyuho/herdr-recall/actions/runs/7"]]);
+});
+
+test("describe: the by-hand line names BY_HAND, the version the Done when list was walked through on", () => {
+  // by_hand is BY_HAND in every published document; a stale one doesn't win.
+  const { byHand } = describe({ ...doc(["0.1.16", "pass"]), by_hand: "0.1.3" });
+  assert.equal(text(byHand), `Last walked through by hand on ${BY_HAND}: every item of RECIPE.md's Done when list, in the running app.`);
+  assert.deepEqual(byHand.filter((p) => p.b), [{ b: BY_HAND }]);
+  assert.deepEqual(links(byHand), [["Done when", "https://github.com/shihyuho/herdr-recall/blob/main/RECIPE.md#done-when"]]);
+});
+
+// What the page says with no herdr.json (no JavaScript, a local preview, a
+// fork's site), and with a run that checked nothing: what CI checks, and no
+// version number but the by-hand one.
+const VERSION = /\d+\.\d+\.\d+/g;
+const versionsIn = ({ hero, note, rows, byHand }) =>
+  [hero, note, ...rows.map((r) => [r.version, ...r.says]), byHand].flatMap((parts) => text(parts).match(VERSION) ?? []);
+
+test("describe(null): what CI checks, with no rows and no version but the by-hand one", () => {
+  const site = describe(null);
+  assert.equal(text(site.hero), "Checked on the five latest Herdr releases · which");
+  assert.deepEqual(links(site.hero), [["which", "#herdr-versions"]]);
+  assert.equal(text(site.note), "CI runs herdr-app check on the five latest releases");
+  assert.deepEqual(site.rows, []);
+  assert.deepEqual(versionsIn(site), [BY_HAND]);
+});
+
+test("describe: a report with no versions reads like no report, whatever its range says", () => {
+  const empty = { range: "0.1.12 – 0.1.16", by_hand: BY_HAND, run: meta.run, checked_at: meta.at, versions: [] };
+  const site = describe(empty);
+  assert.equal(text(site.hero), "Checked on the five latest Herdr releases · which");
+  assert.deepEqual(site.rows, []);
+  assert.deepEqual(versionsIn(site), [BY_HAND]);
+  // Beside it, a report with versions does name them.
+  assert.deepEqual(versionsIn(describe(doc(["0.1.16", "pass"]))), ["0.1.16", "0.1.16", BY_HAND]);
 });

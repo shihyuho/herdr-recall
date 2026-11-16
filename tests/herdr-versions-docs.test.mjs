@@ -1,12 +1,13 @@
 // Contract: the docs a person reads before installing name the Herdr version
 // the Done when list was last walked through on by hand, and it is BY_HAND,
-// the one place that version is written. RECIPE.md names FLOOR, the oldest
+// the one place that version is written. The site's static HTML says what
+// describe(null) says, so a visitor reads the same with no herdr.json. RECIPE.md names FLOOR, the oldest
 // version CI checks. Changing either constant without the docs, or a doc
 // without the constant, turns this red.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { BY_HAND, FLOOR } from "../site/herdr-versions.js";
+import { BY_HAND, FLOOR, describe } from "../site/herdr-versions.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -17,6 +18,7 @@ const BY_HAND_DOCS = [
   { path: "README.md", marker: "walked through by hand" },
   { path: "README.zh-TW.md", marker: "親手逐項走過" },
   { path: "RECIPE.md", marker: "walked through by hand" },
+  { path: "site/index.html", marker: "walked through by hand" },
 ];
 
 const VERSION = /\d+\.\d+\.\d+/g;
@@ -40,4 +42,31 @@ for (const { path, marker } of BY_HAND_DOCS) {
 test("RECIPE.md names FLOOR as the oldest Herdr version CI checks", () => {
   const named = clauses(read("RECIPE.md")).filter((c) => c.includes("five latest Herdr releases"));
   assert.deepEqual(named.map(versionsIn), [[FLOOR]]);
+});
+
+// The site's static HTML: each piece describe() fills is the element marked
+// data-herdr="<piece>". Read as a visitor reads it: its text, and its links.
+const html = () => read("site/index.html");
+const piece = (name) => {
+  const m = new RegExp(`<(\\w+)[^>]*\\bdata-herdr="${name}"[^>]*>([\\s\\S]*?)</\\1>`).exec(html());
+  assert.ok(m, `site/index.html has no element with data-herdr="${name}"`);
+  return m[2];
+};
+const ENTITY = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
+const visible = (h) => h.replace(/<[^>]*>/g, "").replace(/&(amp|lt|gt|quot|#39);/g, (_, e) => ENTITY[e]).replace(/\s+/g, " ").trim();
+const anchors = (h) => [...h.matchAll(/<a\b[^>]*\bhref="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].map(([, href, t]) => [visible(t), href]);
+const text = (parts) => parts.map((p) => (typeof p === "string" ? p : p.b ?? p.code ?? p.a)).join("");
+const links = (parts) => parts.filter((p) => p.href).map((p) => [p.a, p.href]);
+
+const fallback = describe(null);
+for (const [name, parts] of [["hero", fallback.hero], ["note", fallback.note], ["by-hand", fallback.byHand]]) {
+  test(`site/index.html's ${name} says what describe(null) says, with the same links`, () => {
+    assert.equal(visible(piece(name)), text(parts));
+    assert.deepEqual(anchors(piece(name)), links(parts));
+  });
+}
+
+test("site/index.html lists no version rows without herdr.json, and the hero's link has a target", () => {
+  assert.equal(visible(piece("rows")), "");
+  assert.equal(html().match(/\bid="herdr-versions"/g)?.length, 1);
 });

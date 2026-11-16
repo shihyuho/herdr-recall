@@ -193,6 +193,7 @@ kbd {
 .hero-meta { margin: 16px 0 0; font-size: 0.86rem; color: var(--text-faint); display: flex; align-items: center; gap: 8px; }
 .hero-meta .pip { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); flex: none; }
 .hero-meta b { color: var(--text-soft); font-weight: 600; }
+.hero-meta a.link { color: inherit; }
 
 /* ---------- demo ---------- */
 .demo { scroll-margin-top: 84px; }
@@ -439,6 +440,16 @@ section { scroll-margin-top: 80px; }
 .file-row b { font-weight: 560; font-size: 0.96rem; }
 .file-row span { color: var(--text-soft); font-size: 0.95rem; }
 .file-row code { font-size: 0.82rem; color: var(--text-soft); background: var(--surface-2); padding: 2px 7px; border-radius: 6px; }
+.files:empty { display: none; }
+#herdr-versions .tier-h { flex-wrap: wrap; row-gap: 4px; }
+#herdr-versions .tier-h h3 { flex: none; }
+#herdr-versions code { white-space: nowrap; }
+.file-row .mark { font-weight: 600; }
+.file-row .mark-pass { color: var(--d-done); }
+.file-row .mark-fail { color: var(--accent); }
+.file-row .mark-unknown { color: var(--text-faint); }
+.by-hand { margin: 14px 0 0; font-size: 0.92rem; color: var(--text-soft); }
+.by-hand b { color: var(--text); font-weight: 600; }
 
 /* ---------- footer ---------- */
 .foot { border-top: 1px solid var(--border); padding: 40px 0 56px; }
@@ -498,4 +509,5 @@ section { scroll-margin-top: 80px; }
   .syn-row { grid-template-columns: 84px 1fr; gap: 6px 14px; }
   .syn-row > em { grid-column: 2; justify-self: start; }
   .file-row { grid-template-columns: 1fr; gap: 4px; }
+  #herdr-versions .file-row { grid-template-columns: 64px 1fr; gap: 12px; }
 }

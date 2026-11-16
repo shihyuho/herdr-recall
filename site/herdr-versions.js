@@ -39,10 +39,15 @@ export function report(results, { byHand, run, at }) {
   const versions = results
     .map(({ version, check, seconds }) => ({ version, check, seconds: seconds ?? null }))
     .sort((a, b) => compare(b.version, a.version));
+  return { range: span(versions), by_hand: byHand, run, checked_at: at, versions };
+}
+
+// The oldest and the newest of versions listed newest first, joined by a
+// spaced en dash; one version alone; none is no range.
+function span(versions) {
   const newest = versions[0]?.version;
   const oldest = versions.at(-1)?.version;
-  const range = !newest ? null : newest === oldest ? newest : `${oldest} – ${newest}`;
-  return { range, by_hand: byHand, run, checked_at: at, versions };
+  return !newest ? null : newest === oldest ? newest : `${oldest} – ${newest}`;
 }
 
 // Herdr's red, as on every other badge of Recall's.
@@ -60,4 +65,40 @@ export function badge({ range, versions }) {
     ...(unchecked.length ? [`${unchecked.join(", ")} not checked`] : []),
   ].join(" · ");
   return doc(message, fails.length ? "orange" : unchecked.length ? "lightgrey" : HERDR_RED);
+}
+
+// The site's text about the Herdr versions CI checks, from the results
+// document, or from nothing (`null`) when herdr.json isn't there. Each piece
+// is a list of parts: plain strings, and { b }, { code } or { a, href } for
+// bold, code and links, so the page builds it without parsing HTML.
+const CHECK = { code: "herdr-app check" };
+const ROW = {
+  pass: { mark: "✓", says: ["loads and draws in ", CHECK] },
+  fail: { mark: "✗", says: ["fails in ", CHECK] },
+  unknown: { mark: "–", says: ["not checked this run"] },
+};
+
+export function describe(results) {
+  const rows = (Array.isArray(results?.versions) ? results.versions : [])
+    .map(({ version, check }) => ({ version, check: Object.hasOwn(ROW, check) ? check : "unknown" }))
+    .sort((a, b) => compare(b.version, a.version))
+    .map((row) => ({ ...row, ...ROW[row.check] }));
+  // From the rows, so a stale range beside no versions names nothing.
+  const range = span(rows);
+  const which = { a: "which", href: "#herdr-versions" };
+  return {
+    hero: range
+      ? ["Checked on Herdr ", { b: range }, " · ", which]
+      : ["Checked on the five latest Herdr releases · ", which],
+    note: [
+      "CI runs ", CHECK, " on the five latest releases",
+      ...(results?.run ? [" · ", { a: "latest run", href: results.run }] : []),
+    ],
+    rows,
+    byHand: [
+      "Last walked through by hand on ", { b: BY_HAND }, ": every item of RECIPE.md's ",
+      { a: "Done when", href: "https://github.com/shihyuho/herdr-recall/blob/main/RECIPE.md#done-when" },
+      " list, in the running app.",
+    ],
+  };
 }
