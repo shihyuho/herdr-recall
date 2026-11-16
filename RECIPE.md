@@ -110,7 +110,7 @@ This file is the brief: enough to build Recall from an empty folder. The files n
 
 ## Built from
 
-Recall was tested with Herdr 0.1.15. That is a tested version, not a minimum, and the install script checks no version.
+CI checks Recall with `herdr-app check` on the five latest Herdr releases from 0.1.10 on; the Done when list was last walked through by hand on Herdr 0.1.15; the install script checks no version.
 
 - **One mod**, `mods/recall/`:
   - `mod.json`: `{ "place": "none", "title": "Recall", "overlay": { "kind": "dialog", "width": 0.74, "height": 0.7 } }`;
@@ -176,8 +176,8 @@ Recall was tested with Herdr 0.1.15. That is a tested version, not a minimum, an
 
 ## Done when
 
-- `herdr-app check mods/recall` passes, and `node --test 'tests/*.test.mjs'` passes.
-- The Herdr version named as tested (here and in both READMEs) is the one `herdr-app check` ran on.
+- `node --test 'tests/*.test.mjs'` passes, and CI's `herdr-app check` passes on every Herdr version in the range.
+- The Herdr version named as walked through by hand (here, in both READMEs and on the site) is the one this list was last walked through on, in the running app.
 - After the first `⌘E`, going from tab A to tab B and pressing `⌘E` opens with A's row selected, and Enter returns to A. Pressing `⌘E` twice closes the dialog.
 - With the tracker running, a click on a space still switches to it and the wheel still scrolls a terminal; `windows.json` keeps `recall-tracker` at 2 × 2.
 - `recall.previous-tab` jumps back to the previous tab even when it is in another space.

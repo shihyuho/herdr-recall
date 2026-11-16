@@ -9,6 +9,7 @@ import { segments } from "./lib/fuzzy.js";
 import { location } from "./lib/columns.js";
 import { STATUS_WORD } from "./lib/items.js";
 import { createWorld, focusPane, targetPane, SPACE_COLORS } from "./world.js";
+import { describe } from "./herdr-versions.js";
 
 /* ---------- theme toggle ---------- */
 var root = document.documentElement;
@@ -23,6 +24,46 @@ if (toggle) {
     try { localStorage.setItem("recall-theme", next); } catch (e) {}
   });
 }
+
+/* ---------- Herdr versions ---------- */
+// CI publishes herdr.json beside the page. Without it (no JavaScript, a local
+// preview, a fork's site) the static HTML already says describe(null).
+function herdrParts(list) {
+  return list.map(function (p) {
+    if (typeof p === "string") return document.createTextNode(p);
+    var el = document.createElement(p.href ? "a" : p.code ? "code" : "b");
+    if (p.href) { el.className = "link"; el.href = p.href; }
+    el.textContent = p.a ?? p.code ?? p.b;
+    return el;
+  });
+}
+function herdrFill(name, list) {
+  var el = document.querySelector('[data-herdr="' + name + '"]');
+  if (el) el.replaceChildren(...list);
+}
+fetch("herdr.json", { cache: "no-cache" })
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (results) {
+    if (!results) return;
+    var site = describe(results);
+    herdrFill("hero", herdrParts(site.hero));
+    herdrFill("note", herdrParts(site.note));
+    herdrFill("by-hand", herdrParts(site.byHand));
+    herdrFill("rows", site.rows.map(function (r) {
+      var row = document.createElement("div");
+      row.className = "file-row";
+      var v = document.createElement("b");
+      v.textContent = r.version;
+      var says = document.createElement("span");
+      var mark = document.createElement("span");
+      mark.className = "mark mark-" + r.check;
+      mark.textContent = r.mark;
+      says.append(mark, " ", ...herdrParts(r.says));
+      row.append(v, says);
+      return row;
+    }));
+  })
+  .catch(function () {});
 
 /* ---------- the Recall demo ---------- */
 // Mirrors mods/recall/ui.js: the same categories, titles, icons and colors.

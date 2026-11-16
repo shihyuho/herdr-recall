@@ -9,7 +9,7 @@
 <p align="center"><strong>Which tab was that agent in again?</strong></p>
 
 <p align="center">
-  <a href="https://herdr.dev/"><img src="https://img.shields.io/badge/Herdr_mod-tested_with_0.1.15-df372b" alt="Herdr mod, tested with 0.1.15"></a>
+  <a href="https://github.com/shihyuho/herdr-recall/actions/workflows/herdr-check.yml"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fshihyuho.github.io%2Fherdr-recall%2Fbadge.json" alt="Herdr mod, the Herdr versions CI checks it on"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://shihyuho.github.io/herdr-recall/"><img src="https://img.shields.io/badge/live_demo-df372b" alt="Live demo"></a>
 </p>
@@ -30,7 +30,7 @@ A recent + fuzzy switcher for the [Herdr](https://herdr.dev/) app, in the spirit
 
 ## Install
 
-Recall needs the Herdr app, with `herdr-app` on your `PATH`. It was tested with **Herdr 0.1.15**; that is the version it was tried on, not a minimum, and the install script checks no version.
+Recall needs the Herdr app, with `herdr-app` on your `PATH`. CI loads it with `herdr-app check` on the five latest Herdr releases, the ones the badge above names; [RECIPE.md's Done when list](RECIPE.md#done-when) was last walked through by hand on **Herdr 0.1.15**. The install script checks no version.
 
 **With your agent.** Ask your agent in Herdr to add the mod at `github.com/shihyuho/herdr-recall`. It copies `mods/recall/` into place, adds the `⌘E` key from [`keys.json`](keys.json) to yours (asking first if you already use it), and runs `herdr-app check`.
 
