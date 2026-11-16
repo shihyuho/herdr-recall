@@ -1,0 +1,127 @@
+name: herdr-check-spike
+
+# SPIKE — throw away. Questions:
+# - Does `herdr-app check mods/recall` run on a GitHub macOS runner?
+# - On which Herdr versions does it pass?
+# - How long does each take?
+# - Does a broken copy fail, so a pass means something?
+on:
+  push:
+    branches: [spike/herdr-check-matrix]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        herdr: ["0.1.10", "0.1.11", "0.1.12", "0.1.13", "0.1.14", "0.1.15", "0.1.16"]
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ matrix.herdr }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download Herdr ${{ matrix.herdr }}
+        run: |
+          # The runner context isn't available in a job's env.
+          HERDR="$RUNNER_TEMP/herdr/Herdr.app/Contents/MacOS/Herdr"
+          HERDR_APP_HOME="$RUNNER_TEMP/home"
+          echo "HERDR=$HERDR" >> "$GITHUB_ENV"
+          echo "HERDR_APP_HOME=$HERDR_APP_HOME" >> "$GITHUB_ENV"
+          touch "$RUNNER_TEMP/recall.log" "$RUNNER_TEMP/broken.log"
+          mkdir -p "$RUNNER_TEMP/herdr" "$HERDR_APP_HOME"
+          curl -fsSL "https://releases.herdr.dev/app/$VERSION/herdr-app-macos-aarch64.tar.gz" -o "$RUNNER_TEMP/herdr.tar.gz"
+          shasum -a 256 "$RUNNER_TEMP/herdr.tar.gz"
+          tar -xzf "$RUNNER_TEMP/herdr.tar.gz" -C "$RUNNER_TEMP/herdr"
+          "$HERDR" --version
+
+      - name: Check mods/recall
+        id: recall
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          start=$(date +%s)
+          set +e
+          "$HERDR" check mods/recall 2>&1 | tee "$RUNNER_TEMP/recall.log"
+          status=${PIPESTATUS[0]}
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      # A misspelt call on the navigator's first render: if this passes too,
+      # a pass above proves nothing.
+      - name: A broken copy fails the check
+        id: broken
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          rm -rf "$RUNNER_TEMP/recall"
+          cp -R mods/recall "$RUNNER_TEMP/recall"
+          perl -0pi -e 's/  renderNavigator\(\) \{\n/  renderNavigator() {\n    div().not_a_real_call();\n/' "$RUNNER_TEMP/recall/main.js"
+          grep -n "not_a_real_call" "$RUNNER_TEMP/recall/main.js"
+          set +e
+          "$HERDR" check "$RUNNER_TEMP/recall" 2>&1 | tee "$RUNNER_TEMP/broken.log"
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          [ "$status" -ne 0 ]
+
+      - name: Record the result
+        if: always()
+        run: |
+          mkdir -p result
+          jq -n \
+            --arg version "$VERSION" \
+            --arg recall "${{ steps.recall.outcome }}" \
+            --arg recall_status "${{ steps.recall.outputs.status }}" \
+            --arg seconds "${{ steps.recall.outputs.seconds }}" \
+            --arg broken "${{ steps.broken.outcome }}" \
+            --arg broken_status "${{ steps.broken.outputs.status }}" \
+            --rawfile recall_log "$RUNNER_TEMP/recall.log" \
+            --rawfile broken_log "$RUNNER_TEMP/broken.log" \
+            '$ARGS.named' > "result/$VERSION.json"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: result-${{ matrix.herdr }}
+          path: result/
+
+  summary:
+    needs: check
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: result-*
+          merge-multiple: true
+          path: results
+      - name: Table
+        run: |
+          {
+            echo "## herdr-app check mods/recall"
+            echo
+            echo "| Herdr | Recall | seconds | broken copy |"
+            echo "| --- | --- | --- | --- |"
+            for f in $(ls results/*.json | sort -V); do
+              jq -r '"| \(.version) | \(if .recall == "success" then "✅ pass" else "❌ fail (exit \(.recall_status))" end) | \(.seconds) | \(if .broken == "success" then "fails, as it should" else "⚠️ passed (exit \(.broken_status))" end) |"' "$f"
+            done
+            echo
+            for f in $(ls results/*.json | sort -V); do
+              echo "<details><summary>$(jq -r .version "$f") logs</summary>"
+              echo
+              echo '```text'
+              jq -r '.recall_log' "$f" | tail -40
+              echo '--- broken copy:'
+              jq -r '.broken_log' "$f" | tail -20
+              echo '```'
+              echo
+              echo "</details>"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
