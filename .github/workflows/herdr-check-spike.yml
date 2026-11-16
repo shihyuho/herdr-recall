@@ -64,11 +64,15 @@ jobs:
           cp -R mods/recall "$RUNNER_TEMP/recall"
           perl -0pi -e 's/  renderNavigator\(\) \{\n/  renderNavigator() {\n    div().not_a_real_call();\n/' "$RUNNER_TEMP/recall/main.js"
           grep -n "not_a_real_call" "$RUNNER_TEMP/recall/main.js"
+          # A home of its own: before 0.1.14 a check kept the mod's shared
+          # state, so the first check's "recall.open" made this one toggle closed.
+          mkdir -p "$RUNNER_TEMP/home-broken"
           set +e
-          "$HERDR" check "$RUNNER_TEMP/recall" 2>&1 | tee "$RUNNER_TEMP/broken.log"
+          HERDR_APP_HOME="$RUNNER_TEMP/home-broken" "$HERDR" check "$RUNNER_TEMP/recall" 2>&1 | tee "$RUNNER_TEMP/broken.log"
           status=${PIPESTATUS[0]}
           echo "status=$status" >> "$GITHUB_OUTPUT"
-          [ "$status" -ne 0 ]
+          # Failing is not enough: it must fail on the misspelt call.
+          [ "$status" -ne 0 ] && grep -q "not_a_real_call" "$RUNNER_TEMP/broken.log"
 
       - name: Record the result
         if: always()
@@ -109,7 +113,7 @@ jobs:
             echo "| Herdr | Recall | seconds | broken copy |"
             echo "| --- | --- | --- | --- |"
             for f in $(ls results/*.json | sort -V); do
-              jq -r '"| \(.version) | \(if .recall == "success" then "✅ pass" else "❌ fail (exit \(.recall_status))" end) | \(.seconds) | \(if .broken == "success" then "fails, as it should" else "⚠️ passed (exit \(.broken_status))" end) |"' "$f"
+              jq -r '"| \(.version) | \(if .recall == "success" then "✅ pass" else "❌ fail (exit \(.recall_status))" end) | \(.seconds) | \(if .broken == "success" then "fails on the misspelt call" else "⚠️ not on the misspelt call (exit \(.broken_status))" end) |"' "$f"
             done
             echo
             for f in $(ls results/*.json | sort -V); do
