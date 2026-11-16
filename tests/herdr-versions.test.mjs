@@ -84,6 +84,19 @@ test("one version checked is a range of that version alone, and none is no range
   assert.deepEqual(report([], meta), { range: null, by_hand: BY_HAND, run: meta.run, checked_at: meta.at, versions: [] });
 });
 
+// A leg can die before it uploads its result.json; the versions job still
+// listed its version, and the reader must see it as not checked, never as
+// missing or passed. A leg that did upload keeps its own result.
+test("a listed version whose leg uploaded no result is published as not checked", () => {
+  const results = [leg("0.1.14", "pass", 4), leg("0.1.12", "fail", 3)];
+  assert.deepEqual(report(results, { ...meta, expected: ["0.1.16", "0.1.14", "0.1.13", "0.1.12"] }).versions, [
+    { version: "0.1.16", check: "unknown", seconds: null },
+    { version: "0.1.14", check: "pass", seconds: 4 },
+    { version: "0.1.13", check: "unknown", seconds: null },
+    { version: "0.1.12", check: "fail", seconds: 3 },
+  ]);
+});
+
 // Contract: badge() is the shields.io endpoint document the README's Herdr
 // badge reads. The reader acts on its message and color: which versions are
 // covered, and which to stay off.

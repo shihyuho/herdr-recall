@@ -19,14 +19,8 @@ const legs = (existsSync(resultsDir) ? readdirSync(resultsDir) : [])
   .filter((dir) => existsSync(join(dir, "result.json")))
   .map((dir) => ({ dir, ...JSON.parse(readFileSync(join(dir, "result.json"), "utf8")) }));
 
-// A leg that died before uploading still counts, as not checked.
-for (const version of JSON.parse(process.env.VERSIONS || "[]")) {
-  if (!legs.some((l) => l.version === version)) {
-    legs.push({ version, check: "unknown", seconds: null, broken: "no result uploaded" });
-  }
-}
-
 const results = report(legs, {
+  expected: JSON.parse(process.env.VERSIONS || "[]"),
   run: process.env.RUN_URL ?? null,
   at: new Date().toISOString().replace(/\.\d+Z$/, "Z"),
 });
@@ -36,7 +30,8 @@ writeFileSync(join(outDir, "herdr.json"), `${JSON.stringify(results, null, 2)}\n
 writeFileSync(join(outDir, "badge.json"), `${JSON.stringify(badge(results), null, 2)}\n`);
 
 const tail = (file, n) => (existsSync(file) ? readFileSync(file, "utf8").trimEnd().split("\n").slice(-n).join("\n") : "");
-const leg = (version) => legs.find((l) => l.version === version);
+// A leg that died before uploading has no entry: report() lists it as unknown.
+const leg = (version) => legs.find((l) => l.version === version) ?? { broken: "no result uploaded" };
 
 const summary = [
   "## herdr-app check mods/recall",

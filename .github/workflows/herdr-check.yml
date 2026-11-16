@@ -17,6 +17,14 @@ on:
 permissions:
   contents: read
 
+# One run at a time per ref, in arrival order; a newer pending run replaces an
+# older pending one. Legs take varying time, so without this an older run on
+# main could deploy after a newer one and roll the site back. Only a pull
+# request's run is cancelled mid-way: it never deploys.
+concurrency:
+  group: herdr-check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   versions:
     runs-on: ubuntu-latest
@@ -136,9 +144,9 @@ jobs:
           RECALL_EXIT=${RECALL_EXIT:-timeout} BROKEN_EXIT=${BROKEN_EXIT:-timeout}
           # How the broken copy failed, when it ran and failed.
           if [ "$BROKEN_NAMED" = true ]; then
-            failed="fails on the misspelt call"
+            broken_how="fails on the misspelt call"
           else
-            failed="fails, not on the misspelt call (exit $BROKEN_EXIT)"
+            broken_how="fails, not on the misspelt call (exit $BROKEN_EXIT)"
           fi
           if [ "$DOWNLOADED" != true ]; then
             check=unknown broken="not run: ${DOWNLOAD_FAILED:-no reason recorded}" RECALL_EXIT='' BROKEN_EXIT=''
@@ -147,11 +155,11 @@ jobs:
           elif [ "$BROKEN_EXIT" = 0 ]; then
             check=unknown broken="passed"
           elif [ "$RECALL_EXIT" != 0 ]; then
-            check=fail broken=$failed
+            check=fail broken=$broken_how
           elif [ "$BROKEN_NAMED" = true ]; then
-            check=pass broken=$failed
+            check=pass broken=$broken_how
           else
-            check=unknown broken=$failed
+            check=unknown broken=$broken_how
           fi
           jq -n \
             --arg version "$VERSION" \
@@ -238,8 +246,9 @@ jobs:
     permissions:
       pages: write
       id-token: write
-    # Let a newer deploy supersede an in-flight one, without cancelling a run
-    # mid-deploy.
+    # The run's own concurrency already orders this workflow's deploys; this
+    # keeps any other deploy to Pages from overlapping one, never cancelling
+    # a deploy mid-way.
     concurrency:
       group: pages
       cancel-in-progress: false

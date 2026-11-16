@@ -13,7 +13,7 @@ export const COUNT = 5;
 
 // COUNT as the site writes it.
 const IN_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
-const LATEST = `${IN_WORDS[COUNT] ?? COUNT} latest`;
+const COUNT_LATEST = `${IN_WORDS[COUNT] ?? COUNT} latest`;
 
 // The Herdr version RECIPE.md's Done when list was last walked through on by
 // hand, in the running app. Change it only after walking the list again; the
@@ -44,9 +44,14 @@ export function pickVersions(tags, { floor, latest, count }) {
 
 // The results document, published as herdr.json beside the page: each check
 // leg's result (extra fields dropped), newest first, and the range they span.
-// Its by_hand is BY_HAND, as the site's by-hand line is.
-export function report(results, { run, at }) {
-  const versions = results
+// Its by_hand is BY_HAND, as the site's by-hand line is. A version in
+// expected (the versions job's list) that no leg left a result for is
+// published as not checked.
+export function report(results, { expected = [], run, at }) {
+  const missing = expected
+    .filter((version) => !results.some((r) => r.version === version))
+    .map((version) => ({ version, check: "unknown", seconds: null }));
+  const versions = [...results, ...missing]
     .map(({ version, check, seconds }) => ({ version, check, seconds: seconds ?? null }))
     .sort((a, b) => compare(b.version, a.version));
   return { range: span(versions), by_hand: BY_HAND, run, checked_at: at, versions };
@@ -115,9 +120,9 @@ export function describe(results) {
   return {
     hero: range
       ? ["Checked on Herdr ", { b: range }, " · ", whichLink]
-      : [`Checked on the ${LATEST} Herdr releases · `, whichLink],
+      : [`Checked on the ${COUNT_LATEST} Herdr releases · `, whichLink],
     note: [
-      "CI runs ", CHECK, ` on the ${LATEST} releases`,
+      "CI runs ", CHECK, ` on the ${COUNT_LATEST} releases`,
       ...(results?.run ? [" · ", { a: "latest run", href: results.run }] : []),
     ],
     rows,
