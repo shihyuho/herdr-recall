@@ -1,0 +1,201 @@
+name: herdr-check
+
+# Load Recall the way Herdr does, with `herdr-app check`, on the five latest
+# Herdr releases at or above the floor (site/herdr-versions.js), in parallel
+# on macOS. Every leg also checks a copy with a misspelt call, which must
+# fail on that call: a pass means the check could have failed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Daily, so a new Herdr release is checked within a day of shipping.
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.pick.outputs.versions }}
+      latest: ${{ steps.pick.outputs.latest }}
+      sha256: ${{ steps.pick.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      # Tags from herdrdev/herdr-app, latest from releases.herdr.dev.
+      - id: pick
+        run: node .github/scripts/herdr-versions.mjs | tee -a "$GITHUB_OUTPUT"
+
+  check:
+    name: Herdr ${{ matrix.herdr }}
+    needs: versions
+    strategy:
+      fail-fast: false
+      matrix:
+        herdr: ${{ fromJSON(needs.versions.outputs.versions) }}
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ matrix.herdr }}
+      LATEST: ${{ needs.versions.outputs.latest }}
+      LATEST_SHA256: ${{ needs.versions.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download Herdr ${{ matrix.herdr }}
+        id: download
+        continue-on-error: true
+        run: |
+          # The runner context isn't available in a job's env.
+          echo "HERDR=$RUNNER_TEMP/herdr/Herdr.app/Contents/MacOS/Herdr" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/herdr" "$RUNNER_TEMP/result"
+          touch "$RUNNER_TEMP/result/recall.log" "$RUNNER_TEMP/result/broken.log"
+          curl -fsSL --retry 3 "https://releases.herdr.dev/app/$VERSION/herdr-app-macos-aarch64.tar.gz" -o "$RUNNER_TEMP/herdr.tar.gz"
+          # latest.json has a checksum for the latest release only.
+          sha=$(shasum -a 256 "$RUNNER_TEMP/herdr.tar.gz" | cut -d' ' -f1)
+          if [ "$VERSION" = "$LATEST" ]; then
+            if [ "$sha" != "$LATEST_SHA256" ]; then
+              echo "::error::sha256 $sha, latest.json says $LATEST_SHA256"
+              exit 1
+            fi
+            echo "sha256 $sha matches latest.json"
+          else
+            echo "sha256 $sha (latest.json has checksums for $LATEST only)"
+          fi
+          tar -xzf "$RUNNER_TEMP/herdr.tar.gz" -C "$RUNNER_TEMP/herdr"
+          "$RUNNER_TEMP/herdr/Herdr.app/Contents/MacOS/Herdr" --version
+
+      # Each check gets a fresh home: before 0.1.14 two checks in one home
+      # share the mod's state.
+      - name: Check mods/recall
+        id: recall
+        if: steps.download.outcome == 'success'
+        timeout-minutes: 5
+        run: |
+          start=$(date +%s)
+          set +e
+          HERDR_APP_HOME=$(mktemp -d "$RUNNER_TEMP/home.XXXXXX") "$HERDR" check mods/recall 2>&1 | tee "$RUNNER_TEMP/result/recall.log"
+          status=${PIPESTATUS[0]}
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+          echo "exit=$status" >> "$GITHUB_OUTPUT"
+
+      # A misspelt call at the start of renderNavigator, which check's empty
+      # props() always renders. It must fail, and on that call.
+      - name: Check a broken copy
+        id: broken
+        if: always() && steps.download.outcome == 'success'
+        timeout-minutes: 5
+        run: |
+          cp -R mods/recall "$RUNNER_TEMP/broken"
+          perl -0pi -e 's/  renderNavigator\(\) \{\n/  renderNavigator() {\n    div().not_a_real_call();\n/' "$RUNNER_TEMP/broken/main.js"
+          grep -n "not_a_real_call" "$RUNNER_TEMP/broken/main.js"
+          set +e
+          HERDR_APP_HOME=$(mktemp -d "$RUNNER_TEMP/home.XXXXXX") "$HERDR" check "$RUNNER_TEMP/broken" 2>&1 | tee "$RUNNER_TEMP/result/broken.log"
+          status=${PIPESTATUS[0]}
+          echo "exit=$status" >> "$GITHUB_OUTPUT"
+          if grep -q "not_a_real_call" "$RUNNER_TEMP/result/broken.log"; then
+            echo "named=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "named=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # pass: the mod passed and the broken copy failed on the misspelt call.
+      # unknown: no download, or the broken copy didn't fail on that call, so
+      # this check couldn't tell. fail: the mod failed (or hung in) a check
+      # that can fail.
+      - name: Record the result
+        id: record
+        if: always()
+        env:
+          DOWNLOADED: ${{ steps.download.outcome == 'success' }}
+          RECALL_EXIT: ${{ steps.recall.outputs.exit }}
+          SECONDS_TAKEN: ${{ steps.recall.outputs.seconds }}
+          BROKEN_EXIT: ${{ steps.broken.outputs.exit }}
+          BROKEN_NAMED: ${{ steps.broken.outputs.named }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/result"
+          touch "$RUNNER_TEMP/result/recall.log" "$RUNNER_TEMP/result/broken.log"
+          # No exit means the step ran out of time.
+          RECALL_EXIT=${RECALL_EXIT:-timeout} BROKEN_EXIT=${BROKEN_EXIT:-timeout}
+          if [ "$DOWNLOADED" != true ]; then
+            check=unknown broken="not run" RECALL_EXIT='' BROKEN_EXIT=''
+          elif [ "$BROKEN_EXIT" = 0 ]; then
+            check=unknown broken="passed"
+          elif [ "$RECALL_EXIT" != 0 ]; then
+            check=fail
+            if [ "$BROKEN_NAMED" = true ]; then broken="fails on the misspelt call"; else broken="fails, not on the misspelt call (exit $BROKEN_EXIT)"; fi
+          elif [ "$BROKEN_NAMED" = true ]; then
+            check=pass broken="fails on the misspelt call"
+          else
+            check=unknown broken="fails, not on the misspelt call (exit $BROKEN_EXIT)"
+          fi
+          jq -n \
+            --arg version "$VERSION" \
+            --arg check "$check" \
+            --argjson seconds "${SECONDS_TAKEN:-null}" \
+            --arg broken "$broken" \
+            --arg recall_exit "$RECALL_EXIT" \
+            --arg broken_exit "$BROKEN_EXIT" \
+            '{version: $version, check: $check, seconds: $seconds, broken: $broken, recall_exit: $recall_exit, broken_exit: $broken_exit}' \
+            | tee "$RUNNER_TEMP/result/result.json"
+          echo "check=$check" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: result-${{ matrix.herdr }}
+          path: ${{ runner.temp }}/result/
+
+      - name: Pass only on pass
+        if: always()
+        env:
+          CHECK: ${{ steps.record.outputs.check }}
+        run: |
+          if [ "$CHECK" != pass ]; then
+            echo "::error::Herdr $VERSION: ${CHECK:-unknown}"
+            exit 1
+          fi
+
+  summary:
+    needs: check
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: result-*
+          path: results
+      - name: Table
+        run: |
+          shopt -s nullglob
+          files=(results/*/result.json)
+          {
+            echo "## herdr-app check mods/recall"
+            echo
+            echo "| Herdr | Recall | seconds | broken copy |"
+            echo "| --- | --- | --- | --- |"
+            if [ ${#files[@]} -gt 0 ]; then
+              jq -rs 'sort_by(.version | split(".") | map(tonumber)) | reverse | .[]
+                | "| \(.version) | \({pass: "✅ pass", fail: "❌ fail", unknown: "⚠️ unknown"}[.check]) | \(.seconds // "–") | \(.broken) |"' "${files[@]}"
+            fi
+            echo
+            for f in "${files[@]}"; do
+              dir=$(dirname "$f")
+              echo "<details><summary>$(jq -r .version "$f") logs</summary>"
+              echo
+              echo '```text'
+              tail -40 "$dir/recall.log" 2>/dev/null || true
+              echo '--- broken copy:'
+              tail -20 "$dir/broken.log" 2>/dev/null || true
+              echo '```'
+              echo
+              echo "</details>"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
