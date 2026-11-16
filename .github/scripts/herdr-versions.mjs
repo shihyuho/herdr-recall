@@ -4,10 +4,7 @@
 //   latest=0.1.16            latest.json's version
 //   sha256=...               latest.json's macOS checksum for it
 import { execFileSync } from "node:child_process";
-import { FLOOR, pickVersions } from "../../site/herdr-versions.js";
-
-// The free plan runs five macOS jobs at a time: five versions take as long as one.
-const COUNT = 5;
+import { COUNT, FLOOR, pickVersions } from "../../site/herdr-versions.js";
 
 const tags = execFileSync("git", ["ls-remote", "--tags", "https://github.com/herdrdev/herdr-app"], { encoding: "utf8" })
   .split("\n")
