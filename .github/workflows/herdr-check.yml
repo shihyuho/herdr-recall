@@ -1,8 +1,8 @@
 name: herdr-check
 
-# Load Recall the way Herdr does, with `herdr-app check`, on the five latest
-# Herdr releases at or above the floor (site/herdr-versions.js), in parallel
-# on macOS. Every leg also checks a copy with a misspelt call, which must
+# Load Recall the way Herdr does, with `herdr-app check`, on the latest
+# Herdr releases at or above the floor, as many as COUNT says (both in
+# site/herdr-versions.js), in parallel on macOS. Every leg also checks a copy with a misspelt call, which must
 # fail on that call: a pass means the check could have failed. On main it
 # also deploys the site (site/) to GitHub Pages, with the results beside it.
 on:
@@ -47,30 +47,34 @@ jobs:
       LATEST: ${{ needs.versions.outputs.latest }}
       LATEST_SHA256: ${{ needs.versions.outputs.sha256 }}
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Download Herdr ${{ matrix.herdr }}
-        id: download
-        continue-on-error: true
+      # First, so the result folder and its logs exist whatever fails later.
+      - name: Make the result folder
         run: |
           # The runner context isn't available in a job's env.
           echo "HERDR=$RUNNER_TEMP/herdr/Herdr.app/Contents/MacOS/Herdr" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/herdr" "$RUNNER_TEMP/result"
           touch "$RUNNER_TEMP/result/recall.log" "$RUNNER_TEMP/result/broken.log"
-          curl -fsSL --retry 3 "https://releases.herdr.dev/app/$VERSION/herdr-app-macos-aarch64.tar.gz" -o "$RUNNER_TEMP/herdr.tar.gz"
+
+      - uses: actions/checkout@v7
+
+      # On failure, `reason` says which part failed, for the summary.
+      - name: Download Herdr ${{ matrix.herdr }}
+        id: download
+        continue-on-error: true
+        run: |
+          failed() { echo "reason=$1" >> "$GITHUB_OUTPUT"; echo "::error::$1"; exit 1; }
+          curl -fsSL --retry 3 "https://releases.herdr.dev/app/$VERSION/herdr-app-macos-aarch64.tar.gz" -o "$RUNNER_TEMP/herdr.tar.gz" \
+            || failed "download failed"
           # latest.json has a checksum for the latest release only.
           sha=$(shasum -a 256 "$RUNNER_TEMP/herdr.tar.gz" | cut -d' ' -f1)
           if [ "$VERSION" = "$LATEST" ]; then
-            if [ "$sha" != "$LATEST_SHA256" ]; then
-              echo "::error::sha256 $sha, latest.json says $LATEST_SHA256"
-              exit 1
-            fi
+            [ "$sha" = "$LATEST_SHA256" ] || failed "sha256 $sha, latest.json says $LATEST_SHA256"
             echo "sha256 $sha matches latest.json"
           else
             echo "sha256 $sha (latest.json has checksums for $LATEST only)"
           fi
-          tar -xzf "$RUNNER_TEMP/herdr.tar.gz" -C "$RUNNER_TEMP/herdr"
-          "$RUNNER_TEMP/herdr/Herdr.app/Contents/MacOS/Herdr" --version
+          tar -xzf "$RUNNER_TEMP/herdr.tar.gz" -C "$RUNNER_TEMP/herdr" || failed "extract failed"
+          "$HERDR" --version || failed "Herdr --version failed"
 
       # Each check gets a fresh home: before 0.1.14 two checks in one home
       # share the mod's state.
@@ -95,7 +99,13 @@ jobs:
         run: |
           cp -R mods/recall "$RUNNER_TEMP/broken"
           perl -0pi -e 's/  renderNavigator\(\) \{\n/  renderNavigator() {\n    div().not_a_real_call();\n/' "$RUNNER_TEMP/broken/main.js"
-          grep -n "not_a_real_call" "$RUNNER_TEMP/broken/main.js"
+          # No misspelt call means renderNavigator's first line changed shape.
+          if ! grep -n "not_a_real_call" "$RUNNER_TEMP/broken/main.js"; then
+            echo "made=false" >> "$GITHUB_OUTPUT"
+            echo "::error::couldn't make the broken copy: no renderNavigator() { line in main.js"
+            exit 1
+          fi
+          echo "made=true" >> "$GITHUB_OUTPUT"
           set +e
           HERDR_APP_HOME=$(mktemp -d "$RUNNER_TEMP/home.XXXXXX") "$HERDR" check "$RUNNER_TEMP/broken" 2>&1 | tee "$RUNNER_TEMP/result/broken.log"
           status=${PIPESTATUS[0]}
@@ -107,34 +117,41 @@ jobs:
           fi
 
       # pass: the mod passed and the broken copy failed on the misspelt call.
-      # unknown: no download, or the broken copy didn't fail on that call, so
-      # this check couldn't tell. fail: the mod failed (or hung in) a check
-      # that can fail.
+      # unknown: no download, no broken copy, or the broken copy didn't fail
+      # on that call, so this check couldn't tell. fail: the mod failed (or
+      # hung in) a check that can fail.
       - name: Record the result
         id: record
         if: always()
         env:
           DOWNLOADED: ${{ steps.download.outcome == 'success' }}
+          DOWNLOAD_FAILED: ${{ steps.download.outputs.reason }}
           RECALL_EXIT: ${{ steps.recall.outputs.exit }}
           SECONDS_TAKEN: ${{ steps.recall.outputs.seconds }}
           BROKEN_EXIT: ${{ steps.broken.outputs.exit }}
+          BROKEN_MADE: ${{ steps.broken.outputs.made }}
           BROKEN_NAMED: ${{ steps.broken.outputs.named }}
         run: |
-          mkdir -p "$RUNNER_TEMP/result"
-          touch "$RUNNER_TEMP/result/recall.log" "$RUNNER_TEMP/result/broken.log"
           # No exit means the step ran out of time.
           RECALL_EXIT=${RECALL_EXIT:-timeout} BROKEN_EXIT=${BROKEN_EXIT:-timeout}
+          # How the broken copy failed, when it ran and failed.
+          if [ "$BROKEN_NAMED" = true ]; then
+            failed="fails on the misspelt call"
+          else
+            failed="fails, not on the misspelt call (exit $BROKEN_EXIT)"
+          fi
           if [ "$DOWNLOADED" != true ]; then
-            check=unknown broken="not run" RECALL_EXIT='' BROKEN_EXIT=''
+            check=unknown broken="not run: ${DOWNLOAD_FAILED:-no reason recorded}" RECALL_EXIT='' BROKEN_EXIT=''
+          elif [ "$BROKEN_MADE" != true ]; then
+            check=unknown broken="couldn't make the broken copy" BROKEN_EXIT=''
           elif [ "$BROKEN_EXIT" = 0 ]; then
             check=unknown broken="passed"
           elif [ "$RECALL_EXIT" != 0 ]; then
-            check=fail
-            if [ "$BROKEN_NAMED" = true ]; then broken="fails on the misspelt call"; else broken="fails, not on the misspelt call (exit $BROKEN_EXIT)"; fi
+            check=fail broken=$failed
           elif [ "$BROKEN_NAMED" = true ]; then
-            check=pass broken="fails on the misspelt call"
+            check=pass broken=$failed
           else
-            check=unknown broken="fails, not on the misspelt call (exit $BROKEN_EXIT)"
+            check=unknown broken=$failed
           fi
           jq -n \
             --arg version "$VERSION" \
@@ -174,6 +191,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ON_MAIN: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    # deploy reads it, so main-only is written once.
+    outputs:
+      on_main: ${{ env.ON_MAIN }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -204,8 +224,6 @@ jobs:
       - name: Put the documents at the site's root
         if: env.ON_MAIN == 'true'
         run: cp "$RUNNER_TEMP/documents/herdr.json" "$RUNNER_TEMP/documents/badge.json" site/
-      - uses: actions/configure-pages@v6
-        if: env.ON_MAIN == 'true'
       - uses: actions/upload-pages-artifact@v5
         if: env.ON_MAIN == 'true'
         with:
@@ -215,7 +233,7 @@ jobs:
   # site goes out with this run's results, and only this job may write Pages.
   deploy:
     needs: publish
-    if: ${{ !cancelled() && needs.publish.result == 'success' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.on_main == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -229,6 +247,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # Here, not in publish: it reads the repo's Pages settings, which takes
+      # this job's pages permission.
+      - uses: actions/configure-pages@v6
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
