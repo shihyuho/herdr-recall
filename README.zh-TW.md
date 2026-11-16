@@ -9,7 +9,7 @@
 <p align="center"><strong>那個 agent 剛剛在哪個 tab？</strong></p>
 
 <p align="center">
-  <a href="https://herdr.dev/"><img src="https://img.shields.io/badge/Herdr_mod-tested_with_0.1.15-df372b" alt="Herdr mod, tested with 0.1.15"></a>
+  <a href="https://github.com/shihyuho/herdr-recall/actions/workflows/herdr-check.yml"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fshihyuho.github.io%2Fherdr-recall%2Fbadge.json" alt="Herdr mod，CI 檢查過的 Herdr 版本"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://shihyuho.github.io/herdr-recall/"><img src="https://img.shields.io/badge/live_demo-df372b" alt="Live demo"></a>
 </p>
@@ -30,7 +30,7 @@
 
 ## Install
 
-Recall 需要 Herdr app，而且 `herdr-app` 要在 `PATH` 上。它是用 **Herdr 0.1.15** 測試的；這是試過的版本，不是最低版本，安裝腳本也不會檢查版本。
+Recall 需要 Herdr app，而且 `herdr-app` 要在 `PATH` 上。CI 會在 Herdr 最新的五個版本上用 `herdr-app check` 載入它，也就是上方徽章列出的那些版本；[RECIPE.md 的 Done when 清單](RECIPE.md#done-when)最近一次是在 **Herdr 0.1.15** 上親手逐項走過。安裝腳本不會檢查版本。
 
 **請 agent 安裝。** 請 Herdr 裡的 agent 加入 `github.com/shihyuho/herdr-recall` 這個 mod。它會把 `mods/recall/` 複製到位、把 [`keys.json`](keys.json) 裡的 `⌘E` 加進你的按鍵設定（如果你已經在用這個鍵，會先問你），並執行 `herdr-app check`。
 

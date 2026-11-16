@@ -6,7 +6,7 @@
 // one people use, or runs past the cap.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pickVersions } from "../site/herdr-versions.js";
+import { badge, pickVersions, report } from "../site/herdr-versions.js";
 
 // What `git ls-remote --tags` prints: "<sha>\t<ref>", annotated tags twice.
 const lsRemote = (...refs) => refs.map((ref, i) => `${String(i).padStart(40, "0")}\t${ref}`);
@@ -53,4 +53,64 @@ test("exactly count versions are checked, the newest ones, when more are in rang
 
 test("fewer than count are checked when the floor leaves fewer", () => {
   assert.deepEqual(pickVersions(herdrTags, { floor: "0.1.14", latest: "0.1.16", count: 5 }), ["0.1.16", "0.1.15", "0.1.14"]);
+});
+
+// Contract: report() is the results document published as herdr.json, which
+// the badge and the site read. Its input is the check legs' result.json files,
+// in whatever order the artifacts download; extra fields stay out.
+const leg = (version, check, seconds) => ({ version, check, seconds, broken: "fails on the misspelt call", recall_exit: "0", broken_exit: "1" });
+const meta = { byHand: "0.1.15", run: "https://github.com/shihyuho/herdr-recall/actions/runs/7", at: "2026-11-16T03:21:02Z" };
+
+test("the results document names the range, oldest to newest, and lists versions newest first", () => {
+  const results = [leg("0.1.9", "pass", 2), leg("0.1.12", "fail", 3), leg("0.1.10", "unknown", null), leg("0.1.11", "pass", 1)];
+  assert.deepEqual(report(results, meta), {
+    range: "0.1.9 – 0.1.12",
+    by_hand: "0.1.15",
+    run: "https://github.com/shihyuho/herdr-recall/actions/runs/7",
+    checked_at: "2026-11-16T03:21:02Z",
+    versions: [
+      { version: "0.1.12", check: "fail", seconds: 3 },
+      { version: "0.1.11", check: "pass", seconds: 1 },
+      { version: "0.1.10", check: "unknown", seconds: null },
+      { version: "0.1.9", check: "pass", seconds: 2 },
+    ],
+  });
+});
+
+test("one version checked is a range of that version alone, and none is no range", () => {
+  assert.equal(report([leg("0.1.16", "pass", 5)], meta).range, "0.1.16");
+  assert.deepEqual(report([], meta), { range: null, by_hand: "0.1.15", run: meta.run, checked_at: meta.at, versions: [] });
+});
+
+// Contract: badge() is the shields.io endpoint document the README's Herdr
+// badge reads. The reader acts on its message and color: which versions are
+// covered, and which to stay off.
+const doc = (...versions) => report(versions.map(([v, check]) => leg(v, check, 1)), meta);
+
+test("badge: every version passing shows the range in Herdr's red", () => {
+  assert.deepEqual(badge(doc(["0.1.16", "pass"], ["0.1.12", "pass"], ["0.1.14", "pass"])), {
+    schemaVersion: 1, label: "Herdr mod", message: "0.1.12 – 0.1.16", color: "df372b",
+  });
+});
+
+test("badge: a failing version is named, newest first, and the badge turns orange", () => {
+  assert.deepEqual(badge(doc(["0.1.12", "fail"], ["0.1.16", "fail"], ["0.1.14", "pass"])), {
+    schemaVersion: 1, label: "Herdr mod", message: "0.1.12 – 0.1.16 · fails on 0.1.16, 0.1.12", color: "orange",
+  });
+});
+
+test("badge: an unchecked version beside passes is named, and the badge turns grey", () => {
+  assert.deepEqual(badge(doc(["0.1.16", "unknown"], ["0.1.12", "pass"])), {
+    schemaVersion: 1, label: "Herdr mod", message: "0.1.12 – 0.1.16 · 0.1.16 not checked", color: "lightgrey",
+  });
+});
+
+test("badge: a failure outranks an unchecked version, and both are named", () => {
+  assert.deepEqual(badge(doc(["0.1.16", "unknown"], ["0.1.14", "fail"], ["0.1.12", "pass"])), {
+    schemaVersion: 1, label: "Herdr mod", message: "0.1.12 – 0.1.16 · fails on 0.1.14 · 0.1.16 not checked", color: "orange",
+  });
+});
+
+test("badge: no version checked reads not checked, in grey", () => {
+  assert.deepEqual(badge(doc()), { schemaVersion: 1, label: "Herdr mod", message: "not checked", color: "lightgrey" });
 });

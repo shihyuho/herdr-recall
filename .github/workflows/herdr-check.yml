@@ -3,7 +3,8 @@ name: herdr-check
 # Load Recall the way Herdr does, with `herdr-app check`, on the five latest
 # Herdr releases at or above the floor (site/herdr-versions.js), in parallel
 # on macOS. Every leg also checks a copy with a misspelt call, which must
-# fail on that call: a pass means the check could have failed.
+# fail on that call: a pass means the check could have failed. On main it
+# also deploys the site (site/) to GitHub Pages, with the results beside it.
 on:
   push:
     branches: [main]
@@ -162,40 +163,72 @@ jobs:
             exit 1
           fi
 
-  summary:
-    needs: check
-    if: always()
+  # Every run: the results document (herdr.json) and the README badge's
+  # endpoint document (badge.json) from the legs' results, and the summary
+  # table. Runs when legs failed too, so a failing version is published as
+  # failing. A pull request keeps the documents as this run's artifact; main
+  # puts them at the site's root and hands the site to deploy.
+  publish:
+    needs: [versions, check]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    env:
+      ON_MAIN: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      # No leg uploads when the versions job failed; the documents then say
+      # not checked.
       - uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
           pattern: result-*
-          path: results
-      - name: Table
-        run: |
-          shopt -s nullglob
-          files=(results/*/result.json)
-          {
-            echo "## herdr-app check mods/recall"
-            echo
-            echo "| Herdr | Recall | seconds | broken copy |"
-            echo "| --- | --- | --- | --- |"
-            if [ ${#files[@]} -gt 0 ]; then
-              jq -rs 'sort_by(.version | split(".") | map(tonumber)) | reverse | .[]
-                | "| \(.version) | \({pass: "✅ pass", fail: "❌ fail", unknown: "⚠️ unknown"}[.check]) | \(.seconds // "–") | \(.broken) |"' "${files[@]}"
-            fi
-            echo
-            for f in "${files[@]}"; do
-              dir=$(dirname "$f")
-              echo "<details><summary>$(jq -r .version "$f") logs</summary>"
-              echo
-              echo '```text'
-              tail -40 "$dir/recall.log" 2>/dev/null || true
-              echo '--- broken copy:'
-              tail -20 "$dir/broken.log" 2>/dev/null || true
-              echo '```'
-              echo
-              echo "</details>"
-            done
-          } >> "$GITHUB_STEP_SUMMARY"
-          cat "$GITHUB_STEP_SUMMARY"
+          path: ${{ runner.temp }}/results
+      - name: Build the documents and the summary
+        env:
+          VERSIONS: ${{ needs.versions.outputs.versions }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node .github/scripts/herdr-publish.mjs "$RUNNER_TEMP/results" "$RUNNER_TEMP/documents"
+
+      - uses: actions/upload-artifact@v7
+        if: env.ON_MAIN != 'true'
+        with:
+          name: herdr-documents
+          path: ${{ runner.temp }}/documents/
+
+      # site/lib, site/icons, site/favicon.svg and site/preview.png are
+      # symlinks into the repo, which upload-pages-artifact dereferences, so
+      # the demo ships the mod's own lib/.
+      - name: Put the documents at the site's root
+        if: env.ON_MAIN == 'true'
+        run: cp "$RUNNER_TEMP/documents/herdr.json" "$RUNNER_TEMP/documents/badge.json" site/
+      - uses: actions/configure-pages@v6
+        if: env.ON_MAIN == 'true'
+      - uses: actions/upload-pages-artifact@v5
+        if: env.ON_MAIN == 'true'
+        with:
+          path: site
+
+  # Main only, never a pull request: a deploy replaces the whole site, so the
+  # site goes out with this run's results, and only this job may write Pages.
+  deploy:
+    needs: publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    # Let a newer deploy supersede an in-flight one, without cancelling a run
+    # mid-deploy.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
